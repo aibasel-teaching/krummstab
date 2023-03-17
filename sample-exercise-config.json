@@ -1,0 +1,37 @@
+{
+    "---Individual settings---": "",
+
+    "your_name": "meret",
+    "ignore_feedback_suffix": [ ".xopp" ],
+
+    "---Email settings---": "currently optional",
+
+    "your_email": "meret.muster@unibas.ch",
+    "feedback_email_cc": [ "maria.muster@unibas.ch",  "max.muster@unibas.ch", "meret.muster@unibas.ch" ],
+    "smtp_url": "smtp-ext.unibas.ch",
+    "smtp_port": 587,
+    "smtp_user": "musmer00",
+
+    "---General settings---": "",
+
+    "lecture_title": "Foundations of Artificial Intelligence",
+    "marking_mode": "exercise",
+    "points_per": "exercise",
+    "min_point_unit": 0.25,
+    "tutor_list": [ "max", "maria", "meret" ],
+    "max_team_size": 3,
+    "teams": [
+        [
+            ["Silvan", "Sievers", "silvan.sievers@unibas.ch"],
+            ["Florian", "Pommerening", "florian.pommerening@unibas.ch"],
+            ["Salomé", "Eriksson", "salome.eriksson@unibas.ch"]
+        ],
+        [
+            ["Remo", "Christen", "remo.christen@unibas.ch"]
+        ],
+        [
+            ["Thomas", "Keller", "tho.keller@unibas.ch"],
+            ["Clemens", "Büchner", "clemens.buechner@unibas.ch"]
+        ]
+    ]
+}
