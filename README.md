@@ -1,4 +1,4 @@
-# ADAM Correction Script
+# ADAM Feedback Script
 The purpose of this script is to automate some of the menial steps involved in
 marking ADAM submissions.
 
@@ -28,7 +28,7 @@ example the directory will be called `ki-fs23-marking`. In this directory you
 place the `config.json` file you should have gotten from the teaching assistant,
 and fill in the individual settings with your own information, the relevant
 fields should be indicated in the file. Alternatively you can find a complete
-list [here](##-Individual-Settings). Make sure that the string you enter in the
+list [here](#individual-settings). Make sure that the string you enter in the
 field `your_name` exactly matches the existing entry in `tutor_list`.
 
 In general, it is important that the all configurations, besides the individual
