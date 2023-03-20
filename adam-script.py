@@ -14,7 +14,6 @@ import textwrap
 import typing
 
 from collections.abc import Iterator  # For typing.
-from PyPDF2 import PdfReader
 from zipfile import ZipFile
 
 # Needed for email stuff.
@@ -681,7 +680,7 @@ def generate_xopp_files() -> None:
     Generate xopp files in the feedback directories that point to the single PDF
     in the submission directory and skip if multiple PDF files exist.
     """
-
+    from PyPDF2 import PdfReader
     def write_to_file(f, string):
         f.write(textwrap.dedent(string))
 
