@@ -73,6 +73,24 @@ def is_email(email: str) -> bool:
     return type(email) is str and bool(re.match(r"[^@]+@[^@]+\.[^@]+", email))
 
 
+def is_macos_path(path: str) -> bool:
+    """
+    Check if the given path is non-essential file created by MacOS.
+    """
+    return "__MACOSX" in path or ".DS_Store" in path
+
+
+def filtered_extract(zip_file: ZipFile, dest: pathlib.Path) -> None:
+    """
+    Extract all files except for MACOS helper files.
+    """
+    zip_content = zip_file.namelist()
+    for file_path in zip_content:
+        if is_macos_path(file_path):
+            continue
+        zip_file.extract(file_path, dest)
+
+
 def move_content_and_delete(src: pathlib.Path, dst: pathlib.Path) -> None:
     """
     Move all content of src directory to dest directory.
@@ -458,10 +476,9 @@ def extract_adam_zip() -> tuple[pathlib.Path, str]:
                 "Extraction failed because the extraction path "
                 f"'{sheet_root_dir}' exists already!"
             )
-        zip_file.extractall(".")
+        filtered_extract(zip_file, pathlib.Path("."))
     # Flatten intermediate directory.
-    submissions_dir = pathlib.Path(zip_content[1])
-    move_content_and_delete(submissions_dir, sheet_root_dir)
+    move_content_and_delete(sheet_root_dir / "Abgaben", sheet_root_dir)
     # Store ADAM exercise sheet name to use as random seed.
     adam_sheet_name = sheet_root_dir.name
     if args.target:
@@ -604,7 +621,7 @@ def unzip_internal_zips() -> None:
             continue
         for zip_file in team_dir.glob("**/*.zip"):
             with ZipFile(zip_file, mode="r") as zf:
-                zf.extractall(zip_file.parent)
+                filtered_extract(zf, zip_file.parent)
             os.remove(zip_file)
         sub_dirs = list(team_dir.iterdir())
         if len(sub_dirs) == 1 and sub_dirs[0].is_dir():
