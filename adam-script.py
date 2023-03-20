@@ -468,7 +468,7 @@ def extract_adam_zip() -> tuple[pathlib.Path, str]:
     is given. This is done stupidly right now, it would be better to extract to
     a temporary folder and then move to once to the right location.
     """
-    if args.adam_zip_path.suffix == ".zip":
+    if args.adam_zip_path.is_file():
         # Unzip to the directory within the zip file.
         # Should be the name of the exercise sheet, for example "Exercise Sheet 2".
         with ZipFile(args.adam_zip_path, mode="r") as zip_file:
@@ -481,6 +481,7 @@ def extract_adam_zip() -> tuple[pathlib.Path, str]:
                 )
             filtered_extract(zip_file, pathlib.Path("."))
     else:
+        # Assume the directory is an extracted ADAM zip.
         sheet_root_dir = args.adam_zip_path
     # Flatten intermediate directory.
     move_content_and_delete(sheet_root_dir / "Abgaben", sheet_root_dir)
