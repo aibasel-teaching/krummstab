@@ -357,8 +357,10 @@ def archive_feedback(team_dir: pathlib.Path) -> None:
             in [".zip", ".xopp"] + args.ignore_feedback_suffix
         ]
         if len(to_zip) <= 0:
-            throw_error(f"Feedback archive for team {team_dir.name} is empty! "
-                         "Did you forget the '-x' flag to export .xopp files?")
+            throw_error(
+                f"Feedback archive for team {team_dir.name} is empty! "
+                "Did you forget the '-x' flag to export .xopp files?"
+            )
         for file_to_zip in to_zip:
             if file_to_zip.suffix == ".pdf":
                 feedback_contains_pdf = True
@@ -466,17 +468,20 @@ def extract_adam_zip() -> tuple[pathlib.Path, str]:
     is given. This is done stupidly right now, it would be better to extract to
     a temporary folder and then move to once to the right location.
     """
-    # Unzip to the directory within the zip file.
-    # Should be the name of the exercise sheet, for example "Exercise Sheet 2".
-    with ZipFile(args.adam_zip_path, mode="r") as zip_file:
-        zip_content = zip_file.namelist()
-        sheet_root_dir = pathlib.Path(zip_content[0])
-        if sheet_root_dir.exists():
-            throw_error(
-                "Extraction failed because the extraction path "
-                f"'{sheet_root_dir}' exists already!"
-            )
-        filtered_extract(zip_file, pathlib.Path("."))
+    if args.adam_zip_path.suffix == ".zip":
+        # Unzip to the directory within the zip file.
+        # Should be the name of the exercise sheet, for example "Exercise Sheet 2".
+        with ZipFile(args.adam_zip_path, mode="r") as zip_file:
+            zip_content = zip_file.namelist()
+            sheet_root_dir = pathlib.Path(zip_content[0])
+            if sheet_root_dir.exists():
+                throw_error(
+                    "Extraction failed because the extraction path "
+                    f"'{sheet_root_dir}' exists already!"
+                )
+            filtered_extract(zip_file, pathlib.Path("."))
+    else:
+        sheet_root_dir = args.adam_zip_path
     # Flatten intermediate directory.
     move_content_and_delete(sheet_root_dir / "Abgaben", sheet_root_dir)
     # Store ADAM exercise sheet name to use as random seed.
@@ -648,9 +653,7 @@ def create_marks_file() -> None:
         marks_dict.update({team_dir.name: exercise_dict})
 
     with open(args.sheet_root_dir / MARKS_FILE_NAME, "w") as marks_json:
-        json.dump(
-            marks_dict, marks_json, indent=4, ensure_ascii=False
-        )
+        json.dump(marks_dict, marks_json, indent=4, ensure_ascii=False)
 
 
 def create_feedback_directories() -> None:
@@ -698,6 +701,7 @@ def generate_xopp_files() -> None:
     in the submission directory and skip if multiple PDF files exist.
     """
     from PyPDF2 import PdfReader
+
     def write_to_file(f, string):
         f.write(textwrap.dedent(string))
 
