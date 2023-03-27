@@ -489,7 +489,6 @@ def extract_adam_zip() -> tuple[pathlib.Path, str]:
     adam_sheet_name = sheet_root_dir.name
     if args.target:
         target_path = pathlib.Path(args.target)
-        assert not target_path.exists()
         if target_path.exists():
             throw_error(
                 f"Extraction failed because the path '{target_path}' "
@@ -537,6 +536,19 @@ def get_adam_id_to_team_dict() -> dict[str, Team]:
             for team in args.teams
             if any(submission_email in student for student in team)
         ]
+        if len(team) == 0:
+            throw_error(
+                f"The student with the email '{submission_email}' is not "
+                 "assigned to a team. Your config file is likely out of date."
+                 "\n"
+                 "Please update the config file such that it reflects the team "
+                 "assignments of this week correctly and share the updated "
+                 "config file with your fellow tutors and the teaching "
+                 "assistant."
+            )
+        # The case that a student is assigned to multiple teams would already be
+        # caught when reading in the config file, so we just assert that this is
+        # not the case here.
         assert len(team) == 1
         adam_id_to_team.update({team_id: team[0]})
         team_dir = pathlib.Path(
@@ -919,6 +931,8 @@ def validate_teams(teams: list[Team]) -> None:
     predictable, independent of their order in config.json.
     """
     assert type(teams) is list
+    all_students: list[tuple[str, str]] = []
+    all_emails: list[str] = []
     for team in teams:
         team.sort()
         assert len(team) <= args.max_team_size
@@ -926,11 +940,14 @@ def validate_teams(teams: list[Team]) -> None:
         assert all(type(first_name) is str for first_name in first_names)
         assert all(type(last_name) is str for last_name in last_names)
         assert all(is_email(email) for email in emails)
-        students = list(zip(first_names, last_names))
-        assert len(students) == len(
-            set(students)
-        ), "There are duplicate students!"
-        assert len(emails) == len(set(emails)), "There are duplicate emails!"
+        all_students += list(zip(first_names, last_names))
+        all_emails += emails
+    if len(all_students) != len(set(all_students)):
+        throw_error("There are duplicate students in the config file!")
+    if len(all_emails) != len(set(all_emails)):
+        throw_error(
+            "There are duplicate student emails in the config file!"
+        )
     teams.sort()
 
 
