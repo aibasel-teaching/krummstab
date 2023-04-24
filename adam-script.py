@@ -1202,9 +1202,5 @@ if __name__ == "__main__":
         " \033[0;32m:)\033[0m"
     )
 
-# TODO: Ignore/delete Apple store files. e.g. folder "__MACOSX"
-# TODO: Before collecting, check whether all feedback consists of a single PDF
-#       file. If yes, don't zip the feedback.
-
 # Only in Python 3.7+ are dicts order preserving, using older Pythons may cause
 # the random assignments to not match up.
