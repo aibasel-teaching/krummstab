@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 import argparse
 import hashlib
 import json
@@ -11,10 +12,12 @@ import shutil
 import subprocess
 import sys
 import textwrap
-import typing
 
-from collections.abc import Iterator  # For typing.
 from zipfile import ZipFile
+
+# For typing annotations.
+from typing import Any, Union
+from collections.abc import Iterator
 
 # Needed for email stuff.
 import smtplib
@@ -24,21 +27,32 @@ from getpass import getpass
 
 Student = tuple[str, str, str]
 Team = list[Student]
-Data = dict[str, typing.Any]
 
-DEFAULT_CONFIG_FILE = "config.json"
+DEFAULT_SHARED_CONFIG_FILE = "config-shared.json"
+DEFAULT_INDIVIDUAL_CONFIG_FILE = "config-individual.json"
 DO_NOT_MARK_PREFIX = "DO_NOT_MARK_"
 FEEDBACK_DIR_NAME = "feedback"
 FEEDBACK_ARCHIVE_NAME = "feedback.zip"
 FEEDBACK_ARCHIVE_PATH = pathlib.Path(FEEDBACK_DIR_NAME, FEEDBACK_ARCHIVE_NAME)
 SHEET_INFO_FILE_NAME = ".sheet_info"
 MARKS_FILE_NAME = "points.json"
+PRINT_INDENT_WIDTH = 4
 
 # Might be necessary to make colored output work on Windows.
 os.system("")
 
 
 # ============================= Utility Functions ==============================
+
+
+def print_indented(text: str) -> None:
+    """
+    Print a message that belongs to a previously printed info or warning
+    message.
+    """
+    print(" " * PRINT_INDENT_WIDTH + text)
+
+
 def print_info(text: str, bare: bool = False) -> None:
     """
     Print an info message with or without leading '[Info]'.
@@ -141,6 +155,8 @@ def team_to_string(team: Team) -> str:
 
 
 # ============================== Send Sub-Command ==============================
+
+
 def add_attachment(mail: EmailMessage, path: pathlib.Path) -> None:
     """
     Add a file as attachment to an email.
@@ -274,6 +290,8 @@ def send() -> None:
 
 
 # ============================ Collect Sub-Command =============================
+
+
 def validate_marks_json() -> None:
     """
     Verify that all necessary marks are present in the MARK_FILE_NAME file and
@@ -462,6 +480,8 @@ def collect() -> None:
 
 
 # ============================== Init Sub-Command ==============================
+
+
 def extract_adam_zip() -> tuple[pathlib.Path, str]:
     """
     Unzips the given ADAM zip file and renames the directory to *target* if one
@@ -539,12 +559,12 @@ def get_adam_id_to_team_dict() -> dict[str, Team]:
         if len(team) == 0:
             throw_error(
                 f"The student with the email '{submission_email}' is not "
-                 "assigned to a team. Your config file is likely out of date."
-                 "\n"
-                 "Please update the config file such that it reflects the team "
-                 "assignments of this week correctly and share the updated "
-                 "config file with your fellow tutors and the teaching "
-                 "assistant."
+                "assigned to a team. Your config file is likely out of date."
+                "\n"
+                "Please update the config file such that it reflects the team "
+                "assignments of this week correctly and share the updated "
+                "config file with your fellow tutors and the teaching "
+                "assistant."
             )
         # The case that a student is assigned to multiple teams would already be
         # caught when reading in the config file, so we just assert that this is
@@ -650,7 +670,7 @@ def create_marks_file() -> None:
     """
     Write a json file to add the marks for all relevant teams and exercises.
     """
-    exercise_dict: typing.Union[str, dict[str, str]] = ""
+    exercise_dict: Union[str, dict[str, str]] = ""
     if args.points_per == "exercise":
         if args.marking_mode == "static" or args.marking_mode == "random":
             exercise_dict = {
@@ -780,7 +800,7 @@ def create_sheet_info_file(
     'collect', or 'send') are meant to load the information stored in this file
     into the 'args' object and access it that way.
     """
-    info_dict: dict[str, typing.Union[str, dict[str, Team]]] = {}
+    info_dict: dict[str, Union[str, dict[str, Team]]] = {}
     # Build the dict from team directory names to teams.
     team_dir_to_team = {}
     for team_dir in args.sheet_root_dir.iterdir():
@@ -822,7 +842,7 @@ def print_missing_submissions(adam_id_to_team: dict[str, Team]) -> None:
     if missing_teams:
         print_info("There are no submissions for the following team(s):")
         for missing_team in missing_teams:
-            print_info(f"    {team_to_string(missing_team)}", True)
+            print_indented(f"{team_to_string(missing_team)}")
 
 
 def init() -> None:
@@ -924,6 +944,8 @@ def init() -> None:
 
 
 # ============================= Config Processing ==============================
+
+
 def validate_teams(teams: list[Team]) -> None:
     """
     Verify that teams and its (first_name, last_name, email) triples are well
@@ -945,13 +967,11 @@ def validate_teams(teams: list[Team]) -> None:
     if len(all_students) != len(set(all_students)):
         throw_error("There are duplicate students in the config file!")
     if len(all_emails) != len(set(all_emails)):
-        throw_error(
-            "There are duplicate student emails in the config file!"
-        )
+        throw_error("There are duplicate student emails in the config file!")
     teams.sort()
 
 
-def process_static_config(data: Data) -> None:
+def process_static_config(data: dict[str, Any]) -> None:
     """
     Extracts and checks the config values necessary for the static correction
     marking mode.
@@ -966,10 +986,10 @@ def process_static_config(data: Data) -> None:
     add_to_args("teams", teams)
 
 
-def process_dynamic_config(data: Data) -> None:
+def process_dynamic_config(data: dict[str, Any]) -> None:
     """
     Extract and check the config values necessary for the dynamic correction
-    marking modes, i.e., random and exercise.
+    marking modes, i.e., 'random' and 'exercise'.
     """
     tutor_list = data["tutor_list"]
     assert type(tutor_list) is list
@@ -982,17 +1002,20 @@ def process_dynamic_config(data: Data) -> None:
     add_to_args("teams", teams)
 
 
-def process_general_config(data: Data) -> None:
+def process_general_config(
+    data_individual: dict[str, Any], data_shared: dict[str, Any]
+) -> None:
     """
     Extract and check config values that are necessary in all marking modes.
+    This includes both individual and shared settings.
     """
     # Individual settings
-    tutor_name = data["your_name"]
+    tutor_name = data_individual["your_name"]
     assert type(tutor_name) is str
     add_to_args("tutor_name", tutor_name)
 
     # Use `get` because this config setting is optional.
-    ignore_feedback_suffix = data.get("ignore_feedback_suffix", [])
+    ignore_feedback_suffix = data_individual.get("ignore_feedback_suffix", [])
     assert type(ignore_feedback_suffix) is list
     assert all(
         type(suffix) is str and suffix[0] == "."
@@ -1000,55 +1023,57 @@ def process_general_config(data: Data) -> None:
     )
     add_to_args("ignore_feedback_suffix", ignore_feedback_suffix)
 
-    # General settings
-    lecture_title = data["lecture_title"]
+    # Email settings, currently all optional because not fully functional
+    tutor_email = data_individual.get("your_email", "")
+    assert (tutor_email == "") or (
+        type(tutor_email) is str and is_email(tutor_email)
+    )
+    add_to_args("tutor_email", tutor_email)
+
+    feedback_email_cc = data_individual.get("feedback_email_cc", [])
+    assert type(feedback_email_cc) is list
+    assert (feedback_email_cc == []) or all(
+        type(email) is str and is_email(email) for email in feedback_email_cc
+    )
+    add_to_args("feedback_email_cc", feedback_email_cc)
+
+    smtp_url = data_individual.get("smtp_url", "smtp-ext.unibas.ch")
+    assert type(smtp_url) is str
+    add_to_args("smtp_url", smtp_url)
+
+    smtp_port = data_individual.get("smtp_port", 587)
+    assert type(smtp_port) is int
+    add_to_args("smtp_port", smtp_port)
+
+    smtp_user = data_individual.get("smtp_user", "")
+    assert type(smtp_user) is str
+    add_to_args("smtp_user", smtp_user)
+
+    # Shared settings
+    lecture_title = data_shared["lecture_title"]
     assert lecture_title and type(lecture_title) is str
     add_to_args("lecture_title", lecture_title)
 
-    marking_mode = data["marking_mode"]
+    marking_mode = data_shared["marking_mode"]
     assert marking_mode in ["static", "random", "exercise"]
     add_to_args("marking_mode", marking_mode)
 
-    max_team_size = data["max_team_size"]
+    max_team_size = data_shared["max_team_size"]
     assert type(max_team_size) is int and max_team_size > 0
     add_to_args("max_team_size", max_team_size)
 
-    points_per = data["points_per"]
+    points_per = data_shared["points_per"]
     assert type(points_per) is str
     assert points_per in ["sheet", "exercise"]
     add_to_args("points_per", points_per)
 
-    min_point_unit = data["min_point_unit"]
+    min_point_unit = data_shared["min_point_unit"]
     assert type(min_point_unit) is float or type(min_point_unit) is int
     assert min_point_unit > 0
     add_to_args("min_point_unit", min_point_unit)
 
-    # Email settings, currently all optional because not fully functional
-    tutor_email = data.get("your_email", "")
-    # assert type(tutor_email) is str and is_email(tutor_email)
-    add_to_args("tutor_email", tutor_email)
 
-    feedback_email_cc = data.get("feedback_email_cc", [])
-    assert type(feedback_email_cc) is list
-    # assert all(
-    #    type(email) is str and is_email(email) for email in feedback_email_cc
-    # )
-    add_to_args("feedback_email_cc", feedback_email_cc)
-
-    smtp_url = data.get("smtp_url", "smtp-ext.unibas.ch")
-    assert type(smtp_url) is str
-    add_to_args("smtp_url", smtp_url)
-
-    smtp_port = data.get("smtp_port", 587)
-    assert type(smtp_port) is int
-    add_to_args("smtp_port", smtp_port)
-
-    smtp_user = data.get("smtp_user", "")
-    assert type(smtp_user) is str
-    add_to_args("smtp_user", smtp_user)
-
-
-def add_to_args(key: str, value: typing.Any) -> None:
+def add_to_args(key: str, value: Any) -> None:
     """
     Settings defined in the config file are parsed, checked, and then added to
     the args object. Similar with information that is calculated using things
@@ -1059,6 +1084,8 @@ def add_to_args(key: str, value: typing.Any) -> None:
 
 
 # =============================== Main Function ================================
+
+
 if __name__ == "__main__":
     """
     This script uses the following, potentially ambiguous, terminology:
@@ -1072,13 +1099,23 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="")
     # Main command arguments ---------------------------------------------------
     parser.add_argument(
-        "-c",
-        "--config",
-        default=DEFAULT_CONFIG_FILE,
+        "-s",
+        "--config-shared",
+        default=DEFAULT_SHARED_CONFIG_FILE,
         type=pathlib.Path,
         help=(
-            "path to the json config file containing student/email list and"
-            " other settings"
+            "path to the json config file containing shared settings such as "
+            "the student/email list"
+        ),
+    )
+    parser.add_argument(
+        "-i",
+        "--config-individual",
+        default=DEFAULT_INDIVIDUAL_CONFIG_FILE,
+        type=pathlib.Path,
+        help=(
+            "path to the json config file containing individual settings such "
+            "as tutor name and email configuration"
         ),
     )
     parser.add_argument(
@@ -1174,10 +1211,18 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    # Get settings from config.
-    print_info("Processing config...")
-    with open(args.config, "r") as config_file:
-        data = json.load(config_file)
+    # Process config files =====================================================
+    print_info("Processing config:")
+    print_indented(f"Reading shared config file '{args.config_shared}'...")
+    with open(args.config_shared, "r") as config_file:
+        data_shared = json.load(config_file)
+    print_indented(
+        f"Reading individual config file '{args.config_individual}'..."
+    )
+    with open(args.config_individual, "r") as config_file:
+        data_individual = json.load(config_file)
+    assert data_shared.keys().isdisjoint(data_individual)
+
     # We currently plan to support the following marking modes.
     # static:   Every tutor corrects the submissions of the teams assigned to
     #           that tutor. These will usually be the teams in that tutors
@@ -1185,22 +1230,20 @@ if __name__ == "__main__":
     # random:   Every tutor corrects some submissions which are assigned
     #           randomly with every sheet.
     # exercise: Every tutor corrects some exercise(s) on all sheets.
-    process_general_config(data)
+    process_general_config(data_individual, data_shared)
 
     if args.marking_mode == "static":
-        process_static_config(data)
+        process_static_config(data_shared)
     else:
-        process_dynamic_config(data)
+        process_dynamic_config(data_shared)
     print_info("Processed config successfully.")
 
-    # Call the function associated with the selected sub-command, e.g.,
-    # init(args) or xopp(args).
+    # Execute subcommand =======================================================
     print_info(f"Running command '{args.sub_command}'...")
+    # This calls the function set as default in the parser.
+    # For example, `func` is set to `init` if the subcommand is "init".
     args.func()
-    print_info(
-        f"Command '{args.sub_command}' terminated successfully."
-        " \033[0;32m:)\033[0m"
-    )
+    print_info(f"Command '{args.sub_command}' terminated successfully. 🎉")
 
 # Only in Python 3.7+ are dicts order preserving, using older Pythons may cause
 # the random assignments to not match up.
