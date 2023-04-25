@@ -1,35 +1,56 @@
 # ADAM Feedback Script
+
 The purpose of this script is to automate some of the menial steps involved in
 marking ADAM submissions.
 
-The system is made up of two components, a JSON configuration file called
-`config.json`, and the central Python script `adam-script.py`.
+The system is made up of three components: the central Python script,
+`adam-script.py`, and two JSON configuration files, `config-shared.json` and
+`config-individual.json`.
 
-The config file has a general parameters that need to be adapted to the course
-that's being taught, and individual parameters that need to be set by every
-tutor. This file has to be edited once, at the beginning of the course, and
-should thereafter remain the same for the rest of the semester.
-The script then takes the settings from the config file, as well as additional
-command line parameters, to simplify some steps in the marking process.
+The shared config file contains [general settings](#general-settings) that need
+to be adapted to the course that is being taught, but should remain static
+thereafter. Additionally, it lists all students and their
+[team assignment](#teams). This part of the file is subject to change during the
+semester as students drop the course or teams are reassigned. It is important
+that all tutors have an identical copy of the shared config file, meaning that
+whenever a tutor makes changes to the file, she or he should share the new
+version with the others. (I guess the file could be added to the lecture repo.)
 
-Depending on the parameters set by the config file, the the necessary command
-line options at every step may vary. In the following I will showcase the
-workflow using the settings of Foundations of Artificial Intelligence SS23 as an
-example.
+The individual config file contains [personal settings](#individual-settings.md)
+that are only relevant to each tutor. These only need to be set once at the
+beginning of the course.
+
+Depending on the general settings of the shared config file, different command
+line options may be mandatory. The `help` option provides some information about
+the parameter the script and its subcommands, currently `init`, `collect`, and
+`send`, take:
+```
+python3 adam-script.py help
+python3 adam-script.py <subcommand> help
+```
+In the following I will showcase the recommended workflow using the settings of
+the Foundations of Artificial Intelligence lecture from spring semester 2023 as
+an example.
+
 
 ## Requirements
+
 - `Python 3.10+`: I only tested the script with 3.10 and I think it makes use of
 some new-ish language features, so I'm not sure if everything works with older
 versions.
 
+
 ## One-Time Setup
+
 To get started, create a directory where you want to do your marking, in this
 example the directory will be called `ki-fs23-marking`. In this directory you
-place the `config.json` file you should have gotten from the teaching assistant,
-and fill in the individual settings with your own information, the relevant
-fields should be indicated in the file. Alternatively you can find a complete
-list [here](#individual-settings). Make sure that the string you enter in the
-field `your_name` exactly matches the existing entry in `tutor_list`.
+place the `config-shared.json` file you should have gotten from the teaching
+assistant, and copy the `config-individual.json` file from the `tests` directory
+of this repository. Replace the example entries in the individual configurations
+with your own information; The parameters are explained
+[here](#individual-settings.md). Make sure that the string you enter in the
+field `your_name` (individual config)  exactly matches the existing entry in
+`tutor_list` (shared config).
 
 In general, it is important that the all configurations, besides the individual
 ones you just adjusted, are exactly the same across all tutors, as otherwise
@@ -39,18 +60,18 @@ assistant and the other tutors know, so that the configurations remain in sync.
 This may be in particular be necessary if teams change during the semester.
 
 In order to work with the script, you will have to call `adam-script.py` from a
-command line whose working directory is the one which contains the `config.json`
-file. This means that you should keep `adam-script.py` somewhere where it's easy
-to access. On my Linux machine, I would do this by leaving the script in the
-repository clone and adding a symbolic link pointing to its location to the
-`ki-fs23-marking` directory via the following command:
+command line whose working directory is the one which contains the two config
+files. This means that you should keep `adam-script.py` somewhere where it's
+easy to access. On my Linux machine, I would do this by leaving the script in
+the clone of this repository and adding a symbolic link pointing to its location
+to the `ki-fs23-marking` directory via the following command:
 ```
 ln -s /path/to/adam-script.py .
 ```
 This way I can pull the newest version of the script and have it available in
 the right place without any extra steps. Alternatively you could do your marking
-directly in the directory of the script repo clone or paste a copy of the script
-to the marking directory.
+directly in the directory of the script repository clone or paste a copy of the
+script to the marking directory.
 
 You should now be able to run the script from the command line, for example to
 print the help text. On my setup I would run:
@@ -58,12 +79,14 @@ print the help text. On my setup I would run:
 ./adam-script -h
 ```
 If you are, for example, using windows and have the script in the parent
-directory, you'd do something like
+directory, you would do something like:
 ```
 python3 ..\adam-script.py -h
 ```
 
+
 ## Marking a Sheet
+
 While the steps above are only necessary for the initial setup, the following
 procedure applies to every exercise sheet.
 
@@ -76,7 +99,8 @@ downloaded from ADAM, should look like this:
 ```
 .
 ├── adam-script.py
-├── config.json
+├── config-individual.json
+├── config-shared.json
 └── Sheet 1.zip
 ```
 We can now finally make the script do something useful by running:
@@ -90,7 +114,8 @@ the name of the zip file. The directory should now look something like this:
 ```
 .
 ├── adam-script.py
-├── config.json
+├── config-individual.json
+├── config-shared.json
 ├── sheet01
 │   ├── 12345_Muster_Müller
 │   │   ├── feedback
@@ -145,23 +170,20 @@ but this is not possible yet `:(`. For now, you still have to manually upload
 the feedback zip archives to ADAM.
 
 
-
-## Setup Config File
+## Config File Details
 
 ### Individual Settings
 - `your_name`: ID of the tutor, this must match with either an element of
   `tutor_list` (for `random/exercise`) or a key in `teams` (for `static`)
-- `ignore_feedback_suffix`: a list of extensions that should be ignored by the
-  `collect` sub-command; this is useful if the tools you use for marking create
-  files in the feedback folders that you don't want to send to the students
-
-### Email Settings
 - `your_email`: tutor's email address, feedback will be sent via this address
 - `feedback_email_cc`: list of email addresses that will be CC'd with every
   feedback email, for example the addresses of all tutors
 - `smtp_url`: the url of the smtp server, `smtp-ext.unibas.ch` by default
 - `smtp_port`: smtp port to connect to, `587` by default
 - `smtp_user`: smtp user, usually the short Unibas account name
+- `ignore_feedback_suffix`: a list of extensions that should be ignored by the
+  `collect` sub-command; this is useful if the tools you use for marking create
+  files in the feedback folders that you don't want to send to the students
 
 ### General Settings
 - `lecture_title`: lecture name to be printed in feedback emails
@@ -180,6 +202,8 @@ the feedback zip archives to ADAM.
 - `tutor_list`: list to identify tutors, for example a list of first names
 - `max_team_size`: integer denoting the maximum number of members a team may
   have
+
+### Teams
 - `teams`: depending on the `marking_mode` teams are structured slightly
   differently
     - `random/exercise`: list of teams, each consisting of a list of students,
@@ -189,3 +213,11 @@ the feedback zip archives to ADAM.
       to a tutor; this is done via a dictionary where some ID for the tutors
       (e.g. first names) are the keys, and the values are the list of teams
       assigned to each tutor
+
+
+# Development
+
+I added some tests that use the `pytest` framework. Simply install `pytest` via
+`pip3 install pytest` (or `pip`, not sure what the difference is), and run the
+command `pytest`. Currently it tests the `init` step for the modes `static`,
+`random`, and `exercise` and the `collect` step for the first two modes.
