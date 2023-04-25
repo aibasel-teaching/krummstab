@@ -1,0 +1,27 @@
+{
+    "lecture_title": "Foundations of Artificial Intelligence",
+    "marking_mode": "static",
+    "points_per": "sheet",
+    "min_point_unit": 0.5,
+    "max_team_size": 3,
+    "teams": {
+        "tamara": [
+            [
+                ["Sabine", "Sommer", "sabine.sommer@stud.unibas.ch"]
+            ]
+        ],
+        "tatiana": [
+            [
+                ["Salomé", "Schmid", "salome.schmid@stud.unibas.ch"],
+                ["Samira", "Studer", "samira.studer@stud.unibas.ch"],
+                ["Silvan", "Stucki", "silvan.stucki@stud.unibas.ch"]
+            ]
+        ],
+        "terence": [
+            [
+                ["Sandro", "Schenk", "sandro.schenk@stud.unibas.ch"],
+                ["Samuel", "Seiler", "samuel.seiler@stud.unibas.ch"]
+            ]
+        ]
+    }
+}

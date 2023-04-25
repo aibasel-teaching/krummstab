@@ -1,0 +1,9 @@
+{
+    "your_name": "tatiana",
+    "your_email": "tatiana.tutor@unibas.ch",
+    "feedback_email_cc": [ "tamara.tutor@unibas.ch", "tatiana.tutor@unibas.ch", "terence.tutor@unibas.ch" ],
+    "smtp_url": "smtp-ext.unibas.ch",
+    "smtp_port": 587,
+    "smtp_user": "tuttat00",
+    "ignore_feedback_suffix": [ ".xopp" ]
+}
