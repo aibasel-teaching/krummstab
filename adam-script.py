@@ -607,10 +607,10 @@ def get_relevant_teams() -> list[Team]:
         # submitted something. This is to ensure that submissions can be
         # distributed fairly among tutors.
         num_tutors = len(args.tutor_list)
-        shuffled_teams = [team for _, team in args.team_dir_to_team.items()]
         seed = int(
             hashlib.sha256(args.adam_sheet_name.encode("utf-8")).hexdigest(), 16
         )
+        shuffled_teams = [team for _, team in args.team_dir_to_team.items()]
         random.Random(seed).shuffle(shuffled_teams)
         chunks = [shuffled_teams[i::num_tutors] for i in range(num_tutors)]
         assert len(chunks) == num_tutors
@@ -619,7 +619,9 @@ def get_relevant_teams() -> list[Team]:
             for this in chunks
             for that in chunks
         )
-        return chunks[args.tutor_list.index(args.tutor_name)]
+        shuffled_tutors = args.tutor_list.copy()
+        random.Random(seed).shuffle(shuffled_tutors)
+        return chunks[shuffled_tutors.index(args.tutor_name)]
     elif args.marking_mode == "exercise":
         return args.teams
     else:
