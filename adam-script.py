@@ -504,7 +504,10 @@ def extract_adam_zip() -> tuple[pathlib.Path, str]:
         # Assume the directory is an extracted ADAM zip.
         sheet_root_dir = args.adam_zip_path
     # Flatten intermediate directory.
-    move_content_and_delete(sheet_root_dir / "Abgaben", sheet_root_dir)
+    src = sheet_root_dir / "Abgaben"
+    if not src.is_dir():
+      src = sheet_root_dir / "Submissions"
+    move_content_and_delete(src, sheet_root_dir)
     # Store ADAM exercise sheet name to use as random seed.
     adam_sheet_name = sheet_root_dir.name
     if args.target:
