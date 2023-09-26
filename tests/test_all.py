@@ -14,6 +14,7 @@ CONFIG_STATIC = pathlib.Path("config-shared-static.json")
 CONFIG_EXERCISE = pathlib.Path("config-shared-exercise.json")
 SAMPLE_SHEET = pathlib.Path("Sample Sheet.zip")
 SAMPLE_SHEET_DIR = pathlib.Path("Sample Sheet")
+SAMPLE_SHEET_SUB_DIR = SAMPLE_SHEET_DIR / "SUB_DIR"
 POINT_FILE = SAMPLE_SHEET_DIR / "points.json"
 
 
@@ -25,10 +26,20 @@ def change_test_dir(request, monkeypatch):
     monkeypatch.chdir(request.fspath.dirname)
 
 
-@pytest.fixture
-def setup_test_directory(tmp_path: pathlib.Path):
-    shutil.copy(SAMPLE_SHEET, tmp_path)
+@pytest.fixture(params=["Abgaben", "Submissions"])
+def setup_test_directory(request, tmp_path: pathlib.Path):
+    # Copy sample sheet directory, create zip file in ADAM's format, and remove
+    # sheet directory.
+    shutil.copytree(SAMPLE_SHEET_DIR, tmp_path / SAMPLE_SHEET_DIR.name)
+    shutil.move(tmp_path / SAMPLE_SHEET_SUB_DIR, tmp_path / SAMPLE_SHEET_DIR / request.param)
+    os.makedirs(tmp_path / "temp")
+    shutil.move(tmp_path / SAMPLE_SHEET_DIR, tmp_path / "temp")
+    shutil.move(tmp_path / "temp", tmp_path / SAMPLE_SHEET_DIR )
+    shutil.make_archive(str(tmp_path / SAMPLE_SHEET_DIR), 'zip', tmp_path / SAMPLE_SHEET_DIR)
+    shutil.rmtree(tmp_path / SAMPLE_SHEET_DIR)
+    # Copy individual config file.
     shutil.copy(CONFIG_INDIVIDUAL, tmp_path)
+    # Copy feedback script.
     shutil.copy(".." / ADAM_SCRIPT, tmp_path)
     return tmp_path
 

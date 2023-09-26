@@ -504,10 +504,20 @@ def extract_adam_zip() -> tuple[pathlib.Path, str]:
         # Assume the directory is an extracted ADAM zip.
         sheet_root_dir = args.adam_zip_path
     # Flatten intermediate directory.
-    src = sheet_root_dir / "Abgaben"
-    if not src.is_dir():
-      src = sheet_root_dir / "Submissions"
-    move_content_and_delete(src, sheet_root_dir)
+    sub_dirs = list(sheet_root_dir.glob("*"))
+    if len(sub_dirs) != 1:
+        throw_error(
+            "The ADAM zip file contains an unexpected number of"
+            f" directories/files ({len(sub_dirs)}), expected exactly 1"
+            " subdirectory named either 'Abgaben' or 'Submissions'."
+        )
+    if sub_dirs[0].name not in ["Abgaben", "Submissions"]:
+        print_warning(
+            "It looks like the format of the zip file created by ADAM has"
+            " changed. This may require adaptions to this script, but I will"
+            " try anyway."
+        )
+    move_content_and_delete(sub_dirs[0], sheet_root_dir)
     # Store ADAM exercise sheet name to use as random seed.
     adam_sheet_name = sheet_root_dir.name
     if args.target:
