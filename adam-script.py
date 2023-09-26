@@ -124,13 +124,26 @@ def verify_sheet_root_dir() -> None:
         throw_error("The given sheet directory is not valid!")
 
 
+def get_all_team_dirs() -> Iterator[pathlib.Path]:
+    """
+    Return all team directories within the sheet root directory. It is assumed
+    that all team directory names start with some digits, followed by an
+    underscore, followed by more characters. In particular this excludes
+    other directories that may be created in the sheet root directory, such as
+    one containing combined feedback.
+    """
+    for team_dir in args.sheet_root_dir.iterdir():
+        if team_dir.is_dir() and re.match(r"[0-9]+_.+", team_dir.name):
+            yield team_dir
+
+
 def get_relevant_team_dirs() -> Iterator[pathlib.Path]:
     """
     Return the team directories of the teams whose submission has to be
     corrected by the tutor running the script.
     """
-    for team_dir in args.sheet_root_dir.iterdir():
-        if team_dir.is_dir() and not DO_NOT_MARK_PREFIX in team_dir.name:
+    for team_dir in get_all_team_dirs():
+        if not DO_NOT_MARK_PREFIX in team_dir.name:
             yield team_dir
 
 
@@ -538,7 +551,7 @@ def ensure_single_submission_per_team() -> None:
     I think only the directory of the most recent submission remains non-empty,
     so we delete the empty ones and throw an error if multiple remain.
     """
-    for team_dir in args.sheet_root_dir.iterdir():
+    for team_dir in get_all_team_dirs():
         if not team_dir.is_dir():
             continue
         for team_submission_dir in team_dir.iterdir():
@@ -558,7 +571,7 @@ def get_adam_id_to_team_dict() -> dict[str, Team]:
     the same time, the "Team " prefix is removed from directory names.
     """
     adam_id_to_team = {}
-    for team_dir in args.sheet_root_dir.iterdir():
+    for team_dir in get_all_team_dirs():
         if not team_dir.is_dir():
             continue
         team_id = team_dir.name.split(" ")[1]
@@ -648,7 +661,7 @@ def rename_team_dirs(adam_id_to_team: dict[str, Team]) -> None:
     The team ID can be helpful to identify a team on the ADAM web interface.
     Additionally the directory structure is flattened.
     """
-    for team_dir in args.sheet_root_dir.iterdir():
+    for team_dir in get_all_team_dirs():
         if not team_dir.is_dir():
             continue
         team_id = team_dir.name
@@ -669,7 +682,7 @@ def unzip_internal_zips() -> None:
     extracted. Additionally we flatten the directory by one level if the zip
     contains only a single directory. Doing so recursively would be nicer.
     """
-    for team_dir in args.sheet_root_dir.iterdir():
+    for team_dir in get_all_team_dirs():
         if not team_dir.is_dir():
             continue
         for zip_file in team_dir.glob("**/*.zip"):
@@ -818,7 +831,7 @@ def create_sheet_info_file(
     info_dict: dict[str, Union[str, dict[str, Team]]] = {}
     # Build the dict from team directory names to teams.
     team_dir_to_team = {}
-    for team_dir in args.sheet_root_dir.iterdir():
+    for team_dir in get_all_team_dirs():
         if team_dir.is_file():
             continue
         # Get ADAM ID from directory name.
