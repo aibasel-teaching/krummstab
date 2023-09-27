@@ -111,8 +111,8 @@ def test(
     give_feedback()
 
     # TODO: Remove this once 'collect' is supported for the exercise mode.
-    if config_shared == CONFIG_EXERCISE:
-        return
+    #if config_shared == CONFIG_EXERCISE:
+    #    return
 
     # Call 'collect'.
     subprocess.check_call(
@@ -131,3 +131,23 @@ def test(
     # Verify 'collect' ran successfully.
     out, err = capfd.readouterr()
     assert "Command 'collect' terminated successfully." in out
+
+    # Call 'combine' for the configurations using the mode 'exercise'.
+    if config_shared != CONFIG_EXERCISE:
+        return
+    subprocess.check_call(
+        [
+            "python3",
+            str(ADAM_SCRIPT),
+            "-i",
+            str(CONFIG_INDIVIDUAL),
+            "-s",
+            str(config_shared),
+            "combine",
+            str(SAMPLE_SHEET_DIR),
+        ]
+    )
+
+    # Verify 'combine' ran successfully.
+    out, err = capfd.readouterr()
+    assert "Command 'combine' terminated successfully." in out
