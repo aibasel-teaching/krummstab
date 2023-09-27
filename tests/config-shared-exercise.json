@@ -1,6 +1,7 @@
 {
     "lecture_title": "Foundations of Artificial Intelligence",
     "marking_mode": "exercise",
+    "use_marks_file": "True",
     "points_per": "exercise",
     "min_point_unit": 0.5,
     "tutor_list": [ "tamara", "tatiana", "terence" ],

@@ -569,9 +569,9 @@ def collect() -> None:
         archive_feedback(team_dir)
     if args.marking_mode == "exercise":
         create_share_archive()
-    # TODO: Only validate if the `use_points` option is on.
-    validate_marks_json()
-    print_marks()
+    if args.use_marks_file:
+        validate_marks_json()
+        print_marks()
 
 
 # ============================ Combine Sub-Command =============================
@@ -1117,7 +1117,8 @@ def init() -> None:
     # directory names.
     create_sheet_info_file(adam_id_to_team, adam_sheet_name)
 
-    create_marks_file()
+    if args.use_marks_file:
+        create_marks_file()
 
     create_feedback_directories()
 
@@ -1252,6 +1253,13 @@ def process_general_config(
     max_team_size = data_shared["max_team_size"]
     assert type(max_team_size) is int and max_team_size > 0
     add_to_args("max_team_size", max_team_size)
+
+    use_marks_file = data_shared["use_marks_file"]
+    assert type(use_marks_file) is str and use_marks_file.lower() in [
+        "true",
+        "false",
+    ]
+    add_to_args("use_marks_file", bool(use_marks_file))
 
     points_per = data_shared["points_per"]
     assert type(points_per) is str
