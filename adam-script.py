@@ -1,5 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""
+This script uses the following, potentially ambiguous, terminology:
+team     - set of students that submit together, as defined on ADAM
+class    - set of teams that are in the same exercise class
+relevant - a team whose submission has to be marked by the tutor running the
+           script is considered 'relevant'
+to mark  - grading/correcting a sheet; giving feedback
+marks    - points awarded for a sheet or exercise
+"""
 import argparse
 import hashlib
 import json
@@ -11,6 +20,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import textwrap
 
 from zipfile import ZipFile
@@ -37,6 +47,8 @@ FEEDBACK_ARCHIVE_PATH = pathlib.Path(FEEDBACK_DIR_NAME, FEEDBACK_ARCHIVE_NAME)
 SHEET_INFO_FILE_NAME = ".sheet_info"
 MARKS_FILE_NAME = "points.json"
 PRINT_INDENT_WIDTH = 4
+SHARE_ARCHIVE_PREFIX = "share_archive"
+COMBINED_DIR_NAME = "combined_feedback"
 
 # Might be necessary to make colored output work on Windows.
 os.system("")
@@ -72,11 +84,40 @@ def print_warning(text: str) -> None:
     print("\033[0;33m[Warning]\033[0m " + text)
 
 
+def query_yes_no(text: str, default: bool = True) -> bool:
+    """
+    Ask the user a yes/no question and return answer.
+    """
+    valid = {"yes": True, "y": True, "ye": True, "no": False, "n": False}
+    options = "[Y/n]" if default else "[y/N]"
+    print("\033[0;35m[Query]\033[0m " + text + f" {options}")
+    choice = input().lower()
+    if choice == "":
+        return default
+    elif choice in valid:
+        return valid[choice]
+    else:
+        throw_error(
+            f"Invalid choice '{choice}'. Please respond with 'yes' or 'no'."
+        )
+
+
 def throw_error(text: str) -> None:
     """
     Print an error message and exit.
     """
     print("\033[0;31m[Error]\033[0m " + text)
+    sys.exit(1)
+
+
+def abort(text: str) -> None:
+    """
+    Gracefully terminate the script without success because something went
+    wrong in an expected way.
+    """
+    if not args.quiet:
+        print_warning(text)
+    print_warning(f"Aborting the subcommand '{args.sub_command}'.")
     sys.exit(1)
 
 
@@ -145,6 +186,16 @@ def get_relevant_team_dirs() -> Iterator[pathlib.Path]:
     for team_dir in get_all_team_dirs():
         if not DO_NOT_MARK_PREFIX in team_dir.name:
             yield team_dir
+
+
+def get_share_archive_files() -> Iterator[pathlib.Path]:
+    """
+    Return all share archive files under the current sheet root dir.
+    """
+    for share_archive_file in args.sheet_root_dir.glob(
+        SHARE_ARCHIVE_PREFIX + "*.zip"
+    ):
+        yield share_archive_file
 
 
 def load_sheet_info() -> None:
@@ -238,7 +289,7 @@ def get_email_greeting(name_list: list[str]) -> str:
     """
     Builds the first line of the email.
     """
-    # Only keep one name per entry."Hans Jakob" becomes "Hans"
+    # Only keep one name per entry, "Hans Jakob" becomes "Hans".
     name_list = [name.split(" ")[0] for name in name_list]
     name_list.sort()
     assert len(name_list) > 0
@@ -465,6 +516,42 @@ def print_marks() -> None:
     print_info("End of copy-paste marks.")
 
 
+def create_share_archive() -> None:
+    """
+    In case the marking mode is exercise, the final feedback the teams get is
+    made up of multiple sets of PDFs (and potentially other files) made by
+    multiple tutors. This function stores all feedback made by a single tutor in
+    a ZIP file which she/he can then share with the tutor that will send the
+    combined feedback. Refer to the `combine` subcommand to see how to process
+    the resulting "share archives".
+    """
+    # This function in only used when the correction mode is 'exercise'.
+    # Consequently, exercises must be provided when running 'init', which should
+    # be written to .sheet_info and then read in by a load_sheet_info().
+    assert args.exercises
+    # Build share archive file name.
+    share_archive_file_name = (
+        SHARE_ARCHIVE_PREFIX
+        + f"_{args.adam_sheet_name.replace(' ', '_').lower()}_"
+        + "_".join([f"ex{num}" for num in args.exercises])
+        + ".zip"
+    )
+    share_archive_file = args.sheet_root_dir / share_archive_file_name
+    if args.replace:
+        share_archive_file.unlink(missing_ok=True)
+    # Take all feedback.zip files and add them to the share archive. The file
+    # structure should be along the lines of:
+    # share_archive_sample_sheet_ex1_ex2.zip
+    # ├── 12345_Muster-Meier-Mueller.zip
+    # └── ...
+    with ZipFile(share_archive_file, "w") as zip_file:
+        for team_dir in get_relevant_team_dirs():
+            feedback_dir = team_dir / FEEDBACK_DIR_NAME
+            feedback_archive = feedback_dir / FEEDBACK_ARCHIVE_NAME
+            assert feedback_archive.is_file()
+            zip_file.write(feedback_archive, arcname=f"{team_dir.name}.zip")
+
+
 def collect() -> None:
     """
     After marking is done, add feedback files to archives and print marks to be
@@ -481,15 +568,88 @@ def collect() -> None:
     for team_dir in get_relevant_team_dirs():
         archive_feedback(team_dir)
     if args.marking_mode == "exercise":
-        throw_error(
-            "Collecting for marking mode 'exercise' is not implemented!"
-        )
-        # TODO: Implement. We probably want to create a single archive with all
-        # feedback here, so that it can be shared with the other tutors. In the
-        # end, one of the tutors has to run a command that combines all
-        # feedback.
+        create_share_archive()
+    # TODO: Only validate if the `use_points` option is on.
     validate_marks_json()
     print_marks()
+
+
+# ============================ Combine Sub-Command =============================
+
+
+def combine() -> None:
+    """
+    TODO
+    """
+    # Prepare.
+    verify_sheet_root_dir()
+    load_sheet_info()
+
+    share_archive_files = get_share_archive_files()
+    instructions = (
+        "Run `collect` to generate the share archive for your own feedback and"
+        " save the share archives you received from the other tutors under"
+        f" {args.sheet_root_dir}."
+    )
+    if len(list(share_archive_files)) == 0:
+        abort(
+            f"No share archives exist in {args.sheet_root_dir}. " + instructions
+        )
+    if len(list(share_archive_files)) == 1:
+        print_warning(
+            "Only a single share archive is being combined. " + instructions
+        )
+
+    # Create directory to store combined feedback in.
+    combined_dir = args.sheet_root_dir / COMBINED_DIR_NAME
+    if combined_dir.exists() and combined_dir.is_dir():
+        overwrite = query_yes_no(
+            (
+                f"The directory {combined_dir} exists already. Do you want to"
+                " overwrite it?"
+            ),
+            default=False,
+        )
+        if overwrite:
+            shutil.rmtree(combined_dir)
+        else:
+            abort(f"Could not write to '{combined_dir}'.")
+    combined_dir.mkdir()
+
+    # Create subdirectories for teams.
+    for team_dir in get_relevant_team_dirs():
+        combined_team_dir = combined_dir / team_dir.name
+        combined_team_dir.mkdir()
+
+    teams_all = [team_dir.name for team_dir in get_relevant_team_dirs()]
+    # Extract feedback from share archives into the combined directory.
+    for share_archive_file in args.sheet_root_dir.glob(
+        SHARE_ARCHIVE_PREFIX + "*.zip"
+    ):
+        with ZipFile(share_archive_file, mode="r") as share_archive:
+            # Check if this share archive is missing feedback archives for any
+            # teams.
+            teams_present = [
+                pathlib.Path(team).stem for team in share_archive.namelist()
+            ]
+            teams_not_present = list(set(teams_all) - set(teams_present))
+            for team_not_present in teams_not_present:
+                print_warning(
+                    f"The shared archive {share_archive_file} contains no"
+                    f" feedback for team {team_not_present}."
+                )
+            # Extract feedback archive from share_archive.
+            for team in teams_present:
+                share_archive.extract(team + ".zip", combined_dir / team)
+                # Extract feedback from feedback archive.
+                feedback_archive_file = combined_dir / team / (team + ".zip")
+                with ZipFile(
+                    feedback_archive_file, mode="r"
+                ) as feedback_archive:
+                    feedback_archive.extractall(path=combined_dir / team)
+                # Remove feedback archive.
+                feedback_archive_file.unlink()
+                # TODO: Test if this works when there are actually multiple different share archives.
 
 
 # ============================== Init Sub-Command ==============================
@@ -499,7 +659,7 @@ def extract_adam_zip() -> tuple[pathlib.Path, str]:
     """
     Unzips the given ADAM zip file and renames the directory to *target* if one
     is given. This is done stupidly right now, it would be better to extract to
-    a temporary folder and then move to once to the right location.
+    a temporary folder and then move once to the right location.
     """
     if args.adam_zip_path.is_file():
         # Unzip to the directory within the zip file.
@@ -507,6 +667,7 @@ def extract_adam_zip() -> tuple[pathlib.Path, str]:
         with ZipFile(args.adam_zip_path, mode="r") as zip_file:
             zip_content = zip_file.namelist()
             sheet_root_dir = pathlib.Path(zip_content[0])
+            # TODO: Do this with tempfile.
             if sheet_root_dir.exists():
                 throw_error(
                     "Extraction failed because the extraction path "
@@ -842,6 +1003,8 @@ def create_sheet_info_file(
         team_dir_to_team.update({team_dir.name: team})
     info_dict.update({"team_dir_to_team": team_dir_to_team})
     info_dict.update({"adam_sheet_name": adam_sheet_name})
+    if args.marking_mode == "exercise":
+        info_dict.update({"exercises": args.exercises})
     with open(
         args.sheet_root_dir / SHEET_INFO_FILE_NAME, "w"
     ) as sheet_info_file:
@@ -1051,7 +1214,7 @@ def process_general_config(
     )
     add_to_args("ignore_feedback_suffix", ignore_feedback_suffix)
 
-    # Email settings, currently all optional because not fully functional
+    # Email settings, currently all optional because not fully functional.
     tutor_email = data_individual.get("your_email", "")
     assert (tutor_email == "") or (
         type(tutor_email) is str and is_email(tutor_email)
@@ -1115,15 +1278,6 @@ def add_to_args(key: str, value: Any) -> None:
 
 
 if __name__ == "__main__":
-    """
-    This script uses the following, potentially ambiguous, terminology:
-    team     - set of students that submit together, as defined on ADAM
-    class    - set of teams that are in the same exercise class
-    relevant - a team whose submission has to be marked by the tutor running the
-               script is considered 'relevant'
-    to mark  - grading/correcting a sheet; giving feedback
-    marks    - points awarded for a sheet or exercise
-    """
     parser = argparse.ArgumentParser(description="")
     # Main command arguments ---------------------------------------------------
     parser.add_argument(
@@ -1203,8 +1357,9 @@ if __name__ == "__main__":
     # Collect command and arguments --------------------------------------------
     parser_collect = subparsers.add_parser(
         "collect",
-        help="collect feedback files",
+        help="collect feedback files after marking is done",
     )
+    # TODO: Remove this option and replace by a user query.
     parser_collect.add_argument(
         "-r",
         "--replace",
@@ -1225,6 +1380,21 @@ if __name__ == "__main__":
         help="path to the sheet's directory",
     )
     parser_collect.set_defaults(func=collect)
+    # Combine command and arguments  -------------------------------------------
+    parser_combine = subparsers.add_parser(
+        "combine",
+        help=(
+            "combine multiple share archives, only necessary if tutors mark per"
+            " exercise and have to integrate their individual feedback into a"
+            " single ZIP file to send to the students"
+        ),
+    )
+    parser_combine.add_argument(
+        "sheet_root_dir",
+        type=pathlib.Path,
+        help="path to the sheet's directory",
+    )
+    parser_combine.set_defaults(func=combine)
     # Send command and arguments -----------------------------------------------
     parser_send = subparsers.add_parser(
         "send",
