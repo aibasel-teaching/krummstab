@@ -418,13 +418,9 @@ def archive_feedback(team_dir: pathlib.Path) -> None:
         throw_error(
             f"Feedback for {team_dir.name} contains placeholder TODO file!"
         )
-
-    if feedback_zip.is_file():
-        throw_error(
-            f"A zipped feedback file already exists, "
-            f"run the 'collect' command with the flag '-r' "
-            f"to overwrite existing feedback archives."
-        )
+    # Feedback zips should either not exist at all, or have been deleted earlier
+    # after getting permission from the user to overwrite them.
+    assert not feedback_zip.is_file()
     # Zip up content of the feedback directory. By default, files with
     # extensions .zip and .xopp are not added to the feedback archive.
     # .zip have to be ignored because the feedback_zip would contain itself
@@ -516,7 +512,7 @@ def print_marks() -> None:
     print_info("End of copy-paste marks.")
 
 
-def create_share_archive() -> None:
+def create_share_archive(overwrite: bool) -> None:
     """
     In case the marking mode is exercise, the final feedback the teams get is
     made up of multiple sets of PDFs (and potentially other files) made by
@@ -537,8 +533,24 @@ def create_share_archive() -> None:
         + ".zip"
     )
     share_archive_file = args.sheet_root_dir / share_archive_file_name
-    if args.replace:
-        share_archive_file.unlink(missing_ok=True)
+    if share_archive_file.is_file():
+        # If the user has already chosen to overwrite when considering feedback
+        # zips, then overwrite here too. Otherwise ask here.
+        # We should not be here if the user chose 'No' (making overwrite False)
+        # before, so we catch this case.
+        assert overwrite != False
+        if overwrite == None:
+            overwrite = query_yes_no(
+                (
+                    "There already exists a share archive. Do you want to"
+                    " overwrite it?"
+                ),
+                default=False,
+            )
+        if overwrite:
+            share_archive_file.unlink(missing_ok=True)
+        else:
+            abort(f"Could not write share archive.")
     # Take all feedback.zip files and add them to the share archive. The file
     # structure should be along the lines of:
     # share_archive_sample_sheet_ex1_ex2.zip
@@ -561,14 +573,25 @@ def collect() -> None:
     verify_sheet_root_dir()
     load_sheet_info()
     # Collect feedback.
-    if args.replace:
-        delete_feedback_archives()
+
+    # Check if there is feedback already.
+    feedback_exists = any(
+        (team_dir / FEEDBACK_ARCHIVE_PATH).is_file()
+        for team_dir in get_relevant_team_dirs()
+    )
+    overwrite = None
+    if feedback_exists:
+        overwrite = query_yes_no("There already exists collected feedback. Do you want to overwrite it?", default=False)
+        if overwrite:
+            delete_feedback_archives()
+        else:
+            abort(f"Could not write collected feedback archives.")
     if args.xopp:
         export_xopp_files()
     for team_dir in get_relevant_team_dirs():
         archive_feedback(team_dir)
     if args.marking_mode == "exercise":
-        create_share_archive()
+        create_share_archive(overwrite)
     if args.use_marks_file:
         validate_marks_json()
         print_marks()
@@ -579,7 +602,10 @@ def collect() -> None:
 
 def combine() -> None:
     """
-    TODO
+    Combine multiple share archives so that in the end we have one zip archive
+    per team containing all feedback for that team.
+    TODO: At the moment we end up with one directory per team containing all
+    feedback, but we need to zip this up again.
     """
     # Prepare.
     verify_sheet_root_dir()
@@ -1366,14 +1392,6 @@ if __name__ == "__main__":
     parser_collect = subparsers.add_parser(
         "collect",
         help="collect feedback files after marking is done",
-    )
-    # TODO: Remove this option and replace by a user query.
-    parser_collect.add_argument(
-        "-r",
-        "--replace",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help="replace existing feedback archives",
     )
     parser_collect.add_argument(
         "-x",
