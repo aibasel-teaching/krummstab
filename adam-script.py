@@ -1285,7 +1285,7 @@ def process_general_config(
         "true",
         "false",
     ]
-    add_to_args("use_marks_file", bool(use_marks_file))
+    add_to_args("use_marks_file", use_marks_file.lower() == "true")
 
     points_per = data_shared["points_per"]
     assert type(points_per) is str
