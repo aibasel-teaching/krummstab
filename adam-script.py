@@ -738,7 +738,7 @@ def ensure_single_submission_per_team() -> None:
     I think only the directory of the most recent submission remains non-empty,
     so we delete the empty ones and throw an error if multiple remain.
     """
-    for team_dir in get_all_team_dirs():
+    for team_dir in args.sheet_root_dir.iterdir():
         if not team_dir.is_dir():
             continue
         for team_submission_dir in team_dir.iterdir():
@@ -758,7 +758,7 @@ def get_adam_id_to_team_dict() -> dict[str, Team]:
     the same time, the "Team " prefix is removed from directory names.
     """
     adam_id_to_team = {}
-    for team_dir in get_all_team_dirs():
+    for team_dir in args.sheet_root_dir.iterdir():
         if not team_dir.is_dir():
             continue
         team_id = team_dir.name.split(" ")[1]
@@ -848,7 +848,7 @@ def rename_team_dirs(adam_id_to_team: dict[str, Team]) -> None:
     The team ID can be helpful to identify a team on the ADAM web interface.
     Additionally the directory structure is flattened.
     """
-    for team_dir in get_all_team_dirs():
+    for team_dir in args.sheet_root_dir.iterdir():
         if not team_dir.is_dir():
             continue
         team_id = team_dir.name
@@ -1003,9 +1003,7 @@ def generate_xopp_files() -> None:
     print_info("Done generating .xopp files.")
 
 
-def create_sheet_info_file(
-    adam_id_to_team: dict[str, Team], adam_sheet_name: str
-) -> None:
+def create_sheet_info_file(adam_id_to_team: dict[str, Team]) -> None:
     """
     Write information generated during the execution of the 'init' command in a
     sheet info file. In particular a mapping from team directory names to teams
@@ -1028,7 +1026,7 @@ def create_sheet_info_file(
         team = adam_id_to_team[adam_id]
         team_dir_to_team.update({team_dir.name: team})
     info_dict.update({"team_dir_to_team": team_dir_to_team})
-    info_dict.update({"adam_sheet_name": adam_sheet_name})
+    info_dict.update({"adam_sheet_name": args.adam_sheet_name})
     if args.marking_mode == "exercise":
         info_dict.update({"exercises": args.exercises})
     with open(
@@ -1108,6 +1106,7 @@ def init() -> None:
     #         .       └── submission.pdf or submission.zip
     sheet_root_dir, adam_sheet_name = extract_adam_zip()
     add_to_args("sheet_root_dir", sheet_root_dir)
+    add_to_args("adam_sheet_name", adam_sheet_name)
 
     # Structure at this point:
     # <sheet_root_dir>
@@ -1125,6 +1124,8 @@ def init() -> None:
     # .       └── submission.pdf or submission.zip
     rename_team_dirs(adam_id_to_team)
 
+    # From here on, get_all_team_dirs() should work.
+
     # Structure at this point:
     # <sheet_root_dir>
     # ├── 12345_Muster-Meier-Mueller
@@ -1136,12 +1137,12 @@ def init() -> None:
     # (because `adam_sheet_name` from .sheet_info seeds the random assignment of
     # submissions to tutors).
     # That's why we create the sheet info file first...
-    create_sheet_info_file(adam_id_to_team, adam_sheet_name)
+    create_sheet_info_file(adam_id_to_team)
     # then rename the irrelevant team directories...
     mark_irrelevant_team_dirs()
     # and finally recreate the sheet info file to reflect the final team
     # directory names.
-    create_sheet_info_file(adam_id_to_team, adam_sheet_name)
+    create_sheet_info_file(adam_id_to_team)
 
     if args.use_marks_file:
         create_marks_file()
