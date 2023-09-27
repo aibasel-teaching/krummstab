@@ -26,7 +26,7 @@ import textwrap
 from zipfile import ZipFile
 
 # For typing annotations.
-from typing import Any, Union
+from typing import Any, Optional, Union
 from collections.abc import Iterator
 
 # Needed for email stuff.
@@ -512,7 +512,7 @@ def print_marks() -> None:
     print_info("End of copy-paste marks.")
 
 
-def create_share_archive(overwrite: bool) -> None:
+def create_share_archive(overwrite: Optional[bool]) -> None:
     """
     In case the marking mode is exercise, the final feedback the teams get is
     made up of multiple sets of PDFs (and potentially other files) made by
@@ -918,14 +918,13 @@ def create_feedback_directories() -> None:
         feedback_dir = team_dir / FEEDBACK_DIR_NAME
         feedback_dir.mkdir()
 
-        prefix = "feedback_"
+        prefix = f"feedback_{args.adam_sheet_name.replace(' ', '_').lower()}_"
         if args.marking_mode == "exercise":
             team_id = team_dir.name.split("_")[0]
             prefix = team_id + "_" + prefix
             prefix += args.tutor_name + "_"
-            prefix += "ex"
             for exercise in args.exercises:
-                prefix += str(exercise) + "_"
+                prefix += f"ex{exercise}_"
         elif args.marking_mode == "random":
             prefix += args.tutor_name + "_"
         elif args.marking_mode == "static":
