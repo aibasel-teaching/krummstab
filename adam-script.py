@@ -847,26 +847,6 @@ def extract_adam_zip() -> tuple[pathlib.Path, str]:
     return sheet_root_dir, adam_sheet_name
 
 
-def ensure_single_submission_per_team() -> None:
-    """
-    There can be multiple directories within a "Team 00000" directory. This
-    (probably) happens when multiple members of the team upload solutions, but
-    I think only the directory of the most recent submission remains non-empty,
-    so we delete the empty ones and throw an error if multiple remain.
-    """
-    for team_dir in args.sheet_root_dir.iterdir():
-        if not team_dir.is_dir():
-            continue
-        for team_submission_dir in team_dir.iterdir():
-            if len(list(team_submission_dir.iterdir())) == 0:
-                team_submission_dir.rmdir()
-        if len(list(team_dir.iterdir())) > 1:
-            # If there are multiple non-empty submissions, we have a problem.
-            throw_error(
-                f"There are multiple submissions for group '{team_dir.name}'!"
-            )
-
-
 def get_adam_id_to_team_dict() -> dict[str, Team]:
     """
     ADAM assigns every team a new ID with every exercise sheet. This dict maps
@@ -899,6 +879,8 @@ def get_adam_id_to_team_dict() -> dict[str, Team]:
         # caught when reading in the config file, so we just assert that this is
         # not the case here.
         assert len(team) == 1
+        # TODO: if team[0] in adam_id_to_team.values(): -> multiple separate
+        # submissions
         adam_id_to_team.update({team_id: team[0]})
         team_dir = pathlib.Path(
             shutil.move(team_dir, team_dir.with_name(team_id))
@@ -962,7 +944,6 @@ def rename_team_dirs(adam_id_to_team: dict[str, Team]) -> None:
     """
     The team directories are renamed to: team_id_LastName1-LastName2
     The team ID can be helpful to identify a team on the ADAM web interface.
-    Additionally the directory structure is flattened.
     """
     for team_dir in args.sheet_root_dir.iterdir():
         if not team_dir.is_dir():
@@ -973,9 +954,35 @@ def rename_team_dirs(adam_id_to_team: dict[str, Team]) -> None:
         team_dir = pathlib.Path(
             shutil.move(team_dir, team_dir.with_name(dir_name))
         )
-        sub_dirs = list(team_dir.iterdir())
-        assert len(sub_dirs) == 1
-        move_content_and_delete(sub_dirs[0], team_dir)
+
+
+def flatten_team_dirs() -> None:
+    """
+    There can be multiple directories within a "Team 00000" directory. This
+    happens when multiple members of the team upload solutions. Sometimes, only
+    one directory contains submitted files, in this case we remove the empty
+    ones silently. In case multiple submissions exist, we put the files within
+    them next to each other and print a warning.
+    """
+    for team_dir in get_all_team_dirs():
+        # Remove empty subdirectories.
+        for team_submission_dir in team_dir.iterdir():
+            if len(list(team_submission_dir.iterdir())) == 0:
+                team_submission_dir.rmdir()
+        # Store the list of team submission directories in variable, because the
+        # generator may include subdirectories of team submission directories
+        # that have already been flattened.
+        team_submission_dirs = list(team_dir.iterdir())
+        if len(team_submission_dirs) > 1:
+            print_warning(
+                f"There are multiple submissions for group '{team_dir.name}'!"
+            )
+        if len(team_submission_dirs) < 1:
+            print_warning(
+                f"The submission of group '{team_dir.name}' is empty!"
+            )
+        for team_submission_dir in team_submission_dirs:
+            move_content_and_delete(team_submission_dir, team_dir)
 
 
 def unzip_internal_zips() -> None:
@@ -1064,7 +1071,8 @@ def generate_xopp_files() -> None:
         pdf_paths = list(team_dir.glob("*.pdf"))
         if len(pdf_paths) != 1:
             print_warning(
-                f"Skipping {team_dir.name}: No or multiple PDF files."
+                f"Skipping .xopp file generation for {team_dir.name}: No or"
+                " multiple PDF files."
             )
             continue
         pdf_path = pdf_paths[0]
@@ -1076,7 +1084,10 @@ def generate_xopp_files() -> None:
         # Strips the ".todo" and replaces ".pdf" by ".xopp".
         xopp_path = todo_path.with_suffix("").with_suffix(".xopp")
         if xopp_path.is_file():
-            print_warning(f"Skipping {team_dir.name}: xopp file exists.")
+            print_warning(
+                f"Skipping .xopp file generation for {team_dir.name}: xopp file"
+                " exists."
+            )
             continue
         xopp_file = open(xopp_path, "w")
         for i, page in enumerate(pages, start=1):
@@ -1219,7 +1230,6 @@ def init() -> None:
     # ├── Team 12345
     # .   └── Muster_Hans_hans.muster@unibas.ch_000000
     # .       └── submission.pdf or submission.zip
-    ensure_single_submission_per_team()
     adam_id_to_team = get_adam_id_to_team_dict()
     print_missing_submissions(adam_id_to_team)
 
@@ -1231,6 +1241,13 @@ def init() -> None:
     rename_team_dirs(adam_id_to_team)
 
     # From here on, get_all_team_dirs() should work.
+
+    # Structure at this point:
+    # <sheet_root_dir>
+    # ├── 12345_Muster-Meier-Mueller
+    # .   └── Muster_Hans_hans.muster@unibas.ch_000000
+    # .       └── submission.pdf or submission.zip
+    flatten_team_dirs()
 
     # Structure at this point:
     # <sheet_root_dir>
