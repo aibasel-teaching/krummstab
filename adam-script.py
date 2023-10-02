@@ -148,10 +148,7 @@ def get_feedback_file_name() -> str:
         #team_id = team_dir.name.split("_")[0]
         #prefix = team_id + "_" + prefix
         file_name += args.tutor_name + "_"
-        for exercise in args.exercises:
-            file_name += f"ex{exercise}_"
-        # Remove trailing underscore.
-        file_name = file_name[:-1]
+        file_name += "_".join([f"ex{exercise}" for exercise in args.exercises])
     elif args.marking_mode == "random":
         file_name += args.tutor_name
     elif args.marking_mode == "static":
