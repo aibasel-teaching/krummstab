@@ -860,12 +860,12 @@ def get_adam_id_to_team_dict() -> dict[str, Team]:
         team_id = team_dir.name.split(" ")[1]
         submission_dir = list(team_dir.iterdir())[0]
         submission_email = submission_dir.name.split("_")[-2]
-        team = [
+        teams = [
             team
             for team in args.teams
             if any(submission_email in student for student in team)
         ]
-        if len(team) == 0:
+        if len(teams) == 0:
             throw_error(
                 f"The student with the email '{submission_email}' is not "
                 "assigned to a team. Your config file is likely out of date."
@@ -878,10 +878,21 @@ def get_adam_id_to_team_dict() -> dict[str, Team]:
         # The case that a student is assigned to multiple teams would already be
         # caught when reading in the config file, so we just assert that this is
         # not the case here.
-        assert len(team) == 1
+        assert len(teams) == 1
         # TODO: if team[0] in adam_id_to_team.values(): -> multiple separate
         # submissions
-        adam_id_to_team.update({team_id: team[0]})
+        # Catch the case where multiple members of a team independently submit
+        # solutions without forming a team on ADAM and print a warning.
+        for existing_id, existing_team in adam_id_to_team.items():
+            if existing_team == teams[0]:
+                print_warning(
+                    f"There are multiple submissions for team '{teams[0]}'"
+                    f" under separate ADAM IDs ({existing_id} and {team_id})!"
+                    " This probably means that multiple members of a team"
+                    " submitted solutions without forming a team on ADAM. You"
+                    " will have to combine the submissions manually."
+                )
+        adam_id_to_team.update({team_id: teams[0]})
         team_dir = pathlib.Path(
             shutil.move(team_dir, team_dir.with_name(team_id))
         )
