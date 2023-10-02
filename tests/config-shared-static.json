@@ -1,7 +1,7 @@
 {
     "lecture_title": "Foundations of Artificial Intelligence",
     "marking_mode": "static",
-    "use_marks_file": "False",
+    "use_marks_file": "True",
     "points_per": "sheet",
     "min_point_unit": 0.5,
     "max_team_size": 3,
