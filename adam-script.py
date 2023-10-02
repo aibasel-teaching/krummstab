@@ -809,22 +809,36 @@ def extract_adam_zip() -> tuple[pathlib.Path, str]:
     is given. This is done stupidly right now, it would be better to extract to
     a temporary folder and then move once to the right location.
     """
-    if args.adam_zip_path.is_file():
-        # Unzip to the directory within the zip file.
-        # Should be the name of the exercise sheet, for example "Exercise Sheet 2".
-        with ZipFile(args.adam_zip_path, mode="r") as zip_file:
-            zip_content = zip_file.namelist()
-            sheet_root_dir = pathlib.Path(zip_content[0])
-            # TODO: Do this with tempfile.
-            if sheet_root_dir.exists():
-                throw_error(
-                    "Extraction failed because the extraction path "
-                    f"'{sheet_root_dir}' exists already!"
-                )
-            filtered_extract(zip_file, pathlib.Path("."))
-    else:
-        # Assume the directory is an extracted ADAM zip.
-        sheet_root_dir = args.adam_zip_path
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Extract ADAM zip contents to a temporary directory (or move in case it
+        # was extracted automatically, this happened on an Apple system).
+        if args.adam_zip_path.is_file():
+            # Unzip to the directory within the zip file.
+            # Should be the name of the exercise sheet, for example "Exercise Sheet 2".
+            with ZipFile(args.adam_zip_path, mode="r") as zip_file:
+                zip_content = zip_file.namelist()
+                sheet_root_dir = pathlib.Path(temp_dir) / zip_content[0]
+                filtered_extract(zip_file, pathlib.Path(temp_dir))
+        else:
+            # Assume the directory is an extracted ADAM zip.
+            unzipped_path = pathlib.Path(args.adam_zip_path)
+            unzipped_destination_path = (
+                pathlib.Path(temp_dir) / unzipped_path.name
+            )
+            sheet_root_dir = pathlib.Path(
+                shutil.copytree(unzipped_path, unzipped_destination_path)
+            )
+        # Store ADAM exercise sheet name to use as random seed.
+        adam_sheet_name = sheet_root_dir.name
+        destination = pathlib.Path(
+            args.target if args.target else adam_sheet_name
+        )
+        if destination.exists():
+            throw_error(
+                f"Extraction failed because the path '{destination}' exists"
+                " already!"
+            )
+        sheet_root_dir = shutil.move(sheet_root_dir, destination)
     # Flatten intermediate directory.
     sub_dirs = list(sheet_root_dir.glob("*"))
     if len(sub_dirs) != 1:
@@ -840,18 +854,7 @@ def extract_adam_zip() -> tuple[pathlib.Path, str]:
             " try anyway."
         )
     move_content_and_delete(sub_dirs[0], sheet_root_dir)
-    # Store ADAM exercise sheet name to use as random seed.
-    adam_sheet_name = sheet_root_dir.name
-    if args.target:
-        target_path = pathlib.Path(args.target)
-        if target_path.exists():
-            throw_error(
-                f"Extraction failed because the path '{target_path}' "
-                "exists already!"
-            )
-        sheet_root_dir = shutil.move(sheet_root_dir, target_path)
     return sheet_root_dir, adam_sheet_name
-
 
 def get_adam_id_to_team_dict() -> dict[str, Team]:
     """
