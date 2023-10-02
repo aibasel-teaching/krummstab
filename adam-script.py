@@ -137,7 +137,7 @@ def get_adam_sheet_name_string() -> str:
     """
     Turn the sheet name given by ADAM into a string usable for file names.
     """
-    return args.adam_sheet_name.replace(' ', '_').lower()
+    return args.adam_sheet_name.replace(" ", "_").lower()
 
 
 def get_feedback_file_name() -> str:
@@ -145,8 +145,8 @@ def get_feedback_file_name() -> str:
     if args.marking_mode == "exercise":
         # TODO: I'm not sure why I added the team_id here. Add it back in if
         # it's necessary, remove these lines otherwise.
-        #team_id = team_dir.name.split("_")[0]
-        #prefix = team_id + "_" + prefix
+        # team_id = team_dir.name.split("_")[0]
+        # prefix = team_id + "_" + prefix
         file_name += args.tutor_name + "_"
         file_name += "_".join([f"ex{exercise}" for exercise in args.exercises])
     elif args.marking_mode == "random":
@@ -394,7 +394,7 @@ def send() -> None:
             get_email_subject(),
             get_email_content(team_first_names),
             args.tutor_email,
-            get_collected_feedback_file(team_dir)
+            get_collected_feedback_file(team_dir),
         )
         emails.append(email)
     print_info(f"Ready to send {len(emails)} email(s).")
@@ -481,8 +481,7 @@ def collect_feedback_files(team_dir: pathlib.Path) -> None:
     feedback_files = [
         file
         for file in feedback_dir.rglob("*")
-        if file.is_file()
-        and not file.suffix in args.ignore_feedback_suffix
+        if file.is_file() and not file.suffix in args.ignore_feedback_suffix
     ]
     if len(feedback_files) <= 0:
         throw_error(
@@ -496,7 +495,9 @@ def collect_feedback_files(team_dir: pathlib.Path) -> None:
         return
     # Otherwise, zip up feedback files.
     feedback_contains_pdf = False
-    with ZipFile(collected_feedback_dir / collected_feedback_zip_name, "w") as zip_file:
+    with ZipFile(
+        collected_feedback_dir / collected_feedback_zip_name, "w"
+    ) as zip_file:
         for file_to_zip in feedback_files:
             if file_to_zip.suffix == ".pdf":
                 feedback_contains_pdf = True
@@ -582,6 +583,7 @@ def print_marks() -> None:
                     print_info(output_str, True)
     print_info("End of copy-paste marks.")
 
+
 def create_share_archive(overwrite: Optional[bool]) -> None:
     """
     In case the marking mode is exercise, the final feedback the teams get is
@@ -647,7 +649,10 @@ def create_share_archive(overwrite: Optional[bool]) -> None:
                     team_dir / FEEDBACK_COLLECTED_DIR_NAME / "temp_zip.zip"
                 )
                 with ZipFile(temp_zip_file, "w") as temp_zip:
-                    temp_zip.write(collected_feedback_file, arcname=collected_feedback_file.name)
+                    temp_zip.write(
+                        collected_feedback_file,
+                        arcname=collected_feedback_file.name,
+                    )
                 # Add the temporary zip file to the share archive.
                 zip_file.write(temp_zip_file, arcname=sub_zip_name)
                 # Remove the temporary zip file.
@@ -776,7 +781,10 @@ def combine() -> None:
                 # Extract feedback file from share_archive.
                 share_archive.extract(team + ".zip", combined_dir / team)
                 feedback_file_names = list((combined_dir / team).glob("*"))
-                assert len(feedback_file_names) == 1 and feedback_file_names[0].is_file()
+                assert (
+                    len(feedback_file_names) == 1
+                    and feedback_file_names[0].is_file()
+                )
                 feedback_file = feedback_file_names[0]
                 # If the feedback is not an archive but a single pdf, move on to
                 # the next team.
@@ -785,9 +793,7 @@ def combine() -> None:
                 assert feedback_file.suffix == ".zip"
                 # Otherwise, extract feedback from feedback archive.
                 print(f"{feedback_file=}")
-                with ZipFile(
-                    feedback_file, mode="r"
-                ) as feedback_archive:
+                with ZipFile(feedback_file, mode="r") as feedback_archive:
                     feedback_archive.extractall(path=combined_dir / team)
                 # Remove feedback archive.
                 feedback_file.unlink()
@@ -1034,7 +1040,9 @@ def create_marks_file() -> None:
     for team_dir in sorted(list(get_relevant_team_dirs())):
         marks_dict.update({team_dir.name: exercise_dict})
 
-    with open(args.sheet_root_dir / MARKS_FILE_NAME, "w", encoding="utf-8") as marks_json:
+    with open(
+        args.sheet_root_dir / MARKS_FILE_NAME, "w", encoding="utf-8"
+    ) as marks_json:
         json.dump(marks_dict, marks_json, indent=4, ensure_ascii=False)
 
 
