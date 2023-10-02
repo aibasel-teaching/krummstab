@@ -42,13 +42,13 @@ DEFAULT_SHARED_CONFIG_FILE = "config-shared.json"
 DEFAULT_INDIVIDUAL_CONFIG_FILE = "config-individual.json"
 DO_NOT_MARK_PREFIX = "DO_NOT_MARK_"
 FEEDBACK_DIR_NAME = "feedback"
-FEEDBACK_ARCHIVE_NAME = "feedback.zip"
-FEEDBACK_ARCHIVE_PATH = pathlib.Path(FEEDBACK_DIR_NAME, FEEDBACK_ARCHIVE_NAME)
+FEEDBACK_COLLECTED_DIR_NAME = "feedback_collected"
+FEEDBACK_FILE_PREFIX = "feedback_"
 SHEET_INFO_FILE_NAME = ".sheet_info"
 MARKS_FILE_NAME = "points.json"
 PRINT_INDENT_WIDTH = 4
 SHARE_ARCHIVE_PREFIX = "share_archive"
-COMBINED_DIR_NAME = "combined_feedback"
+COMBINED_DIR_NAME = "feedback_combined"
 
 # Might be necessary to make colored output work on Windows.
 os.system("")
@@ -57,6 +57,7 @@ os.system("")
 # ============================= Utility Functions ==============================
 
 
+# Printing ---------------------------------------------------------------------
 def print_indented(text: str) -> None:
     """
     Print a message that belongs to a previously printed info or warning
@@ -97,11 +98,13 @@ def query_yes_no(text: str, default: bool = True) -> bool:
     elif choice in valid:
         return valid[choice]
     else:
-        throw_error(
+        print_warning(
             f"Invalid choice '{choice}'. Please respond with 'yes' or 'no'."
         )
+        return query_yes_no(text, default)
 
 
+# Errors -----------------------------------------------------------------------
 def throw_error(text: str) -> None:
     """
     Print an error message and exit.
@@ -121,6 +124,45 @@ def abort(text: str) -> None:
     sys.exit(1)
 
 
+# String things ----------------------------------------------------------------
+def team_to_string(team: Team) -> str:
+    """
+    Concatenate the last names of students to get a pretty-ish string
+    representation of teams.
+    """
+    return "_".join(sorted([student[1].replace(" ", "-") for student in team]))
+
+
+def get_adam_sheet_name_string() -> str:
+    """
+    Turn the sheet name given by ADAM into a string usable for file names.
+    """
+    return args.adam_sheet_name.replace(' ', '_').lower()
+
+
+def get_feedback_file_name() -> str:
+    file_name = FEEDBACK_FILE_PREFIX + get_adam_sheet_name_string() + "_"
+    if args.marking_mode == "exercise":
+        # TODO: I'm not sure why I added the team_id here. Add it back in if
+        # it's necessary, remove these lines otherwise.
+        #team_id = team_dir.name.split("_")[0]
+        #prefix = team_id + "_" + prefix
+        file_name += args.tutor_name + "_"
+        for exercise in args.exercises:
+            file_name += f"ex{exercise}_"
+        # Remove trailing underscore.
+        file_name = file_name[:-1]
+    elif args.marking_mode == "random":
+        file_name += args.tutor_name
+    elif args.marking_mode == "static":
+        # Remove trailing underscore.
+        file_name = file_name[:-1]
+    else:
+        throw_error(f"Unsupported marking mode {args.marking_mode}!")
+    return file_name
+
+
+# Miscellaneous ----------------------------------------------------------------
 def is_email(email: str) -> bool:
     """
     Check if a string more or less matches the format of an email address.
@@ -198,6 +240,23 @@ def get_share_archive_files() -> Iterator[pathlib.Path]:
         yield share_archive_file
 
 
+def get_collected_feedback_file(team_dir: pathlib.Path) -> pathlib.Path:
+    """
+    Given a team directory, return the collected feedback file. This can be
+    either a single pdf file, or a single zip archive. Throw an error if neither
+    exists.
+    """
+    collected_feedback_dir = team_dir / FEEDBACK_COLLECTED_DIR_NAME
+    assert collected_feedback_dir.is_dir()
+    collected_feedback_files = list(collected_feedback_dir.iterdir())
+    assert (
+        len(collected_feedback_files) == 1
+        and collected_feedback_files[0].is_file()
+        and collected_feedback_files[0].suffix in [".pdf", ".zip"]
+    )
+    return collected_feedback_files[0]
+
+
 def load_sheet_info() -> None:
     """
     Load the information stored in the sheet info file into the args object.
@@ -208,14 +267,6 @@ def load_sheet_info() -> None:
         sheet_info = json.load(sheet_info_file)
     for key, value in sheet_info.items():
         add_to_args(key, value)
-
-
-def team_to_string(team: Team) -> str:
-    """
-    Concatenate the last names of students to get a pretty-ish string
-    representation of teams.
-    """
-    return "_".join(sorted([student[1].replace(" ", "-") for student in team]))
 
 
 # ============================== Send Sub-Command ==============================
@@ -346,7 +397,7 @@ def send() -> None:
             get_email_subject(),
             get_email_content(team_first_names),
             args.tutor_email,
-            team_dir / FEEDBACK_ARCHIVE_PATH,
+            get_collected_feedback_file(team_dir)
         )
         emails.append(email)
     print_info(f"Ready to send {len(emails)} email(s).")
@@ -403,13 +454,17 @@ def validate_marks_json() -> None:
         )
 
 
-def archive_feedback(team_dir: pathlib.Path) -> None:
+def collect_feedback_files(team_dir: pathlib.Path) -> None:
     """
-    Take the contents of a '{team_dir}/feedback' directory and add them to the
-    file '{team_dir}/feedback/feedback.zip'.
+    Take the contents of a {team_dir}/feedback directory and collect the files
+    that actually contain feedback (e.g., no .xopp files). If there are
+    multiple, add them to a zip archive and save it to
+    {team_dir}/feedback_collected. If there is only a single pdf, copy it to
+    {team_dir}/feedback_collected.
     """
     feedback_dir = team_dir / FEEDBACK_DIR_NAME
-    feedback_zip = team_dir / FEEDBACK_ARCHIVE_PATH
+    collected_feedback_dir = team_dir / FEEDBACK_COLLECTED_DIR_NAME
+    collected_feedback_zip_name = get_feedback_file_name() + ".zip"
     # Error handling.
     if not feedback_dir.exists():
         throw_error(f"Missing feedback directory for team {team_dir.name}!")
@@ -418,28 +473,34 @@ def archive_feedback(team_dir: pathlib.Path) -> None:
         throw_error(
             f"Feedback for {team_dir.name} contains placeholder TODO file!"
         )
-    # Feedback zips should either not exist at all, or have been deleted earlier
-    # after getting permission from the user to overwrite them.
-    assert not feedback_zip.is_file()
-    # Zip up content of the feedback directory. By default, files with
-    # extensions .zip and .xopp are not added to the feedback archive.
-    # .zip have to be ignored because the feedback_zip would contain itself
-    # otherwise. (Constructing it in a tmp directory could fix this.)
+    # The directory for collected feedback should exist and be empty. Either it
+    # was created new, or the user chose to overwrite and previously existing
+    # directories have been removed and replaced by empty ones.
+    assert collected_feedback_dir.is_dir() and not any(
+        collected_feedback_dir.iterdir()
+    )
+    # Create list of feedback files. Those are all files in the feedback
+    # directory which do not have an ignored suffix.
+    feedback_files = [
+        file
+        for file in feedback_dir.rglob("*")
+        if file.is_file()
+        and not file.suffix in args.ignore_feedback_suffix
+    ]
+    if len(feedback_files) <= 0:
+        throw_error(
+            f"Feedback archive for team {team_dir.name} is empty! "
+            "Did you forget the '-x' flag to export .xopp files?"
+        )
+    # If there is exactly one pdf in the feedback directory, we do not need to
+    # create a zip archive.
+    if len(feedback_files) == 1 and feedback_files[0].suffix == ".pdf":
+        shutil.copy(feedback_files[0], collected_feedback_dir)
+        return
+    # Otherwise, zip up feedback files.
     feedback_contains_pdf = False
-    with ZipFile(feedback_zip, "w") as zip_file:
-        to_zip = [
-            file
-            for file in feedback_dir.rglob("*")
-            if file.is_file()
-            and not file.suffix
-            in [".zip", ".xopp"] + args.ignore_feedback_suffix
-        ]
-        if len(to_zip) <= 0:
-            throw_error(
-                f"Feedback archive for team {team_dir.name} is empty! "
-                "Did you forget the '-x' flag to export .xopp files?"
-            )
-        for file_to_zip in to_zip:
+    with ZipFile(collected_feedback_dir / collected_feedback_zip_name, "w") as zip_file:
+        for file_to_zip in feedback_files:
             if file_to_zip.suffix == ".pdf":
                 feedback_contains_pdf = True
             zip_file.write(
@@ -449,14 +510,27 @@ def archive_feedback(team_dir: pathlib.Path) -> None:
         print_warning(f"The feedback for {team_dir.name} contains no PDF file!")
 
 
-def delete_feedback_archives() -> None:
+def delete_collected_feedback_directories() -> None:
     """
-    Removes existing feedback archives. Does not care about non-existing
-    ones.
+    Removes existing collected feedback directories. Does not care about
+    non-existing ones.
     """
     for team_dir in get_relevant_team_dirs():
-        feedback_zip = team_dir / FEEDBACK_ARCHIVE_PATH
-        feedback_zip.unlink(missing_ok=True)
+        collected_feedback_dir = team_dir / FEEDBACK_COLLECTED_DIR_NAME
+        shutil.rmtree(collected_feedback_dir, ignore_errors=True)
+
+
+def create_collected_feedback_directories() -> None:
+    """
+    Create an empty directory in each relevant team directory. The collected
+    feedback will be saved to these directories.
+    """
+    for team_dir in get_relevant_team_dirs():
+        collected_feedback_dir = team_dir / FEEDBACK_COLLECTED_DIR_NAME
+        assert not collected_feedback_dir.is_dir() or not any(
+            collected_feedback_dir.iterdir()
+        )
+        collected_feedback_dir.mkdir(exist_ok=True)
 
 
 def export_xopp_files() -> None:
@@ -511,7 +585,6 @@ def print_marks() -> None:
                     print_info(output_str, True)
     print_info("End of copy-paste marks.")
 
-
 def create_share_archive(overwrite: Optional[bool]) -> None:
     """
     In case the marking mode is exercise, the final feedback the teams get is
@@ -528,7 +601,7 @@ def create_share_archive(overwrite: Optional[bool]) -> None:
     # Build share archive file name.
     share_archive_file_name = (
         SHARE_ARCHIVE_PREFIX
-        + f"_{args.adam_sheet_name.replace(' ', '_').lower()}_"
+        + f"_{get_adam_sheet_name_string()}_"
         + "_".join([f"ex{num}" for num in args.exercises])
         + ".zip"
     )
@@ -552,16 +625,43 @@ def create_share_archive(overwrite: Optional[bool]) -> None:
         else:
             abort(f"Could not write share archive.")
     # Take all feedback.zip files and add them to the share archive. The file
-    # structure should be along the lines of:
+    # structure should be similar to the following. In particular, collected
+    # feedback that consists of only a single pdf should be zipped to achieve
+    # the structure below, whereas collected feedback that is already an archive
+    # simply needs to be written under a new name.
     # share_archive_sample_sheet_ex1_ex2.zip
     # ├── 12345_Muster-Meier-Mueller.zip
+    # │   └── feedback_tutor1_ex1.pdf
+    # ├── 12345_Muster-Meier-Mueller.zip
+    # │   ├── feedback_tutor1_ex1.pdf
+    # │   └── feedback_tutor1_ex1_code_submission.cc
     # └── ...
     with ZipFile(share_archive_file, "w") as zip_file:
+        # The relevant team directories should always be *all* team directories
+        # here, because we only need share archives for the 'exercise' marking
+        # mode.
         for team_dir in get_relevant_team_dirs():
-            feedback_dir = team_dir / FEEDBACK_DIR_NAME
-            feedback_archive = feedback_dir / FEEDBACK_ARCHIVE_NAME
-            assert feedback_archive.is_file()
-            zip_file.write(feedback_archive, arcname=f"{team_dir.name}.zip")
+            collected_feedback_file = get_collected_feedback_file(team_dir)
+            sub_zip_name = f"{team_dir.name}.zip"
+            if collected_feedback_file.suffix == ".pdf":
+                # Create a temporary zip file in the collected feedback
+                # directory and add the single pdf.
+                temp_zip_file = (
+                    team_dir / FEEDBACK_COLLECTED_DIR_NAME / "temp_zip.zip"
+                )
+                with ZipFile(temp_zip_file, "w") as temp_zip:
+                    temp_zip.write(collected_feedback_file, arcname=collected_feedback_file.name)
+                # Add the temporary zip file to the share archive.
+                zip_file.write(temp_zip_file, arcname=sub_zip_name)
+                # Remove the temporary zip file.
+                temp_zip_file.unlink()
+            elif collected_feedback_file.suffix == ".zip":
+                zip_file.write(collected_feedback_file, arcname=sub_zip_name)
+            else:
+                throw_error(
+                    "Collected feedback must be either a single pdf file or a"
+                    " single zip archive."
+                )
 
 
 def collect() -> None:
@@ -574,22 +674,33 @@ def collect() -> None:
     load_sheet_info()
     # Collect feedback.
 
-    # Check if there is feedback already.
-    feedback_exists = any(
-        (team_dir / FEEDBACK_ARCHIVE_PATH).is_file()
+    # Check if there is a collected feedback directory with files inside
+    # already.
+    collected_feedback_exists = any(
+        (team_dir / FEEDBACK_COLLECTED_DIR_NAME).is_dir()
+        and any((team_dir / FEEDBACK_COLLECTED_DIR_NAME).iterdir())
         for team_dir in get_relevant_team_dirs()
     )
+    # Ask the user whether collected feedback should be overwritten in case it
+    # exists already.
     overwrite = None
-    if feedback_exists:
-        overwrite = query_yes_no("There already exists collected feedback. Do you want to overwrite it?", default=False)
+    if collected_feedback_exists:
+        overwrite = query_yes_no(
+            (
+                "There already exists collected feedback. Do you want to"
+                " overwrite it?"
+            ),
+            default=False,
+        )
         if overwrite:
-            delete_feedback_archives()
+            delete_collected_feedback_directories()
         else:
             abort(f"Could not write collected feedback archives.")
     if args.xopp:
         export_xopp_files()
+    create_collected_feedback_directories()
     for team_dir in get_relevant_team_dirs():
-        archive_feedback(team_dir)
+        collect_feedback_files(team_dir)
     if args.marking_mode == "exercise":
         create_share_archive(overwrite)
     if args.use_marks_file:
@@ -664,17 +775,25 @@ def combine() -> None:
                     f"The shared archive {share_archive_file} contains no"
                     f" feedback for team {team_not_present}."
                 )
-            # Extract feedback archive from share_archive.
             for team in teams_present:
+                # Extract feedback file from share_archive.
                 share_archive.extract(team + ".zip", combined_dir / team)
-                # Extract feedback from feedback archive.
-                feedback_archive_file = combined_dir / team / (team + ".zip")
+                feedback_file_names = list((combined_dir / team).glob("*"))
+                assert len(feedback_file_names) == 1 and feedback_file_names[0].is_file()
+                feedback_file = feedback_file_names[0]
+                # If the feedback is not an archive but a single pdf, move on to
+                # the next team.
+                if feedback_file.suffix == ".pdf":
+                    continue
+                assert feedback_file.suffix == ".zip"
+                # Otherwise, extract feedback from feedback archive.
+                print(f"{feedback_file=}")
                 with ZipFile(
-                    feedback_archive_file, mode="r"
+                    feedback_file, mode="r"
                 ) as feedback_archive:
                     feedback_archive.extractall(path=combined_dir / team)
                 # Remove feedback archive.
-                feedback_archive_file.unlink()
+                feedback_file.unlink()
                 # TODO: Test if this works when there are actually multiple different share archives.
 
 
@@ -918,19 +1037,8 @@ def create_feedback_directories() -> None:
         feedback_dir = team_dir / FEEDBACK_DIR_NAME
         feedback_dir.mkdir()
 
-        prefix = f"feedback_{args.adam_sheet_name.replace(' ', '_').lower()}_"
-        if args.marking_mode == "exercise":
-            team_id = team_dir.name.split("_")[0]
-            prefix = team_id + "_" + prefix
-            prefix += args.tutor_name + "_"
-            for exercise in args.exercises:
-                prefix += f"ex{exercise}_"
-        elif args.marking_mode == "random":
-            prefix += args.tutor_name + "_"
-        elif args.marking_mode == "static":
-            pass
-
-        dummy_pdf_name = prefix[:-1] + ".pdf.todo"
+        feedback_file_name = get_feedback_file_name()
+        dummy_pdf_name = feedback_file_name + ".pdf.todo"
         pathlib.Path(feedback_dir / dummy_pdf_name).touch(exist_ok=True)
 
         # Copy non-pdf submission files into feedback directory with added
@@ -938,13 +1046,15 @@ def create_feedback_directories() -> None:
         for submission_file in team_dir.glob("*"):
             if submission_file.is_dir() or submission_file.suffix == ".pdf":
                 continue
-            feedback_file_name = prefix + submission_file.name
-            shutil.copy(submission_file, feedback_dir / feedback_file_name)
+            this_feedback_file_name = (
+                feedback_file_name + "_" + submission_file.name
+            )
+            shutil.copy(submission_file, feedback_dir / this_feedback_file_name)
 
 
 def generate_xopp_files() -> None:
     """
-    Generate xopp files in the feedback directories that point to the single PDF
+    Generate xopp files in the feedback directories that point to the single pdf
     in the submission directory and skip if multiple PDF files exist.
     """
     from PyPDF2 import PdfReader
@@ -1239,7 +1349,7 @@ def process_general_config(
         type(suffix) is str and suffix[0] == "."
         for suffix in ignore_feedback_suffix
     )
-    add_to_args("ignore_feedback_suffix", ignore_feedback_suffix)
+    add_to_args("ignore_feedback_suffix", ignore_feedback_suffix + [".xopp"])
 
     # Email settings, currently all optional because not fully functional.
     tutor_email = data_individual.get("your_email", "")
