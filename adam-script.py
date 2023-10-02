@@ -259,7 +259,7 @@ def load_sheet_info() -> None:
     Load the information stored in the sheet info file into the args object.
     """
     with open(
-        args.sheet_root_dir / SHEET_INFO_FILE_NAME, "r"
+        args.sheet_root_dir / SHEET_INFO_FILE_NAME, "r", encoding="utf-8"
     ) as sheet_info_file:
         sheet_info = json.load(sheet_info_file)
     for key, value in sheet_info.items():
@@ -414,7 +414,7 @@ def validate_marks_json() -> None:
         throw_error(
             f"Missing points file in directory '{args.sheet_root_dir}'!"
         )
-    with open(marks_json_file, "r") as marks_file:
+    with open(marks_json_file, "r", encoding="utf-8") as marks_file:
         marks = json.load(marks_file)
     relevant_teams = [
         relevant_team.name for relevant_team in get_relevant_team_dirs()
@@ -555,7 +555,7 @@ def print_marks() -> None:
     marks_json_file = args.sheet_root_dir / MARKS_FILE_NAME
     # Don't check whether the marks file exists because `validate_marks_json()`
     # would have already complained.
-    with open(marks_json_file, "r") as marks_file:
+    with open(marks_json_file, "r", encoding="utf-8") as marks_file:
         marks = json.load(marks_file)
 
     # Print marks.
@@ -1034,7 +1034,7 @@ def create_marks_file() -> None:
     for team_dir in sorted(list(get_relevant_team_dirs())):
         marks_dict.update({team_dir.name: exercise_dict})
 
-    with open(args.sheet_root_dir / MARKS_FILE_NAME, "w") as marks_json:
+    with open(args.sheet_root_dir / MARKS_FILE_NAME, "w", encoding="utf-8") as marks_json:
         json.dump(marks_dict, marks_json, indent=4, ensure_ascii=False)
 
 
@@ -1100,7 +1100,7 @@ def generate_xopp_files() -> None:
                 " exists."
             )
             continue
-        xopp_file = open(xopp_path, "w")
+        xopp_file = open(xopp_path, "w", encoding="utf-8")
         for i, page in enumerate(pages, start=1):
             width = page.mediabox.width
             height = page.mediabox.height
@@ -1158,7 +1158,7 @@ def create_sheet_info_file(adam_id_to_team: dict[str, Team]) -> None:
     if args.marking_mode == "exercise":
         info_dict.update({"exercises": args.exercises})
     with open(
-        args.sheet_root_dir / SHEET_INFO_FILE_NAME, "w"
+        args.sheet_root_dir / SHEET_INFO_FILE_NAME, "w", encoding="utf-8"
     ) as sheet_info_file:
         # Sorting the keys here is essential because the order of teams here
         # will influence the assignment returned by `get_relevant_teams()` in
@@ -1573,12 +1573,12 @@ if __name__ == "__main__":
     # Process config files =====================================================
     print_info("Processing config:")
     print_indented(f"Reading shared config file '{args.config_shared}'...")
-    with open(args.config_shared, "r") as config_file:
+    with open(args.config_shared, "r", encoding="utf-8") as config_file:
         data_shared = json.load(config_file)
     print_indented(
         f"Reading individual config file '{args.config_individual}'..."
     )
-    with open(args.config_individual, "r") as config_file:
+    with open(args.config_individual, "r", encoding="utf-8") as config_file:
         data_individual = json.load(config_file)
     assert data_shared.keys().isdisjoint(data_individual)
 
