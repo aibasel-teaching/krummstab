@@ -158,6 +158,9 @@ def get_feedback_file_name() -> str:
         throw_error(f"Unsupported marking mode {args.marking_mode}!")
     return file_name
 
+def get_combined_feedback_file_name() -> str:
+    return FEEDBACK_FILE_PREFIX + get_adam_sheet_name_string()
+
 
 # Miscellaneous ----------------------------------------------------------------
 def is_email(email: str) -> bool:
@@ -755,19 +758,29 @@ def combine() -> None:
             abort(f"Could not write to '{combined_dir}'.")
     combined_dir.mkdir()
 
+    # Structure at this point:
+    # <sheet_root_dir>
+    # └── feedback_combined
+
     # Create subdirectories for teams.
     for team_dir in get_relevant_team_dirs():
         combined_team_dir = combined_dir / team_dir.name
         combined_team_dir.mkdir()
 
+    # Structure at this point:
+    # <sheet_root_dir>
+    # └── feedback_combined
+    #     ├── 12345_Muster-Meier-Mueller
+    #     .
+
     teams_all = [team_dir.name for team_dir in get_relevant_team_dirs()]
-    # Extract feedback from share archives into the combined directory.
+    # Extract feedback files from share archives into their respective team
+    # directories in the combined directory.
     for share_archive_file in args.sheet_root_dir.glob(
         SHARE_ARCHIVE_PREFIX + "*.zip"
     ):
         with ZipFile(share_archive_file, mode="r") as share_archive:
-            # Check if this share archive is missing feedback archives for any
-            # teams.
+            # Check if this share archive is missing team archives for any team.
             teams_present = [
                 pathlib.Path(team).stem for team in share_archive.namelist()
             ]
@@ -778,26 +791,56 @@ def combine() -> None:
                     f" feedback for team {team_not_present}."
                 )
             for team in teams_present:
-                # Extract feedback file from share_archive.
-                share_archive.extract(team + ".zip", combined_dir / team)
-                feedback_file_names = list((combined_dir / team).glob("*"))
-                assert (
-                    len(feedback_file_names) == 1
-                    and feedback_file_names[0].is_file()
-                )
-                feedback_file = feedback_file_names[0]
-                # If the feedback is not an archive but a single pdf, move on to
-                # the next team.
-                if feedback_file.suffix == ".pdf":
-                    continue
-                assert feedback_file.suffix == ".zip"
-                # Otherwise, extract feedback from feedback archive.
-                print(f"{feedback_file=}")
-                with ZipFile(feedback_file, mode="r") as feedback_archive:
-                    feedback_archive.extractall(path=combined_dir / team)
-                # Remove feedback archive.
+                # Extract team_archive from share_archive.
+                team_archive_file = share_archive.extract(team + ".zip", combined_dir / team)
+                with ZipFile(team_archive_file, mode="r") as team_archive:
+                    team_archive.extractall(path=combined_dir / team)
+                pathlib.Path(team_archive_file).unlink()
+
+    # Structure at this point:
+    # <sheet_root_dir>
+    # └── feedback_combined
+    #     ├── 12345_Muster-Meier-Mueller
+    #     .   ├── feedback_exercise_sheet_01_tutor1_ex1.pdf
+    #     .   └── feedback_exercise_sheet_01_tutor2_ex2.zip
+
+    # Extract zipped feedback in combined directory.
+    for team_dir in combined_dir.iterdir():
+        assert team_dir.is_dir()
+        for feedback_file in team_dir.iterdir():
+            assert feedback_file.is_file()
+            # If the feedback is not an archive but a single pdf, move on.
+            if feedback_file.suffix == ".pdf":
+                continue
+            assert feedback_file.suffix == ".zip"
+            # Otherwise, extract feedback from feedback archive.
+            with ZipFile(feedback_file, mode="r") as feedback_archive:
+                feedback_archive.extractall(path=combined_dir / team)
+            # Remove feedback archive.
+            feedback_file.unlink()
+
+    # Structure at this point:
+    # <sheet_root_dir>
+    # └── feedback_combined
+    #     ├── 12345_Muster-Meier-Mueller
+    #     .   ├── feedback_exercise_sheet_01_tutor1_ex1.pdf
+    #     .   ├── feedback_exercise_sheet_01_tutor2_ex2.pdf
+    #     .   └── feedback_exercise_sheet_01_tutor2_ex2_code.cc
+
+    # Zip up feedback files.
+    for team_dir in combined_dir.iterdir():
+        feedback_files = list(team_dir.iterdir())
+        combined_team_archive = team_dir / (get_combined_feedback_file_name() + ".zip")
+        with ZipFile(combined_team_archive, mode="w") as combined_zip:
+            for feedback_file in feedback_files:
+                combined_zip.write(feedback_file, arcname=feedback_file.name)
                 feedback_file.unlink()
-                # TODO: Test if this works when there are actually multiple different share archives.
+
+    # Structure at this point:
+    # <sheet_root_dir>
+    # └── feedback_combined
+    #     ├── 12345_Muster-Meier-Mueller
+    #     .   └── feedback_exercise_sheet_01.zip
 
 
 # ============================== Init Sub-Command ==============================
