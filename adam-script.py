@@ -797,6 +797,11 @@ def combine() -> None:
                     team_archive.extractall(path=combined_dir / team)
                 pathlib.Path(team_archive_file).unlink()
 
+    '''
+    I think the step above already accomplishes what this step is supposed to
+    accomplish. If no problems arise long-term (today is 2023-10-31), remove
+    this block.
+
     # Structure at this point:
     # <sheet_root_dir>
     # └── feedback_combined
@@ -810,14 +815,14 @@ def combine() -> None:
         for feedback_file in team_dir.iterdir():
             assert feedback_file.is_file()
             # If the feedback is not an archive but a single pdf, move on.
-            if feedback_file.suffix == ".pdf":
+            if feedback_file.suffix != ".zip":
                 continue
-            assert feedback_file.suffix == ".zip"
             # Otherwise, extract feedback from feedback archive.
             with ZipFile(feedback_file, mode="r") as feedback_archive:
                 feedback_archive.extractall(path=combined_dir / team)
             # Remove feedback archive.
             feedback_file.unlink()
+    '''
 
     # Structure at this point:
     # <sheet_root_dir>
