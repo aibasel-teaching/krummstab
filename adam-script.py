@@ -169,6 +169,12 @@ def is_email(email: str) -> bool:
     """
     return type(email) is str and bool(re.match(r"[^@]+@[^@]+\.[^@]+", email))
 
+def is_hidden_file(name: str) -> bool:
+    """
+    Check if a given file name could be a hidden file. In particular a file that
+    should not be sent to students as feedback.
+    """
+    return name.startswith(".") or is_macos_path(name)
 
 def is_macos_path(path: str) -> bool:
     """
@@ -491,6 +497,12 @@ def collect_feedback_files(team_dir: pathlib.Path) -> None:
             f"Feedback archive for team {team_dir.name} is empty! "
             "Did you forget the '-x' flag to export .xopp files?"
         )
+    hidden_file = next((hidden_file for hidden_file in feedback_files if is_hidden_file(hidden_file.name)), None)
+    if hidden_file:
+        include_anyway = query_yes_no(f"There seem to be hidden files in your feedback directory, e.g. {str(hidden_file)}. Do you want to include them in your feedback anyway?", default=False)
+        if not include_anyway:
+            abort("The feedback directory contains a hidden file that you don't want included in the collected feedback.")
+
     # If there is exactly one pdf in the feedback directory, we do not need to
     # create a zip archive.
     if len(feedback_files) == 1 and feedback_files[0].suffix == ".pdf":
