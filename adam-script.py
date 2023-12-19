@@ -158,6 +158,7 @@ def get_feedback_file_name() -> str:
         throw_error(f"Unsupported marking mode {args.marking_mode}!")
     return file_name
 
+
 def get_combined_feedback_file_name() -> str:
     return FEEDBACK_FILE_PREFIX + get_adam_sheet_name_string()
 
@@ -169,12 +170,14 @@ def is_email(email: str) -> bool:
     """
     return type(email) is str and bool(re.match(r"[^@]+@[^@]+\.[^@]+", email))
 
+
 def is_hidden_file(name: str) -> bool:
     """
     Check if a given file name could be a hidden file. In particular a file that
     should not be sent to students as feedback.
     """
     return name.startswith(".") or is_macos_path(name)
+
 
 def is_macos_path(path: str) -> bool:
     """
@@ -497,11 +500,28 @@ def collect_feedback_files(team_dir: pathlib.Path) -> None:
             f"Feedback archive for team {team_dir.name} is empty! "
             "Did you forget the '-x' flag to export .xopp files?"
         )
-    hidden_file = next((hidden_file for hidden_file in feedback_files if is_hidden_file(hidden_file.name)), None)
+    hidden_file = next(
+        (
+            hidden_file
+            for hidden_file in feedback_files
+            if is_hidden_file(hidden_file.name)
+        ),
+        None,
+    )
     if hidden_file:
-        include_anyway = query_yes_no(f"There seem to be hidden files in your feedback directory, e.g. {str(hidden_file)}. Do you want to include them in your feedback anyway?", default=False)
+        include_anyway = query_yes_no(
+            (
+                "There seem to be hidden files in your feedback directory,"
+                f" e.g. {str(hidden_file)}. Do you want to include them in your"
+                " feedback anyway?"
+            ),
+            default=False,
+        )
         if not include_anyway:
-            abort("The feedback directory contains a hidden file that you don't want included in the collected feedback.")
+            abort(
+                "The feedback directory contains a hidden file that you don't"
+                " want included in the collected feedback."
+            )
 
     # If there is exactly one pdf in the feedback directory, we do not need to
     # create a zip archive.
@@ -804,12 +824,14 @@ def combine() -> None:
                 )
             for team in teams_present:
                 # Extract team_archive from share_archive.
-                team_archive_file = share_archive.extract(team + ".zip", combined_dir / team)
+                team_archive_file = share_archive.extract(
+                    team + ".zip", combined_dir / team
+                )
                 with ZipFile(team_archive_file, mode="r") as team_archive:
                     team_archive.extractall(path=combined_dir / team)
                 pathlib.Path(team_archive_file).unlink()
 
-    '''
+    """
     I think the step above already accomplishes what this step is supposed to
     accomplish. If no problems arise long-term (today is 2023-10-31), remove
     this block.
@@ -834,7 +856,7 @@ def combine() -> None:
                 feedback_archive.extractall(path=combined_dir / team)
             # Remove feedback archive.
             feedback_file.unlink()
-    '''
+    """
 
     # Structure at this point:
     # <sheet_root_dir>
@@ -847,7 +869,9 @@ def combine() -> None:
     # Zip up feedback files.
     for team_dir in combined_dir.iterdir():
         feedback_files = list(team_dir.iterdir())
-        combined_team_archive = team_dir / (get_combined_feedback_file_name() + ".zip")
+        combined_team_archive = team_dir / (
+            get_combined_feedback_file_name() + ".zip"
+        )
         with ZipFile(combined_team_archive, mode="w") as combined_zip:
             for feedback_file in feedback_files:
                 combined_zip.write(feedback_file, arcname=feedback_file.name)
@@ -915,6 +939,7 @@ def extract_adam_zip() -> tuple[pathlib.Path, str]:
         )
     move_content_and_delete(sub_dirs[0], sheet_root_dir)
     return sheet_root_dir, adam_sheet_name
+
 
 def get_adam_id_to_team_dict() -> dict[str, Team]:
     """
@@ -1650,7 +1675,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if (args.sub_command == "help"):
+    if args.sub_command == "help":
         parser.print_help()
         sys.exit(0)
 
