@@ -500,6 +500,8 @@ def collect_feedback_files(team_dir: pathlib.Path) -> None:
             f"Feedback archive for team {team_dir.name} is empty! "
             "Did you forget the '-x' flag to export .xopp files?"
         )
+    # Ask for confirmation if the feedback directory contains hidden files that
+    # are maybe not supposed to be part of the collected feedback.
     hidden_file = next(
         (
             hidden_file
@@ -512,15 +514,19 @@ def collect_feedback_files(team_dir: pathlib.Path) -> None:
         include_anyway = query_yes_no(
             (
                 "There seem to be hidden files in your feedback directory,"
-                f" e.g. {str(hidden_file)}. Do you want to include them in your"
-                " feedback anyway?"
+                f" e.g. '{str(hidden_file)}'. Do you want to include them in"
+                " your feedback anyway?"
             ),
             default=False,
         )
         if not include_anyway:
             abort(
                 "The feedback directory contains a hidden file that you don't"
-                " want included in the collected feedback."
+                " want included in the collected feedback. Consider adding the"
+                " suffix of the hidden file to the list of ignored feedback"
+                " suffixes in your individual configuration file. This prevents"
+                " similar files from being collected by default and avoids this"
+                " prompt."
             )
 
     # If there is exactly one pdf in the feedback directory, we do not need to
