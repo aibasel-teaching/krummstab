@@ -1541,6 +1541,15 @@ if __name__ == "__main__":
         help="available sub-commands",
         dest="sub_command",
     )
+    # Help command -------------------------------------------------------------
+    parser_init = subparsers.add_parser(
+        "help",
+        help=(
+            "print this help message; "
+            "run e.g. 'python3 adam-script.py init -h' to print help of "
+            "sub-command"
+        ),
+    )
     # Init command and arguments -----------------------------------------------
     parser_init = subparsers.add_parser(
         "init",
@@ -1628,6 +1637,10 @@ if __name__ == "__main__":
     parser_send.set_defaults(func=send)
 
     args = parser.parse_args()
+
+    if (args.sub_command == "help"):
+        parser.print_help()
+        sys.exit(0)
 
     # Process config files =====================================================
     print_info("Processing config:")
