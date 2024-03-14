@@ -199,12 +199,14 @@ def filtered_extract(zip_file: ZipFile, dest: pathlib.Path) -> None:
 
 def move_content_and_delete(src: pathlib.Path, dst: pathlib.Path) -> None:
     """
-    Move all content of src directory to dest directory.
+    Move all content of source directory to destination directory.
     This does not complain if the dst directory already exists.
     """
     assert src.is_dir() and dst.is_dir()
-    shutil.copytree(src, dst, dirs_exist_ok=True)
-    shutil.rmtree(src)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        shutil.copytree(src, temp_dir, dirs_exist_ok=True)
+        shutil.rmtree(src)
+        shutil.copytree(temp_dir, dst, dirs_exist_ok=True)
 
 
 def verify_sheet_root_dir() -> None:
@@ -1100,8 +1102,8 @@ def unzip_internal_zips() -> None:
     """
     If multiple files are uploaded to ADAM, the submission becomes a single zip
     file. Here we extract this zip. I'm not sure if nested zip files are also
-    extracted. Additionally we flatten the directory by one level if the zip
-    contains only a single directory. Doing so recursively would be nicer.
+    extracted. Additionally we flatten the directory as long as a level only
+    consists of a single directory.
     """
     for team_dir in get_all_team_dirs():
         if not team_dir.is_dir():
@@ -1111,8 +1113,9 @@ def unzip_internal_zips() -> None:
                 filtered_extract(zf, zip_file.parent)
             os.remove(zip_file)
         sub_dirs = list(team_dir.iterdir())
-        if len(sub_dirs) == 1 and sub_dirs[0].is_dir():
+        while len(sub_dirs) == 1 and sub_dirs[0].is_dir():
             move_content_and_delete(sub_dirs[0], team_dir)
+            sub_dirs = list(team_dir.iterdir())
 
 
 def create_marks_file() -> None:
