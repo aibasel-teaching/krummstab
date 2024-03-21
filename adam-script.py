@@ -326,13 +326,40 @@ def construct_email(
     return mail
 
 
+def print_email(email: EmailMessage) -> None:
+    to = email['To']
+    cc = email['CC']
+    subject = email['Subject']
+    content = ""
+    attachments = []
+    for part in email.walk():
+        if part.is_attachment():
+            attachments.append(part.get_filename())
+        elif not part.is_multipart():
+            content += part.get_content()
+    print_info(f"To: {to}", True)
+    if cc:
+        print_info(f"CC: {cc}", True)
+    if attachments:
+        print_info(f"Attachments: {', '.join(attachments)}", True)
+    print_info(f"Subject: {subject}", True)
+    print_info(f"Text:\n{content}", True)
+
+
+def print_emails(emails: list[EmailMessage]) -> None:
+    print_info("Sending emails now would send the following emails:")
+    for email in emails:
+        print_email(email)
+        print_info(f"===========\n", True)
+
+
 def send_messages(emails: list[EmailMessage]) -> None:
     with smtplib.SMTP(args.smtp_url, args.smtp_port) as smtp:
-        smtp.starttls(context=ssl.create_default_context())
-        password = getpass("Email password: ")
-        print_info(
-            f"Authentication: {smtp.login(args.smtp_user, password)}", True
-        )
+        smtp.starttls()
+        if args.smtp_user:
+            password = getpass("Email password: ")
+            login_result = smtp.login(args.smtp_user, password)
+            print_info(f"Authentication: {login_result}", True)
         print_info("Sending emails...")
         for email in emails:
             print_info(f"... to {email['To']}", True)
@@ -412,7 +439,10 @@ def send() -> None:
         )
         emails.append(email)
     print_info(f"Ready to send {len(emails)} email(s).")
-    send_messages(emails)
+    if args.dry_run:
+        print_emails(emails)
+    else:
+        send_messages(emails)
 
 
 # ============================ Collect Sub-Command =============================
@@ -1679,6 +1709,12 @@ if __name__ == "__main__":
         "sheet_root_dir",
         type=pathlib.Path,
         help="path to the sheet's directory",
+    )
+    parser_send.add_argument(
+        "-d",
+        "--dry_run",
+        action='store_true',
+        help="only print emails instead of sending them",
     )
     parser_send.set_defaults(func=send)
 
