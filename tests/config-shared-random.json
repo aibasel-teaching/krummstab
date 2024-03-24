@@ -1,5 +1,6 @@
 {
     "lecture_title": "Foundations of Artificial Intelligence",
+    "assistant_email": "florian.pommerening@unibas.ch",
     "marking_mode": "random",
     "use_marks_file": "True",
     "points_per": "exercise",

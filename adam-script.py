@@ -45,7 +45,6 @@ FEEDBACK_DIR_NAME = "feedback"
 FEEDBACK_COLLECTED_DIR_NAME = "feedback_collected"
 FEEDBACK_FILE_PREFIX = "feedback_"
 SHEET_INFO_FILE_NAME = ".sheet_info"
-MARKS_FILE_NAME = "points.json"
 PRINT_INDENT_WIDTH = 4
 SHARE_ARCHIVE_PREFIX = "share_archive"
 COMBINED_DIR_NAME = "feedback_combined"
@@ -162,6 +161,9 @@ def get_feedback_file_name() -> str:
 def get_combined_feedback_file_name() -> str:
     return FEEDBACK_FILE_PREFIX + get_adam_sheet_name_string()
 
+
+def get_marks_file_path():
+    return args.sheet_root_dir / f"points_{args.tutor_name}_{get_adam_sheet_name_string()}.json"
 
 # Miscellaneous ----------------------------------------------------------------
 def is_email(email: str) -> bool:
@@ -367,11 +369,18 @@ def send_messages(emails: list[EmailMessage]) -> None:
     print_info("Done sending emails.")
 
 
-def get_email_subject() -> str:
+def get_team_email_subject() -> str:
     """
     Builds the email subject.
     """
     return f"Feedback {args.adam_sheet_name} | {args.lecture_title}"
+
+
+def get_assistant_email_subject() -> str:
+    """
+    Builds the email subject.
+    """
+    return f"Marks for {args.adam_sheet_name} | {args.lecture_title}"
 
 
 def get_email_greeting(name_list: list[str]) -> str:
@@ -391,7 +400,7 @@ def get_email_greeting(name_list: list[str]) -> str:
     return "Dear " + names + ","
 
 
-def get_email_content(name_list: list[str]) -> str:
+def get_team_email_content(name_list: list[str]) -> str:
     """
     Builds the body of the email.
     """
@@ -410,11 +419,54 @@ def get_email_content(name_list: list[str]) -> str:
     ]  # Removes the leading newline.
 
 
+def get_assistant_email_content() -> str:
+    """
+    Builds the body of the email.
+    """
+    return textwrap.dedent(
+        f"""
+    Dear Assistant for {args.lecture_title}
+
+    Please find my marks for {args.adam_sheet_name} in the attachment.
+
+    Best,
+    Your Tutors
+    """
+    )[
+        1:
+    ]  # Removes the leading newline.
+
+
+def create_email_to_team(team_dir):
+    team = args.team_dir_to_team[team_dir.name]
+    team_first_names, _, team_emails = zip(*team)
+    return construct_email(
+        list(team_emails),
+        args.feedback_email_cc,
+        get_team_email_subject(),
+        get_team_email_content(team_first_names),
+        args.tutor_email,
+        get_collected_feedback_file(team_dir),
+    )
+
+
+def create_email_to_assistent():
+    return construct_email(
+        [args.assistant_email],
+        args.feedback_email_cc,
+        get_assistant_email_subject(),
+        get_assistant_email_content(),
+        args.tutor_email,
+        get_marks_file_path()
+    )
+
+
 def send() -> None:
     """
     After the collection step finished successfully, send the feedback to the
     students via email. This currently only works if the tutor's email account
-    is whitelisted for the smpt-ext.unibas.ch server.
+    is whitelisted for the smpt-ext.unibas.ch server, or if the tutor uses
+    smtp.unibas.ch with an empty smpt_user.
     """
     # Prepare.
     verify_sheet_root_dir()
@@ -427,17 +479,8 @@ def send() -> None:
     # Send emails.
     emails: list[EmailMessage] = []
     for team_dir in get_relevant_team_dirs():
-        team = args.team_dir_to_team[team_dir.name]
-        team_first_names, _, team_emails = zip(*team)
-        email = construct_email(
-            list(team_emails),
-            args.feedback_email_cc,
-            get_email_subject(),
-            get_email_content(team_first_names),
-            args.tutor_email,
-            get_collected_feedback_file(team_dir),
-        )
-        emails.append(email)
+        emails.append(create_email_to_team(team_dir))
+    emails.append(create_email_to_assistent())
     print_info(f"Ready to send {len(emails)} email(s).")
     if args.dry_run:
         print_emails(emails)
@@ -453,7 +496,7 @@ def validate_marks_json() -> None:
     Verify that all necessary marks are present in the MARK_FILE_NAME file and
     adhere to the granularity defined in the config file.
     """
-    marks_json_file = args.sheet_root_dir / MARKS_FILE_NAME
+    marks_json_file = get_marks_file_path()
     if not marks_json_file.is_file():
         throw_error(
             f"Missing points file in directory '{args.sheet_root_dir}'!"
@@ -468,7 +511,7 @@ def validate_marks_json() -> None:
         throw_error(
             "There is no 1-to-1 mapping between team directories "
             "that need to be marked and entries in the "
-            f"'{MARKS_FILE_NAME}' "
+            f"'{marks_json_file.name}' "
             "file! Make sure that it contains exactly one entry for every team "
             "directory that needs to be marked, and that directory name and "
             "key are the same."
@@ -483,13 +526,13 @@ def validate_marks_json() -> None:
         marks_list = marks.values()
     if not all(marks_list):
         throw_error(
-            f"There are missing points in the '{MARKS_FILE_NAME}' file!"
+            f"There are missing points in the '{marks_json_file.name}' file!"
         )
     if not all(
         (float(mark) / args.min_point_unit).is_integer() for mark in marks_list
     ):
         throw_error(
-            f"'{MARKS_FILE_NAME}' contains marks that are more fine-grained "
+            f"'{marks_json_file.name}' contains marks that are more fine-grained "
             "than allowed! You may only award points in "
             f"'{args.min_point_unit}' increments."
         )
@@ -626,10 +669,9 @@ def print_marks() -> None:
     marks are collected.
     """
     # Read marks file.
-    marks_json_file = args.sheet_root_dir / MARKS_FILE_NAME
     # Don't check whether the marks file exists because `validate_marks_json()`
     # would have already complained.
-    with open(marks_json_file, "r", encoding="utf-8") as marks_file:
+    with open(get_marks_file_path(), "r", encoding="utf-8") as marks_file:
         marks = json.load(marks_file)
 
     # Print marks.
@@ -1167,9 +1209,7 @@ def create_marks_file() -> None:
     for team_dir in sorted(list(get_relevant_team_dirs())):
         marks_dict.update({team_dir.name: exercise_dict})
 
-    with open(
-        args.sheet_root_dir / MARKS_FILE_NAME, "w", encoding="utf-8"
-    ) as marks_json:
+    with open(get_marks_file_path(), "w", encoding="utf-8" ) as marks_json:
         json.dump(marks_dict, marks_json, indent=4, ensure_ascii=False)
 
 
@@ -1541,6 +1581,10 @@ def process_general_config(
     lecture_title = data_shared["lecture_title"]
     assert lecture_title and type(lecture_title) is str
     add_to_args("lecture_title", lecture_title)
+
+    assistant_email = data_shared["assistant_email"]
+    assert assistant_email and type(assistant_email) is str
+    add_to_args("assistant_email", assistant_email)
 
     marking_mode = data_shared["marking_mode"]
     assert marking_mode in ["static", "random", "exercise"]
