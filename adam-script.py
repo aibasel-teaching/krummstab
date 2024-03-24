@@ -480,7 +480,8 @@ def send() -> None:
     emails: list[EmailMessage] = []
     for team_dir in get_relevant_team_dirs():
         emails.append(create_email_to_team(team_dir))
-    emails.append(create_email_to_assistent())
+    if args.assistant_email:
+        emails.append(create_email_to_assistent())
     print_info(f"Ready to send {len(emails)} email(s).")
     if args.dry_run:
         print_emails(emails)
@@ -1582,7 +1583,7 @@ def process_general_config(
     assert lecture_title and type(lecture_title) is str
     add_to_args("lecture_title", lecture_title)
 
-    assistant_email = data_shared["assistant_email"]
+    assistant_email = data_shared.get("assistant_email", "")
     assert assistant_email and type(assistant_email) is str
     add_to_args("assistant_email", assistant_email)
 
