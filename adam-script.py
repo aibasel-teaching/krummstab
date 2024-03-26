@@ -163,7 +163,11 @@ def get_combined_feedback_file_name() -> str:
 
 
 def get_marks_file_path():
-    return args.sheet_root_dir / f"points_{args.tutor_name}_{get_adam_sheet_name_string()}.json"
+    return (
+        args.sheet_root_dir
+        / f"points_{args.tutor_name.lower()}_{get_adam_sheet_name_string()}.json"
+    )
+
 
 # Miscellaneous ----------------------------------------------------------------
 def is_email(email: str) -> bool:
@@ -329,9 +333,9 @@ def construct_email(
 
 
 def print_email(email: EmailMessage) -> None:
-    to = email['To']
-    cc = email['CC']
-    subject = email['Subject']
+    to = email["To"]
+    cc = email["CC"]
+    subject = email["Subject"]
     content = ""
     attachments = []
     for part in email.walk():
@@ -457,7 +461,7 @@ def create_email_to_assistent():
         get_assistant_email_subject(),
         get_assistant_email_content(),
         args.tutor_email,
-        get_marks_file_path()
+        get_marks_file_path(),
     )
 
 
@@ -533,9 +537,9 @@ def validate_marks_json() -> None:
         (float(mark) / args.min_point_unit).is_integer() for mark in marks_list
     ):
         throw_error(
-            f"'{marks_json_file.name}' contains marks that are more fine-grained "
-            "than allowed! You may only award points in "
-            f"'{args.min_point_unit}' increments."
+            f"'{marks_json_file.name}' contains marks that are more"
+            " fine-grained than allowed! You may only award points in"
+            f" '{args.min_point_unit}' increments."
         )
 
 
@@ -1210,7 +1214,7 @@ def create_marks_file() -> None:
     for team_dir in sorted(list(get_relevant_team_dirs())):
         marks_dict.update({team_dir.name: exercise_dict})
 
-    with open(get_marks_file_path(), "w", encoding="utf-8" ) as marks_json:
+    with open(get_marks_file_path(), "w", encoding="utf-8") as marks_json:
         json.dump(marks_dict, marks_json, indent=4, ensure_ascii=False)
 
 
@@ -1584,7 +1588,7 @@ def process_general_config(
     add_to_args("lecture_title", lecture_title)
 
     assistant_email = data_shared.get("assistant_email", "")
-    assert assistant_email and type(assistant_email) is str
+    assert type(assistant_email) is str
     add_to_args("assistant_email", assistant_email)
 
     marking_mode = data_shared["marking_mode"]
@@ -1758,7 +1762,7 @@ if __name__ == "__main__":
     parser_send.add_argument(
         "-d",
         "--dry_run",
-        action='store_true',
+        action="store_true",
         help="only print emails instead of sending them",
     )
     parser_send.set_defaults(func=send)
