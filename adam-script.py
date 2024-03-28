@@ -118,19 +118,6 @@ def query_yes_no(text: str, default: bool = True) -> bool:
         )
         return query_yes_no(text, default)
 
-
-# Errors -----------------------------------------------------------------------
-def abort(text: str) -> None:
-    """
-    Gracefully terminate the script without success because something went
-    wrong in an expected way.
-    """
-    if not args.quiet:
-        logging.warning(text)
-    logging.warning(f"Aborting the subcommand '{args.sub_command}'.")
-    sys.exit(1)
-
-
 # String things ----------------------------------------------------------------
 def team_to_string(team: Team) -> str:
     """
@@ -584,39 +571,28 @@ def collect_feedback_files(team_dir: pathlib.Path) -> None:
         for file in feedback_dir.rglob("*")
         if file.is_file() and not file.suffix in args.ignore_feedback_suffix
     ]
-    if len(feedback_files) <= 0:
-        logging.critical(
-            f"Feedback archive for team {team_dir.name} is empty! "
-            "Did you forget the '-x' flag to export .xopp files?"
-        )
     # Ask for confirmation if the feedback directory contains hidden files that
     # are maybe not supposed to be part of the collected feedback.
-    hidden_file = next(
-        (
-            hidden_file
-            for hidden_file in feedback_files
-            if is_hidden_file(hidden_file.name)
-        ),
-        None,
-    )
-    if hidden_file:
+    hidden_files = [f for f in feedback_files if is_hidden_file(f.name)]
+    for hidden_file in hidden_files:
         include_anyway = query_yes_no(
             (
-                "There seem to be hidden files in your feedback directory,"
-                f" e.g. '{str(hidden_file)}'. Do you want to include them in"
-                " your feedback anyway?"
+                "There seem to be hidden files in your feedback directory, "
+                f"e.g. '{str(hidden_file)}'. Do you want to include them in "
+                "your feedback anyway? (Consider adding ignored suffixes in "
+                "your individual configuration file to avoid this prompt in "
+                "the future.)"
             ),
             default=False,
         )
         if not include_anyway:
-            abort(
-                "The feedback directory contains a hidden file that you don't"
-                " want included in the collected feedback. Consider adding the"
-                " suffix of the hidden file to the list of ignored feedback"
-                " suffixes in your individual configuration file. This prevents"
-                " similar files from being collected by default and avoids this"
-                " prompt."
-            )
+            feedback_files.remove(hidden_file)
+
+    if not feedback_files:
+        logging.critical(
+            f"Feedback archive for team {team_dir.name} is empty! "
+            "Did you forget the '-x' flag to export .xopp files?"
+        )
 
     # If there is exactly one pdf in the feedback directory, we do not need to
     # create a zip archive.
@@ -751,7 +727,8 @@ def create_share_archive(overwrite: Optional[bool]) -> None:
         if overwrite:
             share_archive_file.unlink(missing_ok=True)
         else:
-            abort(f"Could not write share archive.")
+            logging.info(f"Could not write share archive. Aborting command.")
+            return
     # Take all feedback.zip files and add them to the share archive. The file
     # structure should be similar to the following. In particular, collected
     # feedback that consists of only a single pdf should be zipped to achieve
@@ -826,7 +803,8 @@ def collect() -> None:
         if overwrite:
             delete_collected_feedback_directories()
         else:
-            abort(f"Could not write collected feedback archives.")
+            logging.info(f"Could not write collected feedback archives. Aborting command.")
+            return
     if args.xopp:
         export_xopp_files()
     create_collected_feedback_directories()
@@ -860,7 +838,7 @@ def combine() -> None:
         f" {args.sheet_root_dir}."
     )
     if len(list(share_archive_files)) == 0:
-        abort(
+        logging.critical(
             f"No share archives exist in {args.sheet_root_dir}. " + instructions
         )
     if len(list(share_archive_files)) == 1:
@@ -881,7 +859,9 @@ def combine() -> None:
         if overwrite:
             shutil.rmtree(combined_dir)
         else:
-            abort(f"Could not write to '{combined_dir}'.")
+            logging.info(f"Could not write to '{combined_dir}'. Aborting combine command.")
+            return
+
     combined_dir.mkdir()
 
     # Structure at this point:
