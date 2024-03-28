@@ -12,6 +12,7 @@ marks    - points awarded for a sheet or exercise
 import argparse
 import hashlib
 import json
+import logging
 import mimetypes
 import os
 import pathlib
@@ -31,7 +32,6 @@ from collections.abc import Iterator
 
 # Needed for email stuff.
 import smtplib
-import ssl
 from email.message import EmailMessage
 from getpass import getpass
 
@@ -45,7 +45,6 @@ FEEDBACK_DIR_NAME = "feedback"
 FEEDBACK_COLLECTED_DIR_NAME = "feedback_collected"
 FEEDBACK_FILE_PREFIX = "feedback_"
 SHEET_INFO_FILE_NAME = ".sheet_info"
-PRINT_INDENT_WIDTH = 4
 SHARE_ARCHIVE_PREFIX = "share_archive"
 COMBINED_DIR_NAME = "feedback_combined"
 
@@ -55,34 +54,51 @@ os.system("")
 
 # ============================= Utility Functions ==============================
 
+# Logging ----------------------------------------------------------------------
+
+def configure_logging(level=logging.INFO):
+    class ColoredFormatter(logging.Formatter):
+        FORMATS = {
+            logging.DEBUG:    "\033[0;37m[{levelname}]\033[0m {message}",
+            logging.INFO:     "\033[0;34m[{levelname}]\033[0m {message}",
+            logging.WARNING:  "\033[0;33m[{levelname}]\033[0m {message}",
+            logging.ERROR:    "\033[0;31m[{levelname}]\033[0m {message}",
+            logging.CRITICAL: "\033[0;31m[{levelname}]\033[0m {message}",
+        }
+
+        def format(self, record):
+            formatter = logging.Formatter(ColoredFormatter.FORMATS[record.levelno], style="{")
+            return formatter.format(record)
+
+    class LevelFilter:
+        def __init__(self, min_level, max_level):
+            self.min_level = min_level
+            self.max_level = max_level
+
+        def filter(self, record):
+            return self.min_level <= record.levelno <= self.max_level
+
+    class CustomHandler(logging.StreamHandler):
+        def __init__(self, stream, min_level=logging.DEBUG, max_level=logging.CRITICAL):
+            logging.StreamHandler.__init__(self, stream)
+            self.setFormatter(ColoredFormatter())
+            self.addFilter(LevelFilter(min_level, max_level))
+
+        def emit(self, record):
+            logging.StreamHandler.emit(self, record)
+            if record.levelno >= logging.CRITICAL:
+                sys.exit("aborting")
+
+    root_logger = logging.getLogger("")
+    # Remove old handlers
+    for handler in root_logger.handlers:
+        root_logger.removeHandler(handler)
+    root_logger.addHandler(CustomHandler(sys.stdout, max_level=logging.WARNING))
+    root_logger.addHandler(CustomHandler(sys.stderr, min_level=logging.ERROR))
+    root_logger.setLevel(level)
+
 
 # Printing ---------------------------------------------------------------------
-def print_indented(text: str) -> None:
-    """
-    Print a message that belongs to a previously printed info or warning
-    message.
-    """
-    print(" " * PRINT_INDENT_WIDTH + text)
-
-
-def print_info(text: str, bare: bool = False) -> None:
-    """
-    Print an info message with or without leading '[Info]'.
-    """
-    if args.quiet:
-        return
-    prefix: str = "" if bare else "\033[0;34m[Info]\033[0m "
-    print(prefix + text)
-
-
-def print_warning(text: str) -> None:
-    """
-    Print a warning message.
-    """
-    if args.quiet:
-        return
-    print("\033[0;33m[Warning]\033[0m " + text)
-
 
 def query_yes_no(text: str, default: bool = True) -> bool:
     """
@@ -97,29 +113,21 @@ def query_yes_no(text: str, default: bool = True) -> bool:
     elif choice in valid:
         return valid[choice]
     else:
-        print_warning(
+        logging.warning(
             f"Invalid choice '{choice}'. Please respond with 'yes' or 'no'."
         )
         return query_yes_no(text, default)
 
 
 # Errors -----------------------------------------------------------------------
-def throw_error(text: str) -> None:
-    """
-    Print an error message and exit.
-    """
-    print("\033[0;31m[Error]\033[0m " + text)
-    sys.exit(1)
-
-
 def abort(text: str) -> None:
     """
     Gracefully terminate the script without success because something went
     wrong in an expected way.
     """
     if not args.quiet:
-        print_warning(text)
-    print_warning(f"Aborting the subcommand '{args.sub_command}'.")
+        logging.warning(text)
+    logging.warning(f"Aborting the subcommand '{args.sub_command}'.")
     sys.exit(1)
 
 
@@ -154,7 +162,7 @@ def get_feedback_file_name() -> str:
         # Remove trailing underscore.
         file_name = file_name[:-1]
     else:
-        throw_error(f"Unsupported marking mode {args.marking_mode}!")
+        logging.critical(f"Unsupported marking mode {args.marking_mode}!")
     return file_name
 
 
@@ -221,7 +229,7 @@ def verify_sheet_root_dir() -> None:
     sub-commands such as 'collect', or 'send'.
     """
     if not args.sheet_root_dir.is_dir():
-        throw_error("The given sheet directory is not valid!")
+        logging.critical("The given sheet directory is not valid!")
 
 
 def get_all_team_dirs() -> Iterator[pathlib.Path]:
@@ -332,7 +340,7 @@ def construct_email(
     return mail
 
 
-def print_email(email: EmailMessage) -> None:
+def email_to_text(email: EmailMessage) -> None:
     to = email["To"]
     cc = email["CC"]
     subject = email["Subject"]
@@ -343,20 +351,23 @@ def print_email(email: EmailMessage) -> None:
             attachments.append(part.get_filename())
         elif not part.is_multipart():
             content += part.get_content()
-    print_info(f"To: {to}", True)
+    lines = []
+    lines.append(f"To: {to}")
     if cc:
-        print_info(f"CC: {cc}", True)
+        lines.append(f"CC: {cc}")
     if attachments:
-        print_info(f"Attachments: {', '.join(attachments)}", True)
-    print_info(f"Subject: {subject}", True)
-    print_info(f"Text:\n{content}", True)
+        lines.append(f"Attachments: {', '.join(attachments)}")
+    lines.append(f"Subject: {subject}")
+    lines.append("Text:")
+    lines.append(content)
+    return "\n".join(lines)
 
 
 def print_emails(emails: list[EmailMessage]) -> None:
-    print_info("Sending emails now would send the following emails:")
+    logging.info("Sending emails now would send the following emails:")
     for email in emails:
-        print_email(email)
-        print_info(f"===========\n", True)
+        print(email_to_text(email))
+        print(f"===========\n")
 
 
 def send_messages(emails: list[EmailMessage]) -> None:
@@ -364,13 +375,11 @@ def send_messages(emails: list[EmailMessage]) -> None:
         smtp.starttls()
         if args.smtp_user:
             password = getpass("Email password: ")
-            login_result = smtp.login(args.smtp_user, password)
-            print_info(f"Authentication: {login_result}", True)
-        print_info("Sending emails...")
+            smtp.login(args.smtp_user, password)
         for email in emails:
-            print_info(f"... to {email['To']}", True)
+            logging.info(f"Sending email to {email['To']}")
             smtp.send_message(email)
-    print_info("Done sending emails.")
+        logging.info("Done sending emails.")
 
 
 def get_team_email_subject() -> str:
@@ -429,7 +438,7 @@ def get_assistant_email_content() -> str:
     """
     return textwrap.dedent(
         f"""
-    Dear Assistant for {args.lecture_title}
+    Dear assistant for {args.lecture_title}
 
     Please find my marks for {args.adam_sheet_name} in the attachment.
 
@@ -476,7 +485,7 @@ def send() -> None:
     verify_sheet_root_dir()
     load_sheet_info()
     if args.marking_mode == "exercise":
-        throw_error(
+        logging.critical(
             "Sending for marking mode 'exercise' is not implemented because "
             "collection is not yet figured out."
         )
@@ -486,7 +495,7 @@ def send() -> None:
         emails.append(create_email_to_team(team_dir))
     if args.assistant_email:
         emails.append(create_email_to_assistent())
-    print_info(f"Ready to send {len(emails)} email(s).")
+    logging.info(f"Ready to send {len(emails)} email(s).")
     if args.dry_run:
         print_emails(emails)
     else:
@@ -503,7 +512,7 @@ def validate_marks_json() -> None:
     """
     marks_json_file = get_marks_file_path()
     if not marks_json_file.is_file():
-        throw_error(
+        logging.critical(
             f"Missing points file in directory '{args.sheet_root_dir}'!"
         )
     with open(marks_json_file, "r", encoding="utf-8") as marks_file:
@@ -513,7 +522,7 @@ def validate_marks_json() -> None:
     ]
     marked_teams = list(marks.keys())
     if sorted(relevant_teams) != sorted(marked_teams):
-        throw_error(
+        logging.critical(
             "There is no 1-to-1 mapping between team directories "
             "that need to be marked and entries in the "
             f"'{marks_json_file.name}' "
@@ -530,16 +539,16 @@ def validate_marks_json() -> None:
     else:
         marks_list = marks.values()
     if not all(marks_list):
-        throw_error(
+        logging.critical(
             f"There are missing points in the '{marks_json_file.name}' file!"
         )
     if not all(
         (float(mark) / args.min_point_unit).is_integer() for mark in marks_list
     ):
-        throw_error(
-            f"'{marks_json_file.name}' contains marks that are more"
-            " fine-grained than allowed! You may only award points in"
-            f" '{args.min_point_unit}' increments."
+        logging.critical(
+            f"'{marks_json_file.name}' contains marks that are more fine-grained "
+            "than allowed! You may only award points in "
+            f"'{args.min_point_unit}' increments."
         )
 
 
@@ -556,10 +565,10 @@ def collect_feedback_files(team_dir: pathlib.Path) -> None:
     collected_feedback_zip_name = get_feedback_file_name() + ".zip"
     # Error handling.
     if not feedback_dir.exists():
-        throw_error(f"Missing feedback directory for team {team_dir.name}!")
+        logging.critical(f"Missing feedback directory for team {team_dir.name}!")
     content = list(feedback_dir.iterdir())
     if any(".todo" in file_or_dir.name for file_or_dir in content):
-        throw_error(
+        logging.critical(
             f"Feedback for {team_dir.name} contains placeholder TODO file!"
         )
     # The directory for collected feedback should exist and be empty. Either it
@@ -576,7 +585,7 @@ def collect_feedback_files(team_dir: pathlib.Path) -> None:
         if file.is_file() and not file.suffix in args.ignore_feedback_suffix
     ]
     if len(feedback_files) <= 0:
-        throw_error(
+        logging.critical(
             f"Feedback archive for team {team_dir.name} is empty! "
             "Did you forget the '-x' flag to export .xopp files?"
         )
@@ -626,7 +635,7 @@ def collect_feedback_files(team_dir: pathlib.Path) -> None:
                 file_to_zip, arcname=file_to_zip.relative_to(feedback_dir)
             )
     if not feedback_contains_pdf:
-        print_warning(f"The feedback for {team_dir.name} contains no PDF file!")
+        logging.warning(f"The feedback for {team_dir.name} contains no PDF file!")
 
 
 def delete_collected_feedback_directories() -> None:
@@ -656,7 +665,7 @@ def export_xopp_files() -> None:
     """
     Exports all xopp feedback files.
     """
-    print_info("Exporting .xopp files...")
+    logging.info("Exporting .xopp files...")
     for team_dir in get_relevant_team_dirs():
         feedback_dir = team_dir / FEEDBACK_DIR_NAME
         xopp_files = [
@@ -665,7 +674,7 @@ def export_xopp_files() -> None:
         for xopp_file in xopp_files:
             dest = xopp_file.with_suffix(".pdf")
             subprocess.run(["xournalpp", "-p", dest, xopp_file])
-    print_info("Done exporting .xopp files.")
+    logging.info("Done exporting .xopp files.")
 
 
 def print_marks() -> None:
@@ -680,7 +689,7 @@ def print_marks() -> None:
         marks = json.load(marks_file)
 
     # Print marks.
-    print_info("Start of copy-paste marks...")
+    logging.info("Start of copy-paste marks...")
     # We want all teams printed, not just the marked ones.
     for team_to_print in args.teams:
         for team_dir, team in args.team_dir_to_team.items():
@@ -700,8 +709,8 @@ def print_marks() -> None:
                     else:
                         sheet_mark = marks.get(team_dir, "")
                         output_str += f"{sheet_mark:>3}"
-                    print_info(output_str, True)
-    print_info("End of copy-paste marks.")
+                    print(output_str)
+    logging.info("End of copy-paste marks.")
 
 
 def create_share_archive(overwrite: Optional[bool]) -> None:
@@ -780,7 +789,7 @@ def create_share_archive(overwrite: Optional[bool]) -> None:
             elif collected_feedback_file.suffix == ".zip":
                 zip_file.write(collected_feedback_file, arcname=sub_zip_name)
             else:
-                throw_error(
+                logging.critical(
                     "Collected feedback must be either a single pdf file or a"
                     " single zip archive."
                 )
@@ -855,7 +864,7 @@ def combine() -> None:
             f"No share archives exist in {args.sheet_root_dir}. " + instructions
         )
     if len(list(share_archive_files)) == 1:
-        print_warning(
+        logging.warning(
             "Only a single share archive is being combined. " + instructions
         )
 
@@ -903,7 +912,7 @@ def combine() -> None:
             ]
             teams_not_present = list(set(teams_all) - set(teams_present))
             for team_not_present in teams_not_present:
-                print_warning(
+                logging.warning(
                     f"The shared archive {share_archive_file} contains no"
                     f" feedback for team {team_not_present}."
                 )
@@ -1003,7 +1012,7 @@ def extract_adam_zip() -> tuple[pathlib.Path, str]:
             args.target if args.target else adam_sheet_name
         )
         if destination.exists():
-            throw_error(
+            logging.critical(
                 f"Extraction failed because the path '{destination}' exists"
                 " already!"
             )
@@ -1011,13 +1020,13 @@ def extract_adam_zip() -> tuple[pathlib.Path, str]:
     # Flatten intermediate directory.
     sub_dirs = list(sheet_root_dir.glob("*"))
     if len(sub_dirs) != 1:
-        throw_error(
+        logging.critical(
             "The ADAM zip file contains an unexpected number of"
             f" directories/files ({len(sub_dirs)}), expected exactly 1"
             " subdirectory named either 'Abgaben' or 'Submissions'."
         )
     if sub_dirs[0].name not in ["Abgaben", "Submissions"]:
-        print_warning(
+        logging.warning(
             "It looks like the format of the zip file created by ADAM has"
             " changed. This may require adaptions to this script, but I will"
             " try anyway."
@@ -1045,7 +1054,7 @@ def get_adam_id_to_team_dict() -> dict[str, Team]:
             if any(submission_email in student for student in team)
         ]
         if len(teams) == 0:
-            throw_error(
+            logging.critical(
                 f"The student with the email '{submission_email}' is not "
                 "assigned to a team. Your config file is likely out of date."
                 "\n"
@@ -1064,7 +1073,7 @@ def get_adam_id_to_team_dict() -> dict[str, Team]:
         # solutions without forming a team on ADAM and print a warning.
         for existing_id, existing_team in adam_id_to_team.items():
             if existing_team == teams[0]:
-                print_warning(
+                logging.warning(
                     f"There are multiple submissions for team '{teams[0]}'"
                     f" under separate ADAM IDs ({existing_id} and {team_id})!"
                     " This probably means that multiple members of a team"
@@ -1126,7 +1135,7 @@ def get_relevant_teams() -> list[Team]:
     elif args.marking_mode == "exercise":
         return args.teams
     else:
-        throw_error(f"Unsupported marking mode {args.marking_mode}!")
+        logging.critical(f"Unsupported marking mode {args.marking_mode}!")
         return []
 
 
@@ -1164,11 +1173,11 @@ def flatten_team_dirs() -> None:
         # that have already been flattened.
         team_submission_dirs = list(team_dir.iterdir())
         if len(team_submission_dirs) > 1:
-            print_warning(
+            logging.warning(
                 f"There are multiple submissions for group '{team_dir.name}'!"
             )
         if len(team_submission_dirs) < 1:
-            print_warning(
+            logging.warning(
                 f"The submission of group '{team_dir.name}' is empty!"
             )
         for team_submission_dir in team_submission_dirs:
@@ -1257,11 +1266,11 @@ def generate_xopp_files() -> None:
     def write_to_file(f, string):
         f.write(textwrap.dedent(string))
 
-    print_info("Generating .xopp files...")
+    logging.info("Generating .xopp files...")
     for team_dir in get_relevant_team_dirs():
         pdf_paths = list(team_dir.glob("*.pdf"))
         if len(pdf_paths) != 1:
-            print_warning(
+            logging.warning(
                 f"Skipping .xopp file generation for {team_dir.name}: No or"
                 " multiple PDF files."
             )
@@ -1275,7 +1284,7 @@ def generate_xopp_files() -> None:
         # Strips the ".todo" and replaces ".pdf" by ".xopp".
         xopp_path = todo_path.with_suffix("").with_suffix(".xopp")
         if xopp_path.is_file():
-            print_warning(
+            logging.warning(
                 f"Skipping .xopp file generation for {team_dir.name}: xopp file"
                 " exists."
             )
@@ -1308,7 +1317,7 @@ def generate_xopp_files() -> None:
         write_to_file(xopp_file, "</xournal>")
         xopp_file.close()
         todo_path.unlink()  # Delete placeholder todo file.
-    print_info("Done generating .xopp files.")
+    logging.info("Done generating .xopp files.")
 
 
 def create_sheet_info_file(adam_id_to_team: dict[str, Team]) -> None:
@@ -1363,9 +1372,9 @@ def print_missing_submissions(adam_id_to_team: dict[str, Team]) -> None:
         team for team in args.teams if not team in adam_id_to_team.values()
     ]
     if missing_teams:
-        print_info("There are no submissions for the following team(s):")
+        logging.warning("There are no submissions for the following team(s):")
         for missing_team in missing_teams:
-            print_indented(f"{team_to_string(missing_team)}")
+            print(f"* {team_to_string(missing_team)}")
 
 
 def init() -> None:
@@ -1377,26 +1386,26 @@ def init() -> None:
     # config file.
     if args.points_per == "exercise":
         if args.marking_mode == "exercise" and not args.exercises:
-            throw_error(
+            logging.critical(
                 "You must provide a list of exercise numbers to be marked with "
                 "the '-e' flag, for example '-e 1 3 4'."
             )
         if (
             args.marking_mode == "random" or args.marking_mode == "static"
         ) and not args.num_exercises:
-            throw_error(
+            logging.critical(
                 "You must provide the number of exercises in the sheet with "
                 "the '-n' flag, for example '-n 5'."
             )
     else:  # points per sheet
         if args.marking_mode == "exercise":
-            throw_error(
+            logging.critical(
                 "Points must be given per exercise if marking is done per "
                 "exercise. Set the value of 'poins_per' to 'exercise' or "
                 "change the marking mode."
             )
         if args.num_exercises or args.exercises:
-            print_warning(
+            logging.warning(
                 "'points_per' is 'sheet', so the flags '-n' and '-e' are "
                 "ignored."
             )
@@ -1498,9 +1507,9 @@ def validate_teams(teams: list[Team]) -> None:
         all_students += list(zip(first_names, last_names))
         all_emails += emails
     if len(all_students) != len(set(all_students)):
-        throw_error("There are duplicate students in the config file!")
+        logging.critical("There are duplicate students in the config file!")
     if len(all_emails) != len(set(all_emails)):
-        throw_error("There are duplicate student emails in the config file!")
+        logging.critical("There are duplicate student emails in the config file!")
     teams.sort()
 
 
@@ -1631,6 +1640,7 @@ def add_to_args(key: str, value: Any) -> None:
 
 
 if __name__ == "__main__":
+    configure_logging()
     parser = argparse.ArgumentParser(description="")
     # Main command arguments ---------------------------------------------------
     parser.add_argument(
@@ -1774,11 +1784,10 @@ if __name__ == "__main__":
         sys.exit(0)
 
     # Process config files =====================================================
-    print_info("Processing config:")
-    print_indented(f"Reading shared config file '{args.config_shared}'...")
+    logging.info(f"Reading shared config file '{args.config_shared}'...")
     with open(args.config_shared, "r", encoding="utf-8") as config_file:
         data_shared = json.load(config_file)
-    print_indented(
+    logging.info(
         f"Reading individual config file '{args.config_individual}'..."
     )
     with open(args.config_individual, "r", encoding="utf-8") as config_file:
@@ -1798,14 +1807,14 @@ if __name__ == "__main__":
         process_static_config(data_shared)
     else:
         process_dynamic_config(data_shared)
-    print_info("Processed config successfully.")
+    logging.info("Processed config successfully.")
 
     # Execute subcommand =======================================================
-    print_info(f"Running command '{args.sub_command}'...")
+    logging.info(f"Running command '{args.sub_command}'...")
     # This calls the function set as default in the parser.
     # For example, `func` is set to `init` if the subcommand is "init".
     args.func()
-    print_info(f"Command '{args.sub_command}' terminated successfully. 🎉")
+    logging.info(f"Command '{args.sub_command}' terminated successfully. 🎉")
 
 # Only in Python 3.7+ are dicts order preserving, using older Pythons may cause
 # the random assignments to not match up.
