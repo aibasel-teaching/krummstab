@@ -1643,13 +1643,6 @@ if __name__ == "__main__":
             "as tutor name and email configuration"
         ),
     )
-    parser.add_argument(
-        "-q",
-        "--quiet",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help="only print errors, no infos or warnings",
-    )
     # Subcommands ==============================================================
     subparsers = parser.add_subparsers(
         required=True,
