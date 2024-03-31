@@ -35,6 +35,8 @@ import smtplib
 from email.message import EmailMessage
 from getpass import getpass
 
+import config
+
 Student = tuple[str, str, str]
 Team = list[Student]
 
@@ -136,20 +138,20 @@ def get_adam_sheet_name_string() -> str:
 
 def get_feedback_file_name() -> str:
     file_name = FEEDBACK_FILE_PREFIX + get_adam_sheet_name_string() + "_"
-    if args.marking_mode == "exercise":
+    if config.get().marking_mode == "exercise":
         # TODO: I'm not sure why I added the team_id here. Add it back in if
         # it's necessary, remove these lines otherwise.
         # team_id = team_dir.name.split("_")[0]
         # prefix = team_id + "_" + prefix
-        file_name += args.tutor_name + "_"
+        file_name += config.get().tutor_name + "_"
         file_name += "_".join([f"ex{exercise}" for exercise in args.exercises])
-    elif args.marking_mode == "random":
-        file_name += args.tutor_name
-    elif args.marking_mode == "static":
+    elif config.get().marking_mode == "random":
+        file_name += config.get().tutor_name
+    elif config.get().marking_mode == "static":
         # Remove trailing underscore.
         file_name = file_name[:-1]
     else:
-        logging.critical(f"Unsupported marking mode {args.marking_mode}!")
+        logging.critical(f"Unsupported marking mode {config.get().marking_mode}!")
     return file_name
 
 
@@ -160,7 +162,7 @@ def get_combined_feedback_file_name() -> str:
 def get_marks_file_path():
     return (
         args.sheet_root_dir
-        / f"points_{args.tutor_name.lower()}_{get_adam_sheet_name_string()}.json"
+        / f"points_{config.get().tutor_name.lower()}_{get_adam_sheet_name_string()}.json"
     )
 
 
@@ -358,11 +360,11 @@ def print_emails(emails: list[EmailMessage]) -> None:
 
 
 def send_messages(emails: list[EmailMessage]) -> None:
-    with smtplib.SMTP(args.smtp_url, args.smtp_port) as smtp:
+    with smtplib.SMTP(config.get().smtp_url, config.get().smtp_port) as smtp:
         smtp.starttls()
-        if args.smtp_user:
+        if config.get().smtp_user:
             password = getpass("Email password: ")
-            smtp.login(args.smtp_user, password)
+            smtp.login(config.get().smtp_user, password)
         for email in emails:
             logging.info(f"Sending email to {email['To']}")
             smtp.send_message(email)
@@ -373,14 +375,14 @@ def get_team_email_subject() -> str:
     """
     Builds the email subject.
     """
-    return f"Feedback {args.adam_sheet_name} | {args.lecture_title}"
+    return f"Feedback {args.adam_sheet_name} | {config.get().lecture_title}"
 
 
 def get_assistant_email_subject() -> str:
     """
     Builds the email subject.
     """
-    return f"Marks for {args.adam_sheet_name} | {args.lecture_title}"
+    return f"Marks for {args.adam_sheet_name} | {config.get().lecture_title}"
 
 
 def get_email_greeting(name_list: list[str]) -> str:
@@ -425,7 +427,7 @@ def get_assistant_email_content() -> str:
     """
     return textwrap.dedent(
         f"""
-    Dear assistant for {args.lecture_title}
+    Dear assistant for {config.get().lecture_title}
 
     Please find my marks for {args.adam_sheet_name} in the attachment.
 
@@ -442,21 +444,21 @@ def create_email_to_team(team_dir):
     team_first_names, _, team_emails = zip(*team)
     return construct_email(
         list(team_emails),
-        args.feedback_email_cc,
+        config.get().feedback_email_cc,
         get_team_email_subject(),
         get_team_email_content(team_first_names),
-        args.tutor_email,
+        config.get().tutor_email,
         get_collected_feedback_file(team_dir),
     )
 
 
 def create_email_to_assistent():
     return construct_email(
-        [args.assistant_email],
-        args.feedback_email_cc,
+        [config.get().assistant_email],
+        config.get().feedback_email_cc,
         get_assistant_email_subject(),
         get_assistant_email_content(),
-        args.tutor_email,
+        config.get().tutor_email,
         get_marks_file_path(),
     )
 
@@ -471,7 +473,7 @@ def send() -> None:
     # Prepare.
     verify_sheet_root_dir()
     load_sheet_info()
-    if args.marking_mode == "exercise":
+    if config.get().marking_mode == "exercise":
         logging.critical(
             "Sending for marking mode 'exercise' is not implemented because "
             "collection is not yet figured out."
@@ -480,7 +482,7 @@ def send() -> None:
     emails: list[EmailMessage] = []
     for team_dir in get_relevant_team_dirs():
         emails.append(create_email_to_team(team_dir))
-    if args.assistant_email:
+    if config.get().assistant_email:
         emails.append(create_email_to_assistent())
     logging.info(f"Ready to send {len(emails)} email(s).")
     if args.dry_run:
@@ -517,7 +519,7 @@ def validate_marks_json() -> None:
             "directory that needs to be marked, and that directory name and "
             "key are the same."
         )
-    if args.points_per == "exercise":
+    if config.get().points_per == "exercise":
         marks_list = [
             mark
             for team_marks in marks.values()
@@ -530,12 +532,12 @@ def validate_marks_json() -> None:
             f"There are missing points in the '{marks_json_file.name}' file!"
         )
     if not all(
-        (float(mark) / args.min_point_unit).is_integer() for mark in marks_list
+        (float(mark) / config.get().min_point_unit).is_integer() for mark in marks_list
     ):
         logging.critical(
             f"'{marks_json_file.name}' contains marks that are more fine-grained "
             "than allowed! You may only award points in "
-            f"'{args.min_point_unit}' increments."
+            f"'{config.get().min_point_unit}' increments."
         )
 
 
@@ -569,7 +571,7 @@ def collect_feedback_files(team_dir: pathlib.Path) -> None:
     feedback_files = [
         file
         for file in feedback_dir.rglob("*")
-        if file.is_file() and not file.suffix in args.ignore_feedback_suffix
+        if file.is_file() and not file.suffix in config.get().ignore_feedback_suffix
     ]
     # Ask for confirmation if the feedback directory contains hidden files that
     # are maybe not supposed to be part of the collected feedback.
@@ -667,7 +669,7 @@ def print_marks() -> None:
     # Print marks.
     logging.info("Start of copy-paste marks...")
     # We want all teams printed, not just the marked ones.
-    for team_to_print in args.teams:
+    for team_to_print in config.get().teams:
         for team_dir, team in args.team_dir_to_team.items():
             # Every team should only be the value of at most one entry in
             # `team_dir_to_team`.
@@ -675,7 +677,7 @@ def print_marks() -> None:
                 for student in team:
                     full_name = f"{student[0]} {student[1]}"
                     output_str = f"{full_name:>35};"
-                    if args.points_per == "exercise":
+                    if config.get().points_per == "exercise":
                         # The value `marks` assigns to the team_dir key is a
                         # dict with (exercise name, mark) pairs.
                         team_marks = marks.get(team_dir, {"null": ""})
@@ -810,9 +812,9 @@ def collect() -> None:
     create_collected_feedback_directories()
     for team_dir in get_relevant_team_dirs():
         collect_feedback_files(team_dir)
-    if args.marking_mode == "exercise":
+    if config.get().marking_mode == "exercise":
         create_share_archive(overwrite)
-    if args.use_marks_file:
+    if config.get().use_marks_file:
         validate_marks_json()
         print_marks()
 
@@ -1030,7 +1032,7 @@ def get_adam_id_to_team_dict() -> dict[str, Team]:
         submission_email = submission_dir.name.split("_")[-2]
         teams = [
             team
-            for team in args.teams
+            for team in config.get().teams
             if any(submission_email in student for student in team)
         ]
         if len(teams) == 0:
@@ -1090,13 +1092,13 @@ def get_relevant_teams() -> list[Team]:
     `DO_NOT_MARK_PREFIX`, and thereafter only access relevant teams via
     `get_relevant_team_dirs()`.
     """
-    if args.marking_mode == "static":
-        return args.classes[args.tutor_name]
-    elif args.marking_mode == "random":
+    if config.get().marking_mode == "static":
+        return config.get().classes[config.get().tutor_name]
+    elif config.get().marking_mode == "random":
         # Here not all teams are assigned to a tutor, but only those that
         # submitted something. This is to ensure that submissions can be
         # distributed fairly among tutors.
-        num_tutors = len(args.tutor_list)
+        num_tutors = len(config.get().tutor_list)
         seed = int(
             hashlib.sha256(args.adam_sheet_name.encode("utf-8")).hexdigest(), 16
         )
@@ -1109,13 +1111,13 @@ def get_relevant_teams() -> list[Team]:
             for this in chunks
             for that in chunks
         )
-        shuffled_tutors = args.tutor_list.copy()
+        shuffled_tutors = config.get().tutor_list.copy()
         random.Random(seed).shuffle(shuffled_tutors)
-        return chunks[shuffled_tutors.index(args.tutor_name)]
-    elif args.marking_mode == "exercise":
-        return args.teams
+        return chunks[shuffled_tutors.index(config.get().tutor_name)]
+    elif config.get().marking_mode == "exercise":
+        return config.get().teams
     else:
-        logging.critical(f"Unsupported marking mode {args.marking_mode}!")
+        logging.critical(f"Unsupported marking mode {config.get().marking_mode}!")
         return []
 
 
@@ -1189,12 +1191,12 @@ def create_marks_file() -> None:
     Write a json file to add the marks for all relevant teams and exercises.
     """
     exercise_dict: Union[str, dict[str, str]] = ""
-    if args.points_per == "exercise":
-        if args.marking_mode == "static" or args.marking_mode == "random":
+    if config.get().points_per == "exercise":
+        if config.get().marking_mode == "static" or config.get().marking_mode == "random":
             exercise_dict = {
                 f"exercise_{i}": "" for i in range(1, args.num_exercises + 1)
             }
-        elif args.marking_mode == "exercise":
+        elif config.get().marking_mode == "exercise":
             exercise_dict = {f"exercise_{i}": "" for i in args.exercises}
     else:
         exercise_dict = ""
@@ -1324,14 +1326,14 @@ def create_sheet_info_file(adam_id_to_team: dict[str, Team]) -> None:
         team_dir_to_team.update({team_dir.name: team})
     info_dict.update({"team_dir_to_team": team_dir_to_team})
     info_dict.update({"adam_sheet_name": args.adam_sheet_name})
-    if args.marking_mode == "exercise":
+    if config.get().marking_mode == "exercise":
         info_dict.update({"exercises": args.exercises})
     with open(
         args.sheet_root_dir / SHEET_INFO_FILE_NAME, "w", encoding="utf-8"
     ) as sheet_info_file:
         # Sorting the keys here is essential because the order of teams here
         # will influence the assignment returned by `get_relevant_teams()` in
-        # case args.marking_mode == "random".
+        # case config.get().marking_mode == "random".
         json.dump(
             info_dict,
             sheet_info_file,
@@ -1349,7 +1351,7 @@ def print_missing_submissions(adam_id_to_team: dict[str, Team]) -> None:
     not present in the zip downloaded from ADAM.
     """
     missing_teams = [
-        team for team in args.teams if not team in adam_id_to_team.values()
+        team for team in config.get().teams if not team in adam_id_to_team.values()
     ]
     if missing_teams:
         logging.warning("There are no submissions for the following team(s):")
@@ -1364,21 +1366,21 @@ def init() -> None:
     # Catch wrong combinations of marking_mode/points_per/-n/-e.
     # Not possible eariler because marking_mode and points_per are given by the
     # config file.
-    if args.points_per == "exercise":
-        if args.marking_mode == "exercise" and not args.exercises:
+    if config.get().points_per == "exercise":
+        if config.get().marking_mode == "exercise" and not args.exercises:
             logging.critical(
                 "You must provide a list of exercise numbers to be marked with "
                 "the '-e' flag, for example '-e 1 3 4'."
             )
         if (
-            args.marking_mode == "random" or args.marking_mode == "static"
+            config.get().marking_mode == "random" or config.get().marking_mode == "static"
         ) and not args.num_exercises:
             logging.critical(
                 "You must provide the number of exercises in the sheet with "
                 "the '-n' flag, for example '-n 5'."
             )
     else:  # points per sheet
-        if args.marking_mode == "exercise":
+        if config.get().marking_mode == "exercise":
             logging.critical(
                 "Points must be given per exercise if marking is done per "
                 "exercise. Set the value of 'poins_per' to 'exercise' or "
@@ -1447,7 +1449,7 @@ def init() -> None:
     # directory names.
     create_sheet_info_file(adam_id_to_team)
 
-    if args.use_marks_file:
+    if config.get().use_marks_file:
         create_marks_file()
 
     create_feedback_directories()
@@ -1466,144 +1468,6 @@ def init() -> None:
 
 
 # ============================= Config Processing ==============================
-
-
-def validate_teams(teams: list[Team]) -> None:
-    """
-    Verify that teams and its (first_name, last_name, email) triples are well
-    formed. Also sort teams and their students to make iterating over them
-    predictable, independent of their order in config.json.
-    """
-    assert type(teams) is list
-    all_students: list[tuple[str, str]] = []
-    all_emails: list[str] = []
-    for team in teams:
-        team.sort()
-        assert len(team) <= args.max_team_size
-        first_names, last_names, emails = list(zip(*team))
-        assert all(type(first_name) is str for first_name in first_names)
-        assert all(type(last_name) is str for last_name in last_names)
-        assert all(is_email(email) for email in emails)
-        all_students += list(zip(first_names, last_names))
-        all_emails += emails
-    if len(all_students) != len(set(all_students)):
-        logging.critical("There are duplicate students in the config file!")
-    if len(all_emails) != len(set(all_emails)):
-        logging.critical("There are duplicate student emails in the config file!")
-    teams.sort()
-
-
-def process_static_config(data: dict[str, Any]) -> None:
-    """
-    Extracts and checks the config values necessary for the static correction
-    marking mode.
-    """
-    classes = data["teams"]
-    assert type(classes) is dict
-    assert args.tutor_name in classes.keys()
-    add_to_args("classes", classes)
-
-    teams = [team for classs in classes.values() for team in classs]
-    validate_teams(teams)
-    add_to_args("teams", teams)
-
-
-def process_dynamic_config(data: dict[str, Any]) -> None:
-    """
-    Extract and check the config values necessary for the dynamic correction
-    marking modes, i.e., 'random' and 'exercise'.
-    """
-    tutor_list = data["tutor_list"]
-    assert type(tutor_list) is list
-    assert all(type(tutor) is str for tutor in tutor_list)
-    assert args.tutor_name in tutor_list
-    add_to_args("tutor_list", sorted(tutor_list))
-
-    teams = data["teams"]
-    validate_teams(teams)
-    add_to_args("teams", teams)
-
-
-def process_general_config(
-    data_individual: dict[str, Any], data_shared: dict[str, Any]
-) -> None:
-    """
-    Extract and check config values that are necessary in all marking modes.
-    This includes both individual and shared settings.
-    """
-    # Individual settings
-    tutor_name = data_individual["your_name"]
-    assert type(tutor_name) is str
-    add_to_args("tutor_name", tutor_name)
-
-    # Use `get` because this config setting is optional.
-    ignore_feedback_suffix = data_individual.get("ignore_feedback_suffix", [])
-    assert type(ignore_feedback_suffix) is list
-    assert all(
-        type(suffix) is str and suffix[0] == "."
-        for suffix in ignore_feedback_suffix
-    )
-    add_to_args("ignore_feedback_suffix", ignore_feedback_suffix + [".xopp"])
-
-    # Email settings, currently all optional because not fully functional.
-    tutor_email = data_individual.get("your_email", "")
-    assert (tutor_email == "") or (
-        type(tutor_email) is str and is_email(tutor_email)
-    )
-    add_to_args("tutor_email", tutor_email)
-
-    feedback_email_cc = data_individual.get("feedback_email_cc", [])
-    assert type(feedback_email_cc) is list
-    assert (feedback_email_cc == []) or all(
-        type(email) is str and is_email(email) for email in feedback_email_cc
-    )
-    add_to_args("feedback_email_cc", feedback_email_cc)
-
-    smtp_url = data_individual.get("smtp_url", "smtp-ext.unibas.ch")
-    assert type(smtp_url) is str
-    add_to_args("smtp_url", smtp_url)
-
-    smtp_port = data_individual.get("smtp_port", 587)
-    assert type(smtp_port) is int
-    add_to_args("smtp_port", smtp_port)
-
-    smtp_user = data_individual.get("smtp_user", "")
-    assert type(smtp_user) is str
-    add_to_args("smtp_user", smtp_user)
-
-    # Shared settings
-    lecture_title = data_shared["lecture_title"]
-    assert lecture_title and type(lecture_title) is str
-    add_to_args("lecture_title", lecture_title)
-
-    assistant_email = data_shared.get("assistant_email", "")
-    assert type(assistant_email) is str
-    add_to_args("assistant_email", assistant_email)
-
-    marking_mode = data_shared["marking_mode"]
-    assert marking_mode in ["static", "random", "exercise"]
-    add_to_args("marking_mode", marking_mode)
-
-    max_team_size = data_shared["max_team_size"]
-    assert type(max_team_size) is int and max_team_size > 0
-    add_to_args("max_team_size", max_team_size)
-
-    use_marks_file = data_shared["use_marks_file"]
-    assert type(use_marks_file) is str and use_marks_file.lower() in [
-        "true",
-        "false",
-    ]
-    add_to_args("use_marks_file", use_marks_file.lower() == "true")
-
-    points_per = data_shared["points_per"]
-    assert type(points_per) is str
-    assert points_per in ["sheet", "exercise"]
-    add_to_args("points_per", points_per)
-
-    min_point_unit = data_shared["min_point_unit"]
-    assert type(min_point_unit) is float or type(min_point_unit) is int
-    assert min_point_unit > 0
-    add_to_args("min_point_unit", min_point_unit)
 
 
 def add_to_args(key: str, value: Any) -> None:
@@ -1757,30 +1621,7 @@ if __name__ == "__main__":
         sys.exit(0)
 
     # Process config files =====================================================
-    logging.info(f"Reading shared config file '{args.config_shared}'...")
-    with open(args.config_shared, "r", encoding="utf-8") as config_file:
-        data_shared = json.load(config_file)
-    logging.info(
-        f"Reading individual config file '{args.config_individual}'..."
-    )
-    with open(args.config_individual, "r", encoding="utf-8") as config_file:
-        data_individual = json.load(config_file)
-    assert data_shared.keys().isdisjoint(data_individual)
-
-    # We currently plan to support the following marking modes.
-    # static:   Every tutor corrects the submissions of the teams assigned to
-    #           that tutor. These will usually be the teams in that tutors
-    #           exercise class.
-    # random:   Every tutor corrects some submissions which are assigned
-    #           randomly with every sheet.
-    # exercise: Every tutor corrects some exercise(s) on all sheets.
-    process_general_config(data_individual, data_shared)
-
-    if args.marking_mode == "static":
-        process_static_config(data_shared)
-    else:
-        process_dynamic_config(data_shared)
-    logging.info("Processed config successfully.")
+    config.load(args.config_shared, args.config_individual)
 
     # Execute subcommand =======================================================
     logging.info(f"Running command '{args.sub_command}'...")
