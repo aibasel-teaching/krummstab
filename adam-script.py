@@ -167,12 +167,6 @@ def get_marks_file_path():
 
 
 # Miscellaneous ----------------------------------------------------------------
-def is_email(email: str) -> bool:
-    """
-    Check if a string more or less matches the format of an email address.
-    """
-    return type(email) is str and bool(re.match(r"[^@]+@[^@]+\.[^@]+", email))
-
 
 def is_hidden_file(name: str) -> bool:
     """
