@@ -17,7 +17,6 @@ import mimetypes
 import os
 import pathlib
 import random
-import re
 import shutil
 import subprocess
 import sys
@@ -36,19 +35,11 @@ from email.message import EmailMessage
 from getpass import getpass
 
 import config
-
-Student = tuple[str, str, str]
-Team = list[Student]
+import sheet_directory
+from utils import Team
 
 DEFAULT_SHARED_CONFIG_FILE = "config-shared.json"
 DEFAULT_INDIVIDUAL_CONFIG_FILE = "config-individual.json"
-DO_NOT_MARK_PREFIX = "DO_NOT_MARK_"
-FEEDBACK_DIR_NAME = "feedback"
-FEEDBACK_COLLECTED_DIR_NAME = "feedback_collected"
-FEEDBACK_FILE_PREFIX = "feedback_"
-SHEET_INFO_FILE_NAME = ".sheet_info"
-SHARE_ARCHIVE_PREFIX = "share_archive"
-COMBINED_DIR_NAME = "feedback_combined"
 
 # Might be necessary to make colored output work on Windows.
 os.system("")
@@ -128,44 +119,6 @@ def team_to_string(team: Team) -> str:
     """
     return "_".join(sorted([student[1].replace(" ", "-") for student in team]))
 
-
-def get_adam_sheet_name_string() -> str:
-    """
-    Turn the sheet name given by ADAM into a string usable for file names.
-    """
-    return args.adam_sheet_name.replace(" ", "_").lower()
-
-
-def get_feedback_file_name() -> str:
-    file_name = FEEDBACK_FILE_PREFIX + get_adam_sheet_name_string() + "_"
-    if config.get().marking_mode == "exercise":
-        # TODO: I'm not sure why I added the team_id here. Add it back in if
-        # it's necessary, remove these lines otherwise.
-        # team_id = team_dir.name.split("_")[0]
-        # prefix = team_id + "_" + prefix
-        file_name += config.get().tutor_name + "_"
-        file_name += "_".join([f"ex{exercise}" for exercise in args.exercises])
-    elif config.get().marking_mode == "random":
-        file_name += config.get().tutor_name
-    elif config.get().marking_mode == "static":
-        # Remove trailing underscore.
-        file_name = file_name[:-1]
-    else:
-        logging.critical(f"Unsupported marking mode {config.get().marking_mode}!")
-    return file_name
-
-
-def get_combined_feedback_file_name() -> str:
-    return FEEDBACK_FILE_PREFIX + get_adam_sheet_name_string()
-
-
-def get_marks_file_path():
-    return (
-        args.sheet_root_dir
-        / f"points_{config.get().tutor_name.lower()}_{get_adam_sheet_name_string()}.json"
-    )
-
-
 # Miscellaneous ----------------------------------------------------------------
 
 def is_hidden_file(name: str) -> bool:
@@ -206,75 +159,12 @@ def move_content_and_delete(src: pathlib.Path, dst: pathlib.Path) -> None:
         shutil.copytree(temp_dir, dst, dirs_exist_ok=True)
 
 
-def verify_sheet_root_dir() -> None:
-    """
-    Ensure that the given sheet root directory is valid. Needed for multiple
-    sub-commands such as 'collect', or 'send'.
-    """
-    if not args.sheet_root_dir.is_dir():
-        logging.critical("The given sheet directory is not valid!")
-
-
-def get_all_team_dirs() -> Iterator[pathlib.Path]:
-    """
-    Return all team directories within the sheet root directory. It is assumed
-    that all team directory names start with some digits, followed by an
-    underscore, followed by more characters. In particular this excludes
-    other directories that may be created in the sheet root directory, such as
-    one containing combined feedback.
-    """
-    for team_dir in args.sheet_root_dir.iterdir():
-        if team_dir.is_dir() and re.match(r"[0-9]+_.+", team_dir.name):
-            yield team_dir
-
-
 def get_relevant_team_dirs() -> Iterator[pathlib.Path]:
-    """
-    Return the team directories of the teams whose submission has to be
-    corrected by the tutor running the script.
-    """
-    for team_dir in get_all_team_dirs():
-        if not DO_NOT_MARK_PREFIX in team_dir.name:
-            yield team_dir
-
-
-def get_share_archive_files() -> Iterator[pathlib.Path]:
-    """
-    Return all share archive files under the current sheet root dir.
-    """
-    for share_archive_file in args.sheet_root_dir.glob(
-        SHARE_ARCHIVE_PREFIX + "*.zip"
-    ):
-        yield share_archive_file
-
-
-def get_collected_feedback_file(team_dir: pathlib.Path) -> pathlib.Path:
-    """
-    Given a team directory, return the collected feedback file. This can be
-    either a single pdf file, or a single zip archive. Throw an error if neither
-    exists.
-    """
-    collected_feedback_dir = team_dir / FEEDBACK_COLLECTED_DIR_NAME
-    assert collected_feedback_dir.is_dir()
-    collected_feedback_files = list(collected_feedback_dir.iterdir())
-    assert (
-        len(collected_feedback_files) == 1
-        and collected_feedback_files[0].is_file()
-        and collected_feedback_files[0].suffix in [".pdf", ".zip"]
-    )
-    return collected_feedback_files[0]
+    return sheet_directory.get().get_relevant_team_dirs()
 
 
 def load_sheet_info() -> None:
-    """
-    Load the information stored in the sheet info file into the args object.
-    """
-    with open(
-        args.sheet_root_dir / SHEET_INFO_FILE_NAME, "r", encoding="utf-8"
-    ) as sheet_info_file:
-        sheet_info = json.load(sheet_info_file)
-    for key, value in sheet_info.items():
-        add_to_args(key, value)
+    sheet_directory.load(args.sheet_root_dir)
 
 
 # ============================== Send Sub-Command ==============================
@@ -369,14 +259,14 @@ def get_team_email_subject() -> str:
     """
     Builds the email subject.
     """
-    return f"Feedback {args.adam_sheet_name} | {config.get().lecture_title}"
+    return f"Feedback {sheet_directory.get().get_adam_sheet_name()} | {config.get().lecture_title}"
 
 
 def get_assistant_email_subject() -> str:
     """
     Builds the email subject.
     """
-    return f"Marks for {args.adam_sheet_name} | {config.get().lecture_title}"
+    return f"Marks for {sheet_directory.get().get_adam_sheet_name()} | {config.get().lecture_title}"
 
 
 def get_email_greeting(name_list: list[str]) -> str:
@@ -404,7 +294,7 @@ def get_team_email_content(name_list: list[str]) -> str:
         f"""
     {get_email_greeting(name_list)}
 
-    Please find feedback on your submission for {args.adam_sheet_name} in the attachment.
+    Please find feedback on your submission for {sheet_directory.get().get_adam_sheet_name()} in the attachment.
     If you have any questions, you can contact us in the exercise session or by replying to this email (reply to all).
 
     Best,
@@ -423,7 +313,7 @@ def get_assistant_email_content() -> str:
         f"""
     Dear assistant for {config.get().lecture_title}
 
-    Please find my marks for {args.adam_sheet_name} in the attachment.
+    Please find my marks for {sheet_directory.get().get_adam_sheet_name()} in the attachment.
 
     Best,
     Your Tutors
@@ -434,7 +324,7 @@ def get_assistant_email_content() -> str:
 
 
 def create_email_to_team(team_dir):
-    team = args.team_dir_to_team[team_dir.name]
+    team = sheet_directory.get().team_dir_to_team[team_dir.name]
     team_first_names, _, team_emails = zip(*team)
     return construct_email(
         list(team_emails),
@@ -442,7 +332,7 @@ def create_email_to_team(team_dir):
         get_team_email_subject(),
         get_team_email_content(team_first_names),
         config.get().tutor_email,
-        get_collected_feedback_file(team_dir),
+        sheet_directory.get_collected_feedback_file(team_dir),
     )
 
 
@@ -453,7 +343,7 @@ def create_email_to_assistent():
         get_assistant_email_subject(),
         get_assistant_email_content(),
         config.get().tutor_email,
-        get_marks_file_path(),
+        sheet_directory.get().get_marks_file_path(),
     )
 
 
@@ -465,7 +355,6 @@ def send() -> None:
     smtp.unibas.ch with an empty smpt_user.
     """
     # Prepare.
-    verify_sheet_root_dir()
     load_sheet_info()
     if config.get().marking_mode == "exercise":
         logging.critical(
@@ -493,10 +382,10 @@ def validate_marks_json() -> None:
     Verify that all necessary marks are present in the MARK_FILE_NAME file and
     adhere to the granularity defined in the config file.
     """
-    marks_json_file = get_marks_file_path()
+    marks_json_file = sheet_directory.get().get_marks_file_path()
     if not marks_json_file.is_file():
         logging.critical(
-            f"Missing points file in directory '{args.sheet_root_dir}'!"
+            f"Missing points file in directory '{sheet_directory.get().root}'!"
         )
     with open(marks_json_file, "r", encoding="utf-8") as marks_file:
         marks = json.load(marks_file)
@@ -543,9 +432,9 @@ def collect_feedback_files(team_dir: pathlib.Path) -> None:
     {team_dir}/feedback_collected. If there is only a single pdf, copy it to
     {team_dir}/feedback_collected.
     """
-    feedback_dir = team_dir / FEEDBACK_DIR_NAME
-    collected_feedback_dir = team_dir / FEEDBACK_COLLECTED_DIR_NAME
-    collected_feedback_zip_name = get_feedback_file_name() + ".zip"
+    feedback_dir = sheet_directory.get_feedback_dir(team_dir)
+    collected_feedback_dir = sheet_directory.get_collected_feedback_dir(team_dir)
+    collected_feedback_zip_name = sheet_directory.get().get_feedback_file_name(args) + ".zip"
     # Error handling.
     if not feedback_dir.exists():
         logging.critical(f"Missing feedback directory for team {team_dir.name}!")
@@ -616,7 +505,7 @@ def delete_collected_feedback_directories() -> None:
     non-existing ones.
     """
     for team_dir in get_relevant_team_dirs():
-        collected_feedback_dir = team_dir / FEEDBACK_COLLECTED_DIR_NAME
+        collected_feedback_dir = sheet_directory.get_collected_feedback_dir(team_dir)
         shutil.rmtree(collected_feedback_dir, ignore_errors=True)
 
 
@@ -626,7 +515,7 @@ def create_collected_feedback_directories() -> None:
     feedback will be saved to these directories.
     """
     for team_dir in get_relevant_team_dirs():
-        collected_feedback_dir = team_dir / FEEDBACK_COLLECTED_DIR_NAME
+        collected_feedback_dir = sheet_directory.get_collected_feedback_dir(team_dir)
         assert not collected_feedback_dir.is_dir() or not any(
             collected_feedback_dir.iterdir()
         )
@@ -639,7 +528,7 @@ def export_xopp_files() -> None:
     """
     logging.info("Exporting .xopp files...")
     for team_dir in get_relevant_team_dirs():
-        feedback_dir = team_dir / FEEDBACK_DIR_NAME
+        feedback_dir = sheet_directory.get_feedback_dir(team_dir)
         xopp_files = [
             file for file in feedback_dir.rglob("*") if file.suffix == ".xopp"
         ]
@@ -657,14 +546,14 @@ def print_marks() -> None:
     # Read marks file.
     # Don't check whether the marks file exists because `validate_marks_json()`
     # would have already complained.
-    with open(get_marks_file_path(), "r", encoding="utf-8") as marks_file:
+    with open(sheet_directory.get().get_marks_file_path(), "r", encoding="utf-8") as marks_file:
         marks = json.load(marks_file)
 
     # Print marks.
     logging.info("Start of copy-paste marks...")
     # We want all teams printed, not just the marked ones.
     for team_to_print in config.get().teams:
-        for team_dir, team in args.team_dir_to_team.items():
+        for team_dir, team in sheet_directory.get().team_dir_to_team.items():
             # Every team should only be the value of at most one entry in
             # `team_dir_to_team`.
             if team == team_to_print:
@@ -699,13 +588,7 @@ def create_share_archive(overwrite: Optional[bool]) -> None:
     # be written to .sheet_info and then read in by a load_sheet_info().
     assert args.exercises
     # Build share archive file name.
-    share_archive_file_name = (
-        SHARE_ARCHIVE_PREFIX
-        + f"_{get_adam_sheet_name_string()}_"
-        + "_".join([f"ex{num}" for num in args.exercises])
-        + ".zip"
-    )
-    share_archive_file = args.sheet_root_dir / share_archive_file_name
+    share_archive_file = sheet_directory.get().get_share_archive_path(args.exercises)
     if share_archive_file.is_file():
         # If the user has already chosen to overwrite when considering feedback
         # zips, then overwrite here too. Otherwise ask here.
@@ -742,13 +625,13 @@ def create_share_archive(overwrite: Optional[bool]) -> None:
         # here, because we only need share archives for the 'exercise' marking
         # mode.
         for team_dir in get_relevant_team_dirs():
-            collected_feedback_file = get_collected_feedback_file(team_dir)
+            collected_feedback_file = sheet_directory.get_collected_feedback_file(team_dir)
             sub_zip_name = f"{team_dir.name}.zip"
             if collected_feedback_file.suffix == ".pdf":
                 # Create a temporary zip file in the collected feedback
                 # directory and add the single pdf.
                 temp_zip_file = (
-                    team_dir / FEEDBACK_COLLECTED_DIR_NAME / "temp_zip.zip"
+                    sheet_directory.get_collected_feedback_dir(team_dir) / "temp_zip.zip"
                 )
                 with ZipFile(temp_zip_file, "w") as temp_zip:
                     temp_zip.write(
@@ -774,15 +657,14 @@ def collect() -> None:
     copy-pasted to shared point spreadsheet.
     """
     # Prepare.
-    verify_sheet_root_dir()
     load_sheet_info()
     # Collect feedback.
 
     # Check if there is a collected feedback directory with files inside
     # already.
     collected_feedback_exists = any(
-        (team_dir / FEEDBACK_COLLECTED_DIR_NAME).is_dir()
-        and any((team_dir / FEEDBACK_COLLECTED_DIR_NAME).iterdir())
+        sheet_directory.get_collected_feedback_dir(team_dir).is_dir()
+        and any((sheet_directory.get_collected_feedback_dir(team_dir)).iterdir())
         for team_dir in get_relevant_team_dirs()
     )
     # Ask the user whether collected feedback should be overwritten in case it
@@ -824,18 +706,17 @@ def combine() -> None:
     feedback, but we need to zip this up again.
     """
     # Prepare.
-    verify_sheet_root_dir()
     load_sheet_info()
 
-    share_archive_files = get_share_archive_files()
+    share_archive_files = sheet_directory.get().get_share_archive_files()
     instructions = (
         "Run `collect` to generate the share archive for your own feedback and"
         " save the share archives you received from the other tutors under"
-        f" {args.sheet_root_dir}."
+        f" {sheet_directory.get().root}."
     )
     if len(list(share_archive_files)) == 0:
         logging.critical(
-            f"No share archives exist in {args.sheet_root_dir}. " + instructions
+            f"No share archives exist in {sheet_directory.get().root}. " + instructions
         )
     if len(list(share_archive_files)) == 1:
         logging.warning(
@@ -843,7 +724,7 @@ def combine() -> None:
         )
 
     # Create directory to store combined feedback in.
-    combined_dir = args.sheet_root_dir / COMBINED_DIR_NAME
+    combined_dir = sheet_directory.get().get_combined_feedback_dir()
     if combined_dir.exists() and combined_dir.is_dir():
         overwrite = query_yes_no(
             (
@@ -878,9 +759,7 @@ def combine() -> None:
     teams_all = [team_dir.name for team_dir in get_relevant_team_dirs()]
     # Extract feedback files from share archives into their respective team
     # directories in the combined directory.
-    for share_archive_file in args.sheet_root_dir.glob(
-        SHARE_ARCHIVE_PREFIX + "*.zip"
-    ):
+    for share_archive_file in sheet_directory.get().get_share_archive_files():
         with ZipFile(share_archive_file, mode="r") as share_archive:
             # Check if this share archive is missing team archives for any team.
             teams_present = [
@@ -910,8 +789,8 @@ def combine() -> None:
     # <sheet_root_dir>
     # └── feedback_combined
     #     ├── 12345_Muster-Meier-Mueller
-    #     .   ├── feedback_exercise_sheet_01_tutor1_ex1.pdf
-    #     .   └── feedback_exercise_sheet_01_tutor2_ex2.zip
+    #     .   ├── feedback_exercise_sheet_01_tutor1_ex1.pdf
+    #     .   └── feedback_exercise_sheet_01_tutor2_ex2.zip
 
     # Extract zipped feedback in combined directory.
     for team_dir in combined_dir.iterdir():
@@ -932,15 +811,15 @@ def combine() -> None:
     # <sheet_root_dir>
     # └── feedback_combined
     #     ├── 12345_Muster-Meier-Mueller
-    #     .   ├── feedback_exercise_sheet_01_tutor1_ex1.pdf
-    #     .   ├── feedback_exercise_sheet_01_tutor2_ex2.pdf
-    #     .   └── feedback_exercise_sheet_01_tutor2_ex2_code.cc
+    #     .   ├── feedback_exercise_sheet_01_tutor1_ex1.pdf
+    #     .   ├── feedback_exercise_sheet_01_tutor2_ex2.pdf
+    #     .   └── feedback_exercise_sheet_01_tutor2_ex2_code.cc
 
     # Zip up feedback files.
     for team_dir in combined_dir.iterdir():
         feedback_files = list(team_dir.iterdir())
         combined_team_archive = team_dir / (
-            get_combined_feedback_file_name() + ".zip"
+            sheet_directory.get().get_combined_feedback_file_name() + ".zip"
         )
         with ZipFile(combined_team_archive, mode="w") as combined_zip:
             for feedback_file in feedback_files:
@@ -951,7 +830,7 @@ def combine() -> None:
     # <sheet_root_dir>
     # └── feedback_combined
     #     ├── 12345_Muster-Meier-Mueller
-    #     .   └── feedback_exercise_sheet_01.zip
+    #     .   └── feedback_exercise_sheet_01.zip
 
 
 # ============================== Init Sub-Command ==============================
@@ -1011,14 +890,14 @@ def extract_adam_zip() -> tuple[pathlib.Path, str]:
     return sheet_root_dir, adam_sheet_name
 
 
-def get_adam_id_to_team_dict() -> dict[str, Team]:
+def get_adam_id_to_team_dict(root: pathlib.Path) -> dict[str, Team]:
     """
     ADAM assigns every team a new ID with every exercise sheet. This dict maps
     from that ID to the team represented by a list of [name, email] pairs. At
     the same time, the "Team " prefix is removed from directory names.
     """
     adam_id_to_team = {}
-    for team_dir in args.sheet_root_dir.iterdir():
+    for team_dir in root.iterdir():
         if not team_dir.is_dir():
             continue
         team_id = team_dir.name.split(" ")[1]
@@ -1068,13 +947,11 @@ def mark_irrelevant_team_dirs() -> None:
     Indicate which team directories do not have to be marked by adding the
     `DO_NOT_MARK_PREFIX` to their directory name.
     """
+    sheet_dir = sheet_directory.get()
     relevant_teams = get_relevant_teams()
-    for team_dir_name, team in args.team_dir_to_team.items():
+    for team_dir_name, team in sheet_dir.team_dir_to_team.items():
         if not team in relevant_teams:
-            team_dir = args.sheet_root_dir / team_dir_name
-            shutil.move(
-                team_dir, team_dir.with_name(DO_NOT_MARK_PREFIX + team_dir_name)
-            )
+            sheet_dir.do_not_mark(team_dir_name)
 
 
 def get_relevant_teams() -> list[Team]:
@@ -1096,7 +973,7 @@ def get_relevant_teams() -> list[Team]:
         seed = int(
             hashlib.sha256(args.adam_sheet_name.encode("utf-8")).hexdigest(), 16
         )
-        shuffled_teams = [team for _, team in args.team_dir_to_team.items()]
+        shuffled_teams = [team for _, team in sheet_directory.get().team_dir_to_team.items()]
         random.Random(seed).shuffle(shuffled_teams)
         chunks = [shuffled_teams[i::num_tutors] for i in range(num_tutors)]
         assert len(chunks) == num_tutors
@@ -1115,12 +992,12 @@ def get_relevant_teams() -> list[Team]:
         return []
 
 
-def rename_team_dirs(adam_id_to_team: dict[str, Team]) -> None:
+def rename_team_dirs(root: pathlib.Path, adam_id_to_team: dict[str, Team]) -> None:
     """
     The team directories are renamed to: team_id_LastName1-LastName2
     The team ID can be helpful to identify a team on the ADAM web interface.
     """
-    for team_dir in args.sheet_root_dir.iterdir():
+    for team_dir in root.iterdir():
         if not team_dir.is_dir():
             continue
         team_id = team_dir.name
@@ -1131,7 +1008,7 @@ def rename_team_dirs(adam_id_to_team: dict[str, Team]) -> None:
         )
 
 
-def flatten_team_dirs() -> None:
+def flatten_team_dirs(root: pathlib.Path) -> None:
     """
     There can be multiple directories within a "Team 00000" directory. This
     happens when multiple members of the team upload solutions. Sometimes, only
@@ -1139,7 +1016,7 @@ def flatten_team_dirs() -> None:
     ones silently. In case multiple submissions exist, we put the files within
     them next to each other and print a warning.
     """
-    for team_dir in get_all_team_dirs():
+    for team_dir in sheet_directory._get_all_team_dirs(root):
         # Remove empty subdirectories.
         for team_submission_dir in team_dir.iterdir():
             if len(list(team_submission_dir.iterdir())) == 0:
@@ -1160,14 +1037,14 @@ def flatten_team_dirs() -> None:
             move_content_and_delete(team_submission_dir, team_dir)
 
 
-def unzip_internal_zips() -> None:
+def unzip_internal_zips(root: pathlib.Path) -> None:
     """
     If multiple files are uploaded to ADAM, the submission becomes a single zip
     file. Here we extract this zip. I'm not sure if nested zip files are also
     extracted. Additionally we flatten the directory as long as a level only
     consists of a single directory.
     """
-    for team_dir in get_all_team_dirs():
+    for team_dir in sheet_directory._get_all_team_dirs(root):
         if not team_dir.is_dir():
             continue
         for zip_file in team_dir.glob("**/*.zip"):
@@ -1199,7 +1076,7 @@ def create_marks_file() -> None:
     for team_dir in sorted(list(get_relevant_team_dirs())):
         marks_dict.update({team_dir.name: exercise_dict})
 
-    with open(get_marks_file_path(), "w", encoding="utf-8") as marks_json:
+    with open(sheet_directory.get().get_marks_file_path(), "w", encoding="utf-8") as marks_json:
         json.dump(marks_dict, marks_json, indent=4, ensure_ascii=False)
 
 
@@ -1214,10 +1091,10 @@ def create_feedback_directories() -> None:
     the feedback.
     """
     for team_dir in get_relevant_team_dirs():
-        feedback_dir = team_dir / FEEDBACK_DIR_NAME
+        feedback_dir = sheet_directory.get_feedback_dir(team_dir)
         feedback_dir.mkdir()
 
-        feedback_file_name = get_feedback_file_name()
+        feedback_file_name = sheet_directory.get().get_feedback_file_name(args.exercises)
         dummy_pdf_name = feedback_file_name + ".pdf.todo"
         pathlib.Path(feedback_dir / dummy_pdf_name).touch(exist_ok=True)
 
@@ -1252,7 +1129,7 @@ def generate_xopp_files() -> None:
             )
             continue
         pdf_path = pdf_paths[0]
-        feedback_dir = team_dir / FEEDBACK_DIR_NAME
+        feedback_dir = sheet_directory.get_feedback_dir(team_dir)
         todo_paths = list(feedback_dir.glob("*.pdf.todo"))
         assert len(todo_paths) == 1
         todo_path = todo_paths[0]
@@ -1296,45 +1173,8 @@ def generate_xopp_files() -> None:
     logging.info("Done generating .xopp files.")
 
 
-def create_sheet_info_file(adam_id_to_team: dict[str, Team]) -> None:
-    """
-    Write information generated during the execution of the 'init' command in a
-    sheet info file. In particular a mapping from team directory names to teams
-    and the name of the exercise sheet as given by ADAM. The latter is used as
-    the seed to make random assignment of submissions to tutors consistent
-    between tutors, but still vary from sheet to sheet. Later commands (e.g.
-    'collect', or 'send') are meant to load the information stored in this file
-    into the 'args' object and access it that way.
-    """
-    info_dict: dict[str, Union[str, dict[str, Team]]] = {}
-    # Build the dict from team directory names to teams.
-    team_dir_to_team = {}
-    for team_dir in get_all_team_dirs():
-        if team_dir.is_file():
-            continue
-        # Get ADAM ID from directory name.
-        adam_id_match = re.search(r"\d+", team_dir.name)
-        assert adam_id_match
-        adam_id = adam_id_match.group()
-        team = adam_id_to_team[adam_id]
-        team_dir_to_team.update({team_dir.name: team})
-    info_dict.update({"team_dir_to_team": team_dir_to_team})
-    info_dict.update({"adam_sheet_name": args.adam_sheet_name})
-    if config.get().marking_mode == "exercise":
-        info_dict.update({"exercises": args.exercises})
-    with open(
-        args.sheet_root_dir / SHEET_INFO_FILE_NAME, "w", encoding="utf-8"
-    ) as sheet_info_file:
-        # Sorting the keys here is essential because the order of teams here
-        # will influence the assignment returned by `get_relevant_teams()` in
-        # case config.get().marking_mode == "random".
-        json.dump(
-            info_dict,
-            sheet_info_file,
-            indent=4,
-            ensure_ascii=False,
-            sort_keys=True,
-        )
+def create_sheet_info_file(root: pathlib.Path, adam_id_to_team: dict[str, Team]) -> None:
+    sheet_directory.create_sheet_info_file(root, args.adam_sheet_name, adam_id_to_team, args.exercises)
     # Immediately load the info back into args.
     load_sheet_info()
 
@@ -1406,7 +1246,7 @@ def init() -> None:
     # ├── Team 12345
     # .   └── Muster_Hans_hans.muster@unibas.ch_000000
     # .       └── submission.pdf or submission.zip
-    adam_id_to_team = get_adam_id_to_team_dict()
+    adam_id_to_team = get_adam_id_to_team_dict(sheet_root_dir)
     print_missing_submissions(adam_id_to_team)
 
     # Structure at this point:
@@ -1414,7 +1254,7 @@ def init() -> None:
     # ├── 12345
     # .   └── Muster_Hans_hans.muster@unibas.ch_000000
     # .       └── submission.pdf or submission.zip
-    rename_team_dirs(adam_id_to_team)
+    rename_team_dirs(sheet_root_dir, adam_id_to_team)
 
     # From here on, get_all_team_dirs() should work.
 
@@ -1423,25 +1263,25 @@ def init() -> None:
     # ├── 12345_Muster-Meier-Mueller
     # .   └── Muster_Hans_hans.muster@unibas.ch_000000
     # .       └── submission.pdf or submission.zip
-    flatten_team_dirs()
+    flatten_team_dirs(sheet_root_dir)
 
     # Structure at this point:
     # <sheet_root_dir>
     # ├── 12345_Muster-Meier-Mueller
     # .   └── submission.pdf or submission.zip
-    unzip_internal_zips()
+    unzip_internal_zips(sheet_root_dir)
 
     # From here on, we need information about relevant teams.
     # The function `get_relevant_teams()` depends on the sheet info file
     # (because `adam_sheet_name` from .sheet_info seeds the random assignment of
     # submissions to tutors).
     # That's why we create the sheet info file first...
-    create_sheet_info_file(adam_id_to_team)
+    create_sheet_info_file(sheet_root_dir, adam_id_to_team)
     # then rename the irrelevant team directories...
     mark_irrelevant_team_dirs()
     # and finally recreate the sheet info file to reflect the final team
     # directory names.
-    create_sheet_info_file(adam_id_to_team)
+    create_sheet_info_file(sheet_root_dir, adam_id_to_team)
 
     if config.get().use_marks_file:
         create_marks_file()
