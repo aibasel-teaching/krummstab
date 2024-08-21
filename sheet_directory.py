@@ -1,12 +1,11 @@
 import config
-import json
 import logging
 from pathlib import Path
 import re
 import shutil
-from typing import Iterator, Union
+from typing import Iterator
 
-from utils import Team
+from utils import Team, write_json, read_json
 
 FEEDBACK_DIR_NAME = "feedback"
 FEEDBACK_COLLECTED_DIR_NAME = "feedback_collected"
@@ -27,6 +26,42 @@ def get():
     assert the_sheet_dir
     return the_sheet_dir
 
+
+class TeamDirectory:
+    def __init__(self, root: Path, sheet_dir: "SheetDirectory") -> None:
+        self.root = root
+        self.sheet_dir = sheet_dir
+
+    def get_feedback_dir(self) -> Path:
+        return self.root / FEEDBACK_DIR_NAME
+
+    def get_collected_feedback_dir(self) -> Path:
+        return self.root / FEEDBACK_COLLECTED_DIR_NAME
+
+    def get_collected_feedback_file(self) -> Path:
+        """
+        Given a team directory, return the collected feedback file. This can be
+        either a single pdf file, or a single zip archive. Throw an error if neither
+        exists.
+        """
+        collected_feedback_dir = self.get_collected_feedback_dir()
+        assert collected_feedback_dir.is_dir()
+        collected_feedback_files = list(collected_feedback_dir.iterdir())
+        assert (
+            len(collected_feedback_files) == 1
+            and collected_feedback_files[0].is_file()
+            and collected_feedback_files[0].suffix in [".pdf", ".zip"]
+        )
+        return collected_feedback_files[0]
+    
+    def get_team(self):
+        # TODO: copy team into TeamDirectory rather than looking it up.
+        return self.sheet_dir.team_dir_to_team[self.root.name]
+    
+    def __lt__(self, other):
+        return self.root < other.root
+
+
 class SheetDirectory:
     def __init__(self, root: Path) -> None:
         self._sheet_info_path = root / SHEET_INFO_FILE_NAME
@@ -38,9 +73,7 @@ class SheetDirectory:
         self._load()
     
     def _load(self):
-        with open(self.root / SHEET_INFO_FILE_NAME, "r", encoding="utf-8"
-        ) as sheet_info_file:
-            sheet_info = json.load(sheet_info_file)
+        sheet_info = read_json(self.root / SHEET_INFO_FILE_NAME)
         for key, value in sheet_info.items():
             setattr(self, key, value)
 
@@ -108,20 +141,19 @@ class SheetDirectory:
         """
         return _get_all_team_dirs(self.root)
 
-    def get_relevant_team_dirs(self) -> Iterator[Path]:
+    def get_relevant_team_dirs(self) -> Iterator[TeamDirectory]:
         """
         Return the team directories of the teams whose submission has to be
         corrected by the tutor running the script.
         """
         for team_dir in self.get_all_team_dirs():
             if not DO_NOT_MARK_PREFIX in team_dir.name:
-                yield team_dir
+                yield TeamDirectory(team_dir, self)
 
-    def do_not_mark(self, team_dir_name):
-        team_dir = self.root / team_dir_name
-        shutil.move(
-            team_dir, team_dir.with_name(DO_NOT_MARK_PREFIX + team_dir_name)
-        )
+def do_not_mark(team_dir: Path):
+    shutil.move(
+        team_dir, team_dir.with_name(DO_NOT_MARK_PREFIX + team_dir.name)
+    )
 
 
 def _get_all_team_dirs(root: Path):
@@ -130,29 +162,7 @@ def _get_all_team_dirs(root: Path):
             yield team_dir
 
 
-#TODO: move the following three functions to a TeamDirectory class. Potentially add others like do_not_mark.
-def get_feedback_dir(team_dir: Path):
-    return team_dir / FEEDBACK_DIR_NAME
-def get_collected_feedback_dir(team_dir: Path):
-    return team_dir / FEEDBACK_COLLECTED_DIR_NAME
-def get_collected_feedback_file(team_dir: Path) -> Path:
-    """
-    Given a team directory, return the collected feedback file. This can be
-    either a single pdf file, or a single zip archive. Throw an error if neither
-    exists.
-    """
-    collected_feedback_dir = get_collected_feedback_dir(team_dir)
-    assert collected_feedback_dir.is_dir()
-    collected_feedback_files = list(collected_feedback_dir.iterdir())
-    assert (
-        len(collected_feedback_files) == 1
-        and collected_feedback_files[0].is_file()
-        and collected_feedback_files[0].suffix in [".pdf", ".zip"]
-    )
-    return collected_feedback_files[0]
-
-
-def create_sheet_info_file(root: Path, adam_sheet_name, adam_id_to_team: dict[str, Team], exercises=None) -> None:
+def create_sheet_info_file(root: Path, adam_sheet_name, team_dir_to_team: dict[Path, Team], exercises=None) -> SheetDirectory:
     """
     Write information generated during the execution of the 'init' command in a
     sheet info file. In particular a mapping from team directory names to teams
@@ -162,30 +172,12 @@ def create_sheet_info_file(root: Path, adam_sheet_name, adam_id_to_team: dict[st
     'collect', or 'send') are meant to load the information stored in this file
     into the 'args' object and access it that way.
     """
-    info_dict: dict[str, Union[str, dict[str, Team]]] = {}
-    # Build the dict from team directory names to teams.
-    team_dir_to_team = {}
-    for team_dir in _get_all_team_dirs(root):
-        if team_dir.is_file():
-            continue
-        # Get ADAM ID from directory name.
-        adam_id_match = re.search(r"\d+", team_dir.name)
-        assert adam_id_match
-        adam_id = adam_id_match.group()
-        team = adam_id_to_team[adam_id]
-        team_dir_to_team.update({team_dir.name: team})
-    info_dict.update({"team_dir_to_team": team_dir_to_team})
-    info_dict.update({"adam_sheet_name": adam_sheet_name})
+    info_dict = {
+        "team_dir_to_team": team_dir_to_team,
+        "adam_sheet_name": adam_sheet_name,
+    }
     if config.get().marking_mode == "exercise":
-        info_dict.update({"exercises": exercises})
-    with open(root / SHEET_INFO_FILE_NAME, "w", encoding="utf-8") as sheet_info_file:
-        # Sorting the keys here is essential because the order of teams here
-        # will influence the assignment returned by `get_relevant_teams()` in
-        # case config.get().marking_mode == "random".
-        json.dump(
-            info_dict,
-            sheet_info_file,
-            indent=4,
-            ensure_ascii=False,
-            sort_keys=True,
-        )
+        info_dict["exercises"] = exercises
+    write_json(root / SHEET_INFO_FILE_NAME, info_dict)
+
+    return SheetDirectory(root)

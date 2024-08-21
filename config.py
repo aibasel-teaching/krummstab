@@ -1,11 +1,10 @@
-import json
 import logging
 from pathlib import Path
 import re
 import types
 from typing import Union, Callable, get_origin, get_args
 
-from utils import Team, ensure_list
+from utils import Team, ensure_list, read_json
 
 
 _the_config = None
@@ -25,7 +24,7 @@ class Config:
         data = {}
         for path in config_paths:
             logging.info(f"Reading config file '{path}'")
-            data.update(json.loads(path.read_text(encoding="utf-8")))
+            data.update(read_json(path))
 
         self._extract_value(data, "tutor_name", str),
         self._extract_value(data, "ignore_feedback_suffix", list[str], 
@@ -73,10 +72,8 @@ class Config:
             self._extract_value(data, "teams", list[Team])
 
         _validate_teams(self.teams, self.max_team_size)
-        # Sort teams and their students to make iterating over them
-        # predictable, independent of their order in config.json.
-        for team in self.teams:
-            team.sort()
+        # Sort teams to make iterating over them predictable, independent of
+        # their order in config.json.
         self.teams.sort()
         logging.info("Processed config successfully.")
 
@@ -172,10 +169,10 @@ def _validate_teams(teams: list[Team], max_team_size) -> None:
     for team in teams:
         if  len(team) > max_team_size:
             logging.critical(f"Team with size {len(team)} violates maximal team size.")
-        for first, last, email in team:
-            _validate_email("Email of {first} {last}", email)
-            all_students.append((first, last))
-            all_emails.append(email)
+        for student in team:
+            _validate_email("Email of {student.full_name}", student.email)
+            all_students.append(student.full_name)
+            all_emails.append(student.email)
     if len(all_students) != len(set(all_students)):
         logging.critical("There are duplicate students in the config file!")
     if len(all_emails) != len(set(all_emails)):
