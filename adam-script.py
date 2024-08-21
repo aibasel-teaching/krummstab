@@ -37,7 +37,7 @@ from getpass import getpass
 import config
 import sheet_directory
 from sheet_directory import SheetDirectory, TeamDirectory
-from utils import Team, write_json
+from utils import Team, write_json, read_json
 
 DEFAULT_SHARED_CONFIG_FILE = "config-shared.json"
 DEFAULT_INDIVIDUAL_CONFIG_FILE = "config-individual.json"
