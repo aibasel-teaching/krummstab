@@ -1,3 +1,8 @@
+# One-time setup
+#    sudo apt install python3-build twine
+# or in a venv:
+#    pip install build twine
+
 # Publishing a new version:
 #
 # 1. Update the version tag in this file.
