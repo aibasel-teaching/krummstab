@@ -1619,7 +1619,7 @@ def add_to_args(key: str, value: Any) -> None:
 # =============================== Main Function ================================
 
 
-if __name__ == "__main__":
+def main():
     configure_logging()
     parser = argparse.ArgumentParser(description="")
     # Main command arguments ---------------------------------------------------
@@ -1791,3 +1791,6 @@ if __name__ == "__main__":
 
 # Only in Python 3.7+ are dicts order preserving, using older Pythons may cause
 # the random assignments to not match up.
+
+if __name__ == "__main__":
+    main()
