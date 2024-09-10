@@ -58,18 +58,21 @@ os.system("")
 
 # Logging ----------------------------------------------------------------------
 
+
 def configure_logging(level=logging.INFO):
     class ColoredFormatter(logging.Formatter):
         FORMATS = {
-            logging.DEBUG:    "\033[0;37m[{levelname}]\033[0m {message}",
-            logging.INFO:     "\033[0;34m[{levelname}]\033[0m {message}",
-            logging.WARNING:  "\033[0;33m[{levelname}]\033[0m {message}",
-            logging.ERROR:    "\033[0;31m[{levelname}]\033[0m {message}",
+            logging.DEBUG: "\033[0;37m[{levelname}]\033[0m {message}",
+            logging.INFO: "\033[0;34m[{levelname}]\033[0m {message}",
+            logging.WARNING: "\033[0;33m[{levelname}]\033[0m {message}",
+            logging.ERROR: "\033[0;31m[{levelname}]\033[0m {message}",
             logging.CRITICAL: "\033[0;31m[{levelname}]\033[0m {message}",
         }
 
         def format(self, record):
-            formatter = logging.Formatter(ColoredFormatter.FORMATS[record.levelno], style="{")
+            formatter = logging.Formatter(
+                ColoredFormatter.FORMATS[record.levelno], style="{"
+            )
             return formatter.format(record)
 
     class LevelFilter:
@@ -81,7 +84,9 @@ def configure_logging(level=logging.INFO):
             return self.min_level <= record.levelno <= self.max_level
 
     class CustomHandler(logging.StreamHandler):
-        def __init__(self, stream, min_level=logging.DEBUG, max_level=logging.CRITICAL):
+        def __init__(
+            self, stream, min_level=logging.DEBUG, max_level=logging.CRITICAL
+        ):
             logging.StreamHandler.__init__(self, stream)
             self.setFormatter(ColoredFormatter())
             self.addFilter(LevelFilter(min_level, max_level))
@@ -102,6 +107,7 @@ def configure_logging(level=logging.INFO):
 
 # Printing ---------------------------------------------------------------------
 
+
 def query_yes_no(text: str, default: bool = True) -> bool:
     """
     Ask the user a yes/no question and return answer.
@@ -119,6 +125,7 @@ def query_yes_no(text: str, default: bool = True) -> bool:
             f"Invalid choice '{choice}'. Please respond with 'yes' or 'no'."
         )
         return query_yes_no(text, default)
+
 
 # String things ----------------------------------------------------------------
 def team_to_string(team: Team) -> str:
@@ -349,7 +356,7 @@ def email_to_text(email: EmailMessage) -> None:
     if cc:
         lines.append(format_line("CC:", cc))
     if attachments:
-        lines.append(format_line("Attachments:", ', '.join(attachments)))
+        lines.append(format_line("Attachments:", ", ".join(attachments)))
     lines.append(format_line("Subject:", subject))
     lines.append(format_line("Start Body", ""))
     if content[-1] == "\n":
@@ -360,7 +367,7 @@ def email_to_text(email: EmailMessage) -> None:
 
 
 def print_emails(emails: list[EmailMessage]) -> None:
-    separator = "\n\033[0;33m" + 80*"=" + "\033[0m\n"
+    separator = "\n\033[0;33m" + 80 * "=" + "\033[0m\n"
     email_strings = [email_to_text(email) for email in emails]
     print(f"{separator}{separator.join(email_strings)}{separator}")
 
@@ -552,9 +559,9 @@ def validate_marks_json() -> None:
         (float(mark) / args.min_point_unit).is_integer() for mark in marks_list
     ):
         logging.critical(
-            f"'{marks_json_file.name}' contains marks that are more fine-grained "
-            "than allowed! You may only award points in "
-            f"'{args.min_point_unit}' increments."
+            f"'{marks_json_file.name}' contains marks that are more"
+            " fine-grained than allowed! You may only award points in"
+            f" '{args.min_point_unit}' increments."
         )
 
 
@@ -571,7 +578,9 @@ def collect_feedback_files(team_dir: pathlib.Path) -> None:
     collected_feedback_zip_name = get_feedback_file_name() + ".zip"
     # Error handling.
     if not feedback_dir.exists():
-        logging.critical(f"Missing feedback directory for team {team_dir.name}!")
+        logging.critical(
+            f"Missing feedback directory for team {team_dir.name}!"
+        )
     content = list(feedback_dir.iterdir())
     if any(".todo" in file_or_dir.name for file_or_dir in content):
         logging.critical(
@@ -630,7 +639,9 @@ def collect_feedback_files(team_dir: pathlib.Path) -> None:
                 file_to_zip, arcname=file_to_zip.relative_to(feedback_dir)
             )
     if not feedback_contains_pdf:
-        logging.warning(f"The feedback for {team_dir.name} contains no PDF file!")
+        logging.warning(
+            f"The feedback for {team_dir.name} contains no PDF file!"
+        )
 
 
 def delete_collected_feedback_directories() -> None:
@@ -822,7 +833,10 @@ def collect() -> None:
         if overwrite:
             delete_collected_feedback_directories()
         else:
-            logging.info(f"Could not write collected feedback archives. Aborting command.")
+            logging.info(
+                f"Could not write collected feedback archives. Aborting"
+                f" command."
+            )
             return
     if args.xopp:
         export_xopp_files()
@@ -878,7 +892,10 @@ def combine() -> None:
         if overwrite:
             shutil.rmtree(combined_dir)
         else:
-            logging.info(f"Could not write to '{combined_dir}'. Aborting combine command.")
+            logging.info(
+                f"Could not write to '{combined_dir}'. Aborting combine"
+                " command."
+            )
             return
 
     combined_dir.mkdir()
@@ -1510,7 +1527,9 @@ def validate_teams(teams: list[Team]) -> None:
     if len(all_students) != len(set(all_students)):
         logging.critical("There are duplicate students in the config file!")
     if len(all_emails) != len(set(all_emails)):
-        logging.critical("There are duplicate student emails in the config file!")
+        logging.critical(
+            "There are duplicate student emails in the config file!"
+        )
     teams.sort()
 
 
@@ -1786,7 +1805,7 @@ def main():
     try:
         with open(args.config_shared, "r", encoding="utf-8") as config_file:
             data_shared = json.load(config_file)
-    except (FileNotFoundError):
+    except FileNotFoundError:
         logging.critical(f"File '{args.config_shared}' not found.")
     logging.info(
         f"Reading individual config file '{args.config_individual}'..."
@@ -1795,7 +1814,7 @@ def main():
         with open(args.config_individual, "r", encoding="utf-8") as config_file:
             data_individual = json.load(config_file)
         assert data_shared.keys().isdisjoint(data_individual)
-    except (FileNotFoundError):
+    except FileNotFoundError:
         logging.critical(f"File '{args.config_individual}' not found.")
 
     # We currently plan to support the following marking modes.
@@ -1819,6 +1838,7 @@ def main():
     # For example, `func` is set to `init` if the subcommand is "init".
     args.func()
     logging.info(f"Command '{args.sub_command}' terminated successfully. 🎉")
+
 
 # Only in Python 3.7+ are dicts order preserving, using older Pythons may cause
 # the random assignments to not match up.
