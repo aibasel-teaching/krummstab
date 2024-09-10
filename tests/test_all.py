@@ -7,7 +7,6 @@ import shutil
 import subprocess
 import typing
 
-ADAM_SCRIPT = pathlib.Path("adam-script.py")
 CONFIG_INDIVIDUAL = pathlib.Path("config-individual.json")
 CONFIG_RANDOM = pathlib.Path("config-shared-random.json")
 CONFIG_STATIC = pathlib.Path("config-shared-static.json")
@@ -15,7 +14,6 @@ CONFIG_EXERCISE = pathlib.Path("config-shared-exercise.json")
 SAMPLE_SHEET = pathlib.Path("Sample Sheet.zip")
 SAMPLE_SHEET_DIR = pathlib.Path("Sample Sheet")
 SAMPLE_SHEET_SUB_DIR = SAMPLE_SHEET_DIR / "SUB_DIR"
-POINT_FILE = SAMPLE_SHEET_DIR / "points.json"
 
 
 @pytest.fixture(autouse=True)
@@ -39,8 +37,6 @@ def setup_test_directory(request, tmp_path: pathlib.Path):
     shutil.rmtree(tmp_path / SAMPLE_SHEET_DIR)
     # Copy individual config file.
     shutil.copy(CONFIG_INDIVIDUAL, tmp_path)
-    # Copy feedback script.
-    shutil.copy(".." / ADAM_SCRIPT, tmp_path)
     return tmp_path
 
 
@@ -67,11 +63,12 @@ def give_feedback():
     for todo_file in pathlib.Path.cwd().glob("**/*.todo"):
         shutil.move(todo_file, todo_file.with_suffix(""))
     # Enter points.
-    with open(POINT_FILE, "r") as file:
-        data = file.read()
-    data = data.replace(': ""', ': "1.5"')
-    with open(POINT_FILE, "w") as file:
-        file.write(data)
+    for point_file in pathlib.Path.cwd().glob("**/points*.json"):
+        with open(point_file, "r") as file:
+            data = file.read()
+        data = data.replace(': ""', ': "1.5"')
+        with open(point_file, "w") as file:
+            file.write(data)
 
 
 @pytest.mark.parametrize(
@@ -89,8 +86,7 @@ def test(
     # Call 'init'.
     subprocess.check_call(
         [
-            "python3",
-            str(ADAM_SCRIPT),
+            "krummstab",
             "-i",
             str(CONFIG_INDIVIDUAL),
             "-s",
@@ -117,8 +113,7 @@ def test(
     # Call 'collect'.
     subprocess.check_call(
         [
-            "python3",
-            str(ADAM_SCRIPT),
+            "krummstab",
             "-i",
             str(CONFIG_INDIVIDUAL),
             "-s",
@@ -137,8 +132,7 @@ def test(
         return
     subprocess.check_call(
         [
-            "python3",
-            str(ADAM_SCRIPT),
+            "krummstab",
             "-i",
             str(CONFIG_INDIVIDUAL),
             "-s",
