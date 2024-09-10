@@ -26,8 +26,10 @@ def change_test_dir(request, monkeypatch):
 
 @pytest.fixture(params=["Abgaben", "Submissions"])
 def setup_test_directory(request, tmp_path: pathlib.Path):
-    # Copy sample sheet directory, create zip file in ADAM's format, and remove
-    # sheet directory.
+    """
+    Copy sample sheet directory, create zip file in ADAM's format, and remove
+    sheet directory.
+    """
     shutil.copytree(SAMPLE_SHEET_DIR, tmp_path / SAMPLE_SHEET_DIR.name)
     shutil.move(tmp_path / SAMPLE_SHEET_SUB_DIR, tmp_path / SAMPLE_SHEET_DIR / request.param)
     os.makedirs(tmp_path / "temp")
@@ -106,10 +108,6 @@ def test(
     # Prepare for 'collect'.
     give_feedback()
 
-    # TODO: Remove this once 'collect' is supported for the exercise mode.
-    #if config_shared == CONFIG_EXERCISE:
-    #    return
-
     # Call 'collect'.
     subprocess.check_call(
         [
@@ -128,20 +126,38 @@ def test(
     assert "Command 'collect' terminated successfully." in out
 
     # Call 'combine' for the configurations using the mode 'exercise'.
-    if config_shared != CONFIG_EXERCISE:
-        return
-    subprocess.check_call(
-        [
-            "krummstab",
-            "-i",
-            str(CONFIG_INDIVIDUAL),
-            "-s",
-            str(config_shared),
-            "combine",
-            str(SAMPLE_SHEET_DIR),
-        ]
-    )
+    if config_shared == CONFIG_EXERCISE:
+        subprocess.check_call(
+            [
+                "krummstab",
+                "-i",
+                str(CONFIG_INDIVIDUAL),
+                "-s",
+                str(config_shared),
+                "combine",
+                str(SAMPLE_SHEET_DIR),
+            ]
+        )
 
-    # Verify 'combine' ran successfully.
-    out, err = capfd.readouterr()
-    assert "Command 'combine' terminated successfully." in out
+        # Verify 'combine' ran successfully.
+        out, err = capfd.readouterr()
+        assert "Command 'combine' terminated successfully." in out
+
+    # Call 'send' for the 'static' and 'random' marking modes.
+    # TODO: Also test the 'exercise' mode once implemented.
+    if config_shared in {CONFIG_STATIC, CONFIG_RANDOM}:
+        subprocess.check_call(
+            [
+                "krummstab",
+                "-i",
+                str(CONFIG_INDIVIDUAL),
+                "-s",
+                str(config_shared),
+                "send",
+                "--dry_run",
+                str(SAMPLE_SHEET_DIR),
+            ]
+        )
+        # Verify 'send' ran successfully.
+        out, err = capfd.readouterr()
+        assert "Command 'send' terminated successfully." in out

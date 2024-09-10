@@ -341,22 +341,28 @@ def email_to_text(email: EmailMessage) -> None:
         elif not part.is_multipart():
             content += part.get_content()
     lines = []
-    lines.append(f"To: {to}")
+
+    def format_line(left: str, right: str) -> str:
+        return f"\033[0;34m{left}\033[0m {right}"
+
+    lines.append(format_line("To:", to))
     if cc:
-        lines.append(f"CC: {cc}")
+        lines.append(format_line("CC:", cc))
     if attachments:
-        lines.append(f"Attachments: {', '.join(attachments)}")
-    lines.append(f"Subject: {subject}")
-    lines.append("Text:")
+        lines.append(format_line("Attachments:", ', '.join(attachments)))
+    lines.append(format_line("Subject:", subject))
+    lines.append(format_line("Start Body", ""))
+    if content[-1] == "\n":
+        content = content[:-1]
     lines.append(content)
+    lines.append(format_line("End Body", ""))
     return "\n".join(lines)
 
 
 def print_emails(emails: list[EmailMessage]) -> None:
-    logging.info("Sending emails now would send the following emails:")
-    for email in emails:
-        print(email_to_text(email))
-        print(f"===========\n")
+    separator = "\n\033[0;33m" + 80*"=" + "\033[0m\n"
+    email_strings = [email_to_text(email) for email in emails]
+    print(f"{separator}{separator.join(email_strings)}{separator}")
 
 
 def send_messages(emails: list[EmailMessage]) -> None:
@@ -404,7 +410,7 @@ def get_email_greeting(name_list: list[str]) -> str:
 
 def get_team_email_content(name_list: list[str]) -> str:
     """
-    Builds the body of the email.
+    Builds the body of the email that sends feedback to students.
     """
     return textwrap.dedent(
         f"""
@@ -414,8 +420,7 @@ def get_team_email_content(name_list: list[str]) -> str:
     If you have any questions, you can contact us in the exercise session or by replying to this email (reply to all).
 
     Best,
-    Your Tutors
-    """
+    {args.email_signature}"""
     )[
         1:
     ]  # Removes the leading newline.
@@ -423,7 +428,7 @@ def get_team_email_content(name_list: list[str]) -> str:
 
 def get_assistant_email_content() -> str:
     """
-    Builds the body of the email.
+    Builds the body of the email that sends the points to the assistent.
     """
     return textwrap.dedent(
         f"""
@@ -432,8 +437,7 @@ def get_assistant_email_content() -> str:
     Please find my marks for {args.adam_sheet_name} in the attachment.
 
     Best,
-    Your Tutors
-    """
+    {args.email_signature}"""
     )[
         1:
     ]  # Removes the leading newline.
@@ -484,11 +488,24 @@ def send() -> None:
         emails.append(create_email_to_team(team_dir))
     if args.assistant_email:
         emails.append(create_email_to_assistent())
-    logging.info(f"Ready to send {len(emails)} email(s).")
+    logging.info(f"Drafted {len(emails)} email(s).")
     if args.dry_run:
+        logging.info("Sending emails now would send the following emails:")
         print_emails(emails)
+        logging.info("No emails sent.")
     else:
-        send_messages(emails)
+        print_emails(emails)
+        really_send = query_yes_no(
+            (
+                f"Do you really want to send the {len(emails)} email(s) "
+                "printed above?"
+            ),
+            default=False,
+        )
+        if really_send:
+            send_messages(emails)
+        else:
+            logging.info("No emails sent.")
 
 
 # ============================ Collect Sub-Command =============================
@@ -1550,11 +1567,15 @@ def process_general_config(
     add_to_args("ignore_feedback_suffix", ignore_feedback_suffix + [".xopp"])
 
     # Email settings, currently all optional because not fully functional.
-    tutor_email = data_individual.get("your_email", "")
+    tutor_email = data_individual.get("tutor_email", "")
     assert (tutor_email == "") or (
         type(tutor_email) is str and is_email(tutor_email)
     )
     add_to_args("tutor_email", tutor_email)
+
+    email_signature = data_individual.get("email_signature", "Your Tutors")
+    assert type(email_signature) is str
+    add_to_args("email_signature", email_signature)
 
     feedback_email_cc = data_individual.get("feedback_email_cc", [])
     assert type(feedback_email_cc) is list
