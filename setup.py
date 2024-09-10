@@ -6,7 +6,7 @@
 # Publishing a new version:
 #
 # 1. Update the version tag in this file.
-# 2. Remove the `dist/` and the `machetli.egg-info` directories
+# 2. Remove the `dist/` and the `krummstab.egg-info` directories
 # 3. Run the following steps (needs `pip install build twine`):
 #
 #     $ python3 -m build
@@ -39,6 +39,9 @@ setup(
     ],
     packages=find_packages(),
     python_requires=">=3.10",
+    install_requires=[
+        'pypdf==3.1.0',
+    ],
     entry_points={
         'console_scripts': [
             'krummstab = krummstab:main',

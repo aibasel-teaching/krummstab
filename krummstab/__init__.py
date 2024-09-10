@@ -48,6 +48,8 @@ SHEET_INFO_FILE_NAME = ".sheet_info"
 SHARE_ARCHIVE_PREFIX = "share_archive"
 COMBINED_DIR_NAME = "feedback_combined"
 
+args = None
+
 # Might be necessary to make colored output work on Windows.
 os.system("")
 
@@ -1241,7 +1243,7 @@ def generate_xopp_files() -> None:
     Generate xopp files in the feedback directories that point to the single pdf
     in the submission directory and skip if multiple PDF files exist.
     """
-    from PyPDF2 import PdfReader
+    from pypdf import PdfReader
 
     def write_to_file(f, string):
         f.write(textwrap.dedent(string))
@@ -1532,7 +1534,7 @@ def process_general_config(
     This includes both individual and shared settings.
     """
     # Individual settings
-    tutor_name = data_individual["your_name"]
+    tutor_name = data_individual["tutor_name"]
     assert type(tutor_name) is str
     add_to_args("tutor_name", tutor_name)
 
@@ -1750,6 +1752,7 @@ def main():
     )
     parser_send.set_defaults(func=send)
 
+    global args
     args = parser.parse_args()
 
     if args.sub_command == "help":
@@ -1758,14 +1761,20 @@ def main():
 
     # Process config files =====================================================
     logging.info(f"Reading shared config file '{args.config_shared}'...")
-    with open(args.config_shared, "r", encoding="utf-8") as config_file:
-        data_shared = json.load(config_file)
+    try:
+        with open(args.config_shared, "r", encoding="utf-8") as config_file:
+            data_shared = json.load(config_file)
+    except (FileNotFoundError):
+        logging.critical(f"File '{args.config_shared}' not found.")
     logging.info(
         f"Reading individual config file '{args.config_individual}'..."
     )
-    with open(args.config_individual, "r", encoding="utf-8") as config_file:
-        data_individual = json.load(config_file)
-    assert data_shared.keys().isdisjoint(data_individual)
+    try:
+        with open(args.config_individual, "r", encoding="utf-8") as config_file:
+            data_individual = json.load(config_file)
+        assert data_shared.keys().isdisjoint(data_individual)
+    except (FileNotFoundError):
+        logging.critical(f"File '{args.config_individual}' not found.")
 
     # We currently plan to support the following marking modes.
     # static:   Every tutor corrects the submissions of the teams assigned to
