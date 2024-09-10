@@ -1370,7 +1370,9 @@ def init() -> None:
         if args.marking_mode == "exercise" and not args.exercises:
             logging.critical(
                 "You must provide a list of exercise numbers to be marked with "
-                "the '-e' flag, for example '-e 1 3 4'."
+                "the '-e' flag, for example '-e 1 3 4'. In case the '-e' flag "
+                "is the last option before the ADAM zip path, make sure to "
+                "separate exercise numbers from the path using '--'."
             )
         if (
             args.marking_mode == "random" or args.marking_mode == "static"
@@ -1656,8 +1658,7 @@ def main():
         "help",
         help=(
             "print this help message; "
-            "run e.g. 'python3 adam-script.py init -h' to print help of "
-            "sub-command"
+            "run e.g. 'krummstab init -h' to print the help of a sub-command"
         ),
     )
     # Init command and arguments -----------------------------------------------

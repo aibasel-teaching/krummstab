@@ -1,11 +1,11 @@
-# ADAM Feedback Script
+# Krummstab Feedback Script
 
 The purpose of this script is to automate some of the menial steps involved in
 marking ADAM submissions.
 
-The system is made up of three components: the central Python script,
-`adam-script.py`, and two JSON configuration files, `config-shared.json` and
-`config-individual.json`.
+The system is made up of three components: the central
+[krummstab](https://pypi.org/project/krummstab) PyPI project, and two JSON
+configuration files, `config-shared.json` and `config-individual.json`.
 
 The shared config file contains [general settings](#general-settings) that need
 to be adapted to the course that is being taught, but should remain static
@@ -14,106 +14,127 @@ thereafter. Additionally, it lists all students and their
 semester as students drop the course or teams are reassigned. It is important
 that all tutors have an identical copy of the shared config file, meaning that
 whenever a tutor makes changes to the file, she or he should share the new
-version with the others. (I guess the file could be added to the lecture repo.)
+version with the others, for example via the Discord server or uploading it to
+ADAM.
 
 The individual config file contains [personal settings](#individual-settings.md)
 that are only relevant to each tutor. These only need to be set once at the
 beginning of the course.
 
 Depending on the general settings of the shared config file, different command
-line options may be mandatory. The `help` option provides some information about
-the parameter the script and its subcommands, currently `init`, `collect`, and
-`send`, take:
+line options may be mandatory. The `help` option provides information about the
+script, its subcommands (currently `init`, `collect`, `combine` and `send`), and
+their parameters. Once you have completed the one-time setup below, you'll be
+able to access the help via:
 ```
-python3 adam-script.py help
-python3 adam-script.py <subcommand> help
+krummstab -h
+krummstab <subcommand> -h
 ```
-In the following I will showcase the recommended workflow using the settings of
-the Foundations of Artificial Intelligence lecture from spring semester 2023 as
-an example.
+In the following I will go over the recommended workflow using the settings of
+the Foundations of Artificial Intelligence lecture from the spring semester 2023
+as an example.
 
 
 ## Requirements
 
 - `Python 3.10+`: I only tested the script with 3.10 and I think it makes use of
-some new-ish language features, so I'm not sure if everything works with older
-versions.
+some new-ish language features, so I cannot guarantee that everything works as
+expected with older Python versions.
 
 
 ## One-Time Setup
 
-To get started, create a directory where you want to do your marking, in this
-example the directory will be called `ki-fs23-marking`. In this directory you
-place the `config-shared.json` file you should have gotten from the teaching
-assistant, and copy the `config-individual.json` file from the `tests` directory
+> 📝 I'm assuming a Linux environment in the following. In case you are using
+> macOS, I hope that the following instructions work without major differences.
+> In case you are using Windows, I recommend trying to install a Windows
+> Subsystem for Linux (WSL), which should allow you to follow these
+> instructions exactly. Alternatively you can try to install the necessary
+> software natively, but I don't offer support here.
+
+To get started, create an empty directory where you want to do your marking, in
+this example the directory will be called `ki-fs23-marking`:
+```
+mkdir ki-fs23-marking
+```
+Navigate to this directory, set up a virtual Python environment, and activate
+it:
+```
+cd ki-fs23-marking
+python3 -m venv .venv
+source .venv/bin/activate
+```
+Then you can install Krummstab in this environment:
+```
+pip install krummstab
+```
+To test the installation, you can print the help string:
+```
+krummstab -h
+```
+
+With the script installed, we continue with the config files. You should have
+gotten a `config-shared.json` file from the teaching assistant, copy this file
+into the directory you just created, in our example `ki-fs23-marking`. Similarly
+you can copy the `config-individual.json` file from the `tests` directory
 of this repository. Replace the example entries in the individual configurations
 with your own information; The parameters are explained
 [here](#individual-settings.md). Make sure that the string you enter in the
-field `your_name` (individual config)  exactly matches the existing entry in
-`tutor_list` (shared config).
+field `tutor_name` in your individual config exactly matches the existing entry
+in the `tutor_list` field of the shared config.
 
 In general, it is important that the all configurations, besides the individual
 ones you just adjusted, are exactly the same across all tutors, as otherwise
 submissions may be assigned to multiple or no tutors. If you think that
 something should be changed in the shared settings, please let the teaching
 assistant and the other tutors know, so that the configurations remain in sync.
-This may be in particular be necessary if teams change during the semester.
+This may in particular be necessary if teams change throughout the semester.
 
-In order to work with the script, you will have to call `adam-script.py` from a
-command line whose working directory is the one which contains the two config
-files. This means that you should keep `adam-script.py` somewhere where it's
-easy to access. On my Linux machine, I would do this by leaving the script in
-the clone of this repository and adding a symbolic link pointing to its location
-to the `ki-fs23-marking` directory via the following command:
-```
-ln -s /path/to/adam-script.py .
-```
-This way I can pull the newest version of the script and have it available in
-the right place without any extra steps. Alternatively you could do your marking
-directly in the directory of the script repository clone or paste a copy of the
-script to the marking directory.
-
-You should now be able to run the script from the command line, for example to
-print the help text. On my setup I would run:
-```
-./adam-script -h
-```
-If you are, for example, using windows and have the script in the parent
-directory, you would do something like:
-```
-python3 ..\adam-script.py -h
-```
+In order to work with the script, you will have to call the `krummstab` command
+from a command line whose working directory is the one which contains the two
+config files. If you'd like to keep the config files somewhere else, you'll have
+to provide the paths to the files with the `-s` and `-i` flags whenever you call
+`krummstab`.
 
 
 ## Marking a Sheet
 
 While the steps above are only necessary for the initial setup, the following
-procedure applies to every exercise sheet.
+procedure applies to every exercise sheet. The first step is always to activate
+the virtual environment in which we have installed Krummstab. You do this by
+navigating to the marking directory and using the source command.
+```
+cd ki-fs23-marking
+source .venv/bin/activate
+```
+If you forget this step you'll get an error saying that the `krummstab` command
+could not be found.
 
 ### init
 First, download the submissions from ADAM and save the zip file in the marking
 directory. (It's important that you only download the submissions after the
-ADAM deadline has passed, so that all tutors have the same pool of submissions.)
-Our example directory `ki-fs23-marking`, with `Sheet 1.zip` being the file
-downloaded from ADAM, should look like this:
+ADAM deadline has passed, so that all tutors have the same, complete pool of
+submissions.) Our example directory `ki-fs23-marking`, with `Sheet 1.zip` being
+the file downloaded from ADAM, should look like this:
 ```
 .
-├── adam-script.py
+├── .venv
 ├── config-individual.json
 ├── config-shared.json
 └── Sheet 1.zip
 ```
 We can now finally make the script do something useful by running:
 ```
-./adam-script.py init -n 4 -t sheet01 "Sheet 1.zip"
+krummstab init -n 4 -t sheet01 "Sheet 1.zip"
 ```
 This will unzip the submissions and prepare them for marking. The flag `-n`
 expects the number of exercises in the sheet, `-t` is optional and takes the
 name of the directory the submissions should be extracted to. By default it's
-the name of the zip file. The directory should now look something like this:
+the name of the zip file, but I'm choosing to rename it in order to get rid of
+the whitespace in the directory name. The directory should now look something
+like this:
 ```
 .
-├── adam-script.py
+├── .venv
 ├── config-individual.json
 ├── config-shared.json
 ├── sheet01
@@ -140,23 +161,23 @@ PDF feedback you can use whichever tool you like, and overwrite the `.pdf.todo`
 placeholder with the resulting output. If this tool adds files to the feedback
 directory that you do not want to send to the students, you can add their
 endings to the config file under the `ignore_feedback_suffix` key. Marking with
-Xournal++ is supported by default, add the flag `-x` to the `init` command above
-to automatically create the relevant `.xopp` files.
+Xournal++ is supported by default: Simply add the flag `-x` to the `init`
+command above to automatically create the relevant `.xopp` files.
 
 While writing the feedback, you can keep track of the points the teams get in
 the file `points.json`.
 
 ### collect
 Once you have marked all the teams assigned to you and added their points to
-the `.json` file, you can run the next command, where `sheet01` is the path to
-the directory created by the `init` command:
+the `points.json` file, you can run the next command, where `sheet01` is the
+path to the directory created by the `init` command:
 ```
-./adam-script.py collect sheet01
+krummstab collect sheet01
 ```
 This will create a zip archive in every feedback directory containing the
 feedback for that team. Additionally, a semicolon-separated list of all points
-is printed. This can be pasted to the spreadsheet where all points are
-collected. The names are only there to be able to double-check that the rows
+is printed. This can be useful in case you have to paste the points into a
+shared spreadsheet. The names are there to be able to double-check that the rows
 match up.
 
 In case you need make changes to the markings and rerun the collection step, use
@@ -164,18 +185,25 @@ the `-r` flag to overwrite existing feedback archives. If you are using
 Xournal++, you can also use the `-x` flag here to automatically export the
 `.xopp` files before collecting the feedback.
 
+### combine
+This command is only relevant for the `exercise` marking mode.
+`TODO: Document this.`
+
 ### send
-In the future, the script should be able to directly send out feedback per mail,
-but this is not possible yet `:(`. For now, you still have to manually upload
-the feedback zip archives to ADAM.
+For the `static` and `random` marking modes, it is possible to directly send the
+feedback to the students via e-mail. For this to work you have to be in the
+university network, which likely means you'll have to connect to the university
+VPN. You may find the `--dry_run` option useful, instead of sending the e-mails
+directly, it only prints them so that you can double-check that everything looks
+as expected.
 
 
 ## Config File Details
 
 ### Individual Settings
-- `your_name`: ID of the tutor, this must match with either an element of
+- `tutor_name`: ID of the tutor, this must match with either an element of
   `tutor_list` (for `random/exercise`) or a key in `teams` (for `static`)
-- `your_email`: tutor's email address, feedback will be sent via this address
+- `tutor_email`: tutor's email address, feedback will be sent via this address
 - `feedback_email_cc`: list of email addresses that will be CC'd with every
   feedback email, for example the addresses of all tutors
 - `smtp_url`: the url of the smtp server, `smtp-ext.unibas.ch` by default
