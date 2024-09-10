@@ -169,7 +169,9 @@ def get_combined_feedback_file_name() -> str:
 def get_marks_file_path():
     return (
         args.sheet_root_dir
-        / f"points_{args.tutor_name.lower()}_{get_adam_sheet_name_string()}.json"
+        / "points_"
+        f"{args.tutor_name.lower()}_"
+        f"{get_adam_sheet_name_string()}.json"
     )
 
 
@@ -247,7 +249,7 @@ def get_relevant_team_dirs() -> Iterator[pathlib.Path]:
     corrected by the tutor running the script.
     """
     for team_dir in get_all_team_dirs():
-        if not DO_NOT_MARK_PREFIX in team_dir.name:
+        if DO_NOT_MARK_PREFIX not in team_dir.name:
             yield team_dir
 
 
@@ -427,7 +429,7 @@ def get_team_email_content(name_list: list[str]) -> str:
     If you have any questions, you can contact us in the exercise session or by replying to this email (reply to all).
 
     Best,
-    {args.email_signature}"""
+    {args.email_signature}""" # noqa
     )[
         1:
     ]  # Removes the leading newline.
@@ -597,7 +599,7 @@ def collect_feedback_files(team_dir: pathlib.Path) -> None:
     feedback_files = [
         file
         for file in feedback_dir.rglob("*")
-        if file.is_file() and not file.suffix in args.ignore_feedback_suffix
+        if file.is_file() and file.suffix not in args.ignore_feedback_suffix
     ]
     # Ask for confirmation if the feedback directory contains hidden files that
     # are maybe not supposed to be part of the collected feedback.
@@ -745,8 +747,8 @@ def create_share_archive(overwrite: Optional[bool]) -> None:
         # zips, then overwrite here too. Otherwise ask here.
         # We should not be here if the user chose 'No' (making overwrite False)
         # before, so we catch this case.
-        assert overwrite != False
-        if overwrite == None:
+        assert overwrite
+        if overwrite is None:
             overwrite = query_yes_no(
                 (
                     "There already exists a share archive. Do you want to"
@@ -757,7 +759,7 @@ def create_share_archive(overwrite: Optional[bool]) -> None:
         if overwrite:
             share_archive_file.unlink(missing_ok=True)
         else:
-            logging.info(f"Could not write share archive. Aborting command.")
+            logging.info("Could not write share archive. Aborting command.")
             return
     # Take all feedback.zip files and add them to the share archive. The file
     # structure should be similar to the following. In particular, collected
@@ -834,8 +836,8 @@ def collect() -> None:
             delete_collected_feedback_directories()
         else:
             logging.info(
-                f"Could not write collected feedback archives. Aborting"
-                f" command."
+                "Could not write collected feedback archives. Aborting"
+                " command."
             )
             return
     if args.xopp:
@@ -1008,7 +1010,8 @@ def extract_adam_zip() -> tuple[pathlib.Path, str]:
         # was extracted automatically, this happened on an Apple system).
         if args.adam_zip_path.is_file():
             # Unzip to the directory within the zip file.
-            # Should be the name of the exercise sheet, for example "Exercise Sheet 2".
+            # Should be the name of the exercise sheet,
+            # for example "Exercise Sheet 2".
             with ZipFile(args.adam_zip_path, mode="r") as zip_file:
                 zip_content = zip_file.namelist()
                 sheet_root_dir = pathlib.Path(temp_dir) / zip_content[0]
@@ -1110,7 +1113,7 @@ def mark_irrelevant_team_dirs() -> None:
     """
     relevant_teams = get_relevant_teams()
     for team_dir_name, team in args.team_dir_to_team.items():
-        if not team in relevant_teams:
+        if team not in relevant_teams:
             team_dir = args.sheet_root_dir / team_dir_name
             shutil.move(
                 team_dir, team_dir.with_name(DO_NOT_MARK_PREFIX + team_dir_name)
@@ -1319,7 +1322,7 @@ def generate_xopp_files() -> None:
                     <page width="{width}" height="{height}">
                     <background type="pdf" domain="absolute" filename="{pdf_path.resolve()}" pageno="{i}"/>
                     <layer/>
-                    </page>""",
+                    </page>""", # noqa
                 )
             else:
                 write_to_file(
@@ -1385,7 +1388,7 @@ def print_missing_submissions(adam_id_to_team: dict[str, Team]) -> None:
     not present in the zip downloaded from ADAM.
     """
     missing_teams = [
-        team for team in args.teams if not team in adam_id_to_team.values()
+        team for team in args.teams if team not in adam_id_to_team.values()
     ]
     if missing_teams:
         logging.warning("There are no submissions for the following team(s):")
