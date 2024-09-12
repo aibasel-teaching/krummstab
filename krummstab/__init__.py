@@ -169,9 +169,7 @@ def get_combined_feedback_file_name() -> str:
 def get_marks_file_path():
     return (
         args.sheet_root_dir
-        / "points_"
-        f"{args.tutor_name.lower()}_"
-        f"{get_adam_sheet_name_string()}.json"
+        / f"points_{args.tutor_name.lower()}_{get_adam_sheet_name_string()}.json"
     )
 
 
@@ -270,7 +268,12 @@ def get_collected_feedback_file(team_dir: pathlib.Path) -> pathlib.Path:
     exists.
     """
     collected_feedback_dir = team_dir / FEEDBACK_COLLECTED_DIR_NAME
-    assert collected_feedback_dir.is_dir()
+    if not collected_feedback_dir.is_dir():
+        logging.critical(
+            "The directory for collected feedback at"
+            f" '{str(collected_feedback_dir)}' does not exist. You probably"
+            " have to run the 'collect' command first."
+        )
     collected_feedback_files = list(collected_feedback_dir.iterdir())
     assert (
         len(collected_feedback_files) == 1
@@ -382,7 +385,41 @@ def send_messages(emails: list[EmailMessage]) -> None:
             smtp.login(args.smtp_user, password)
         for email in emails:
             logging.info(f"Sending email to {email['To']}")
-            smtp.send_message(email)
+            # During testing, I didn't manage to trigger the exceptions below.
+            # Additionally `refused_recipients` was always empty, even when the
+            # documentation of smtplib states that it should be populated when
+            # some but not all of the recipients are refused. Instead I always
+            # get receive an email from the Outlook server containing the error
+            # message.
+            try:
+                refused_recipients = smtp.send_message(email)
+            except smtplib.SMTPRecipientsRefused:
+                logging.warning(
+                    f"Email to '{email['To']}' failed to deliver because all"
+                    " recipients were refused."
+                )
+            except smtplib.SenderRefused:
+                logging.critical(
+                    "Email sender was refused, failed to deliver any emails."
+                )
+            except (
+                smtplib.SMTPHeloError,
+                smtplib.SMTPDataError,
+                smtplib.SMTPNotSupportedError,
+            ):
+                logging.warning(
+                    f"Email to '{email['To']}' failed to deliver because of"
+                    " some weird error."
+                )
+            for refused_recipient, (
+                smtp_error,
+                error_message,
+            ) in refused_recipients.items():
+                logging.warning(
+                    "Email to '{refused_recipient}' failed to deliver because"
+                    " the recipient was refused with the SMTP error code"
+                    " '{smtp_error}' and the message '{error_message}'."
+                )
         logging.info("Done sending emails.")
 
 
@@ -429,7 +466,7 @@ def get_team_email_content(name_list: list[str]) -> str:
     If you have any questions, you can contact us in the exercise session or by replying to this email (reply to all).
 
     Best,
-    {args.email_signature}""" # noqa
+    {args.email_signature}"""  # noqa
     )[
         1:
     ]  # Removes the leading newline.
@@ -452,6 +489,39 @@ def get_assistant_email_content() -> str:
     ]  # Removes the leading newline.
 
 
+def get_assistant_email_attachment_path() -> pathlib.Path:
+    """
+    Sending the marks file to the assistant as is has the disadvantage that
+    points are only listed per team. This makes it difficult for the assistent
+    to figure out how many points each individual student has. We re
+    """
+    with open(get_marks_file_path(), "r", encoding="utf-8") as marks_file:
+        marks = json.load(marks_file)
+    individual_marks = {}
+    if args.points_per == "exercise":
+        pass
+        # TODO: Implement this once sending is supported for the 'exercise'
+        # marking mode.
+    elif args.points_per == "sheet":
+        for team_dir, mark in marks.items():
+            for first_name, last_name, email in args.team_dir_to_team[team_dir]:
+                key = (
+                    f"{first_name.replace(' ', '-')}_"
+                    f"{last_name.replace(' ', '-')}_{email}".lower()
+                )
+                individual_marks.update({key: mark})
+    else:
+        logging.critical(f"Unsupported points-per setting '{args.points_per}'!")
+
+    marks_file_path = get_marks_file_path()
+    individual_marks_file_path = marks_file_path.with_name(
+        marks_file_path.stem + "_individual" + marks_file_path.suffix
+    )
+    with open(individual_marks_file_path, "w", encoding="utf-8") as file:
+        json.dump(individual_marks, file, indent=4, ensure_ascii=False)
+    return individual_marks_file_path
+
+
 def create_email_to_team(team_dir):
     team = args.team_dir_to_team[team_dir.name]
     team_first_names, _, team_emails = zip(*team)
@@ -465,14 +535,15 @@ def create_email_to_team(team_dir):
     )
 
 
-def create_email_to_assistent():
+def create_email_to_assistant():
+    get_assistant_email_attachment_path()
     return construct_email(
         [args.assistant_email],
         args.feedback_email_cc,
         get_assistant_email_subject(),
         get_assistant_email_content(),
         args.tutor_email,
-        get_marks_file_path(),
+        get_assistant_email_attachment_path(),
     )
 
 
@@ -496,7 +567,7 @@ def send() -> None:
     for team_dir in get_relevant_team_dirs():
         emails.append(create_email_to_team(team_dir))
     if args.assistant_email:
-        emails.append(create_email_to_assistent())
+        emails.append(create_email_to_assistant())
     logging.info(f"Drafted {len(emails)} email(s).")
     if args.dry_run:
         logging.info("Sending emails now would send the following emails:")
@@ -836,8 +907,7 @@ def collect() -> None:
             delete_collected_feedback_directories()
         else:
             logging.info(
-                "Could not write collected feedback archives. Aborting"
-                " command."
+                "Could not write collected feedback archives. Aborting command."
             )
             return
     if args.xopp:
@@ -1322,7 +1392,7 @@ def generate_xopp_files() -> None:
                     <page width="{width}" height="{height}">
                     <background type="pdf" domain="absolute" filename="{pdf_path.resolve()}" pageno="{i}"/>
                     <layer/>
-                    </page>""", # noqa
+                    </page>""",  # noqa
                 )
             else:
                 write_to_file(
