@@ -1,3 +1,8 @@
 __pycache__
 krummstab.egg-info/
 dist/
+logo/*.aux
+logo/*.jpg
+logo/*.log
+logo/*.pdf
+logo/*.png
