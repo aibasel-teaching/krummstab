@@ -8,7 +8,6 @@ import subprocess
 import typing
 
 CONFIG_INDIVIDUAL = pathlib.Path("config-individual.json")
-CONFIG_RANDOM = pathlib.Path("config-shared-random.json")
 CONFIG_STATIC = pathlib.Path("config-shared-static.json")
 CONFIG_EXERCISE = pathlib.Path("config-shared-exercise.json")
 SAMPLE_SHEET = pathlib.Path("Sample Sheet.zip")
@@ -76,7 +75,6 @@ def give_feedback():
 @pytest.mark.parametrize(
     "config_shared, args",
     [
-        (CONFIG_RANDOM, ["-n", "5"]),
         (CONFIG_STATIC, []),
         (CONFIG_EXERCISE, ["-e", "1", "3"]),
     ],
@@ -143,9 +141,9 @@ def test(
         out, err = capfd.readouterr()
         assert "Command 'combine' terminated successfully." in out
 
-    # Call 'send' for the 'static' and 'random' marking modes.
+    # Call 'send' for the 'static' marking mode.
     # TODO: Also test the 'exercise' mode once implemented.
-    if config_shared in {CONFIG_STATIC, CONFIG_RANDOM}:
+    if config_shared == CONFIG_STATIC:
         subprocess.check_call(
             [
                 "krummstab",

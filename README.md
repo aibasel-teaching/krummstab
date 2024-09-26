@@ -190,7 +190,7 @@ This command is only relevant for the `exercise` marking mode.
 `TODO: Document this.`
 
 ### send
-For the `static` and `random` marking modes, it is possible to directly send the
+For the `static` marking mode, it is possible to directly send the
 feedback to the students via e-mail. For this to work you have to be in the
 university network, which likely means you'll have to connect to the university
 VPN. You may find the `--dry_run` option useful, instead of sending the e-mails
@@ -202,7 +202,7 @@ as expected.
 
 ### Individual Settings
 - `tutor_name`: ID of the tutor, this must match with either an element of
-  `tutor_list` (for `random/exercise`) or a key in `teams` (for `static`)
+  `tutor_list` (for `exercise`) or a key in `teams` (for `static`)
 - `tutor_email`: tutor's email address, feedback will be sent via this address
 - `feedback_email_cc`: list of email addresses that will be CC'd with every
   feedback email, for example the addresses of all tutors
@@ -218,8 +218,6 @@ as expected.
 - `marking_mode`
     - `static`: student teams are assigned to a tutor who will mark all their
       submissions
-    - `random`: student teams are randomly assigned to tutors with every sheet,
-      this tutor will mark the team's entire submission
     - `exercise`: with every sheet, tutors distribute the exercises and only
       correct those, but for all submissions
 - `points_per`
@@ -234,7 +232,7 @@ as expected.
 ### Teams
 - `teams`: depending on the `marking_mode` teams are structured slightly
   differently
-    - `random/exercise`: list of teams, each consisting of a list of students,
+    - `exercise`: list of teams, each consisting of a list of students,
       where each student entry is a list of the form `[ "first_name",
       "last_name", "email@unibas.ch" ]`
     - `static`: similar to before, but teams are not just listed, but assigned
@@ -247,5 +245,6 @@ as expected.
 
 I added some tests that use the `pytest` framework. Simply install `pytest` via
 `pip3 install pytest` (or `pip`, not sure what the difference is), and run the
-command `pytest`. Currently it tests the `init` step for the modes `static`,
-`random`, and `exercise` and the `collect` step for the first two modes.
+command `pytest`. Currently it tests the `init` step and the `collect` step for
+the modes `static` and `exercise`, the `combine` step for the mode `exercise`
+and the `send` step for the `static` marking mode.
