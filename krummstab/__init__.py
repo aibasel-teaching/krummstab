@@ -10,13 +10,11 @@ to mark  - grading/correcting a sheet; giving feedback
 marks    - points awarded for a sheet or exercise
 """
 import argparse
-import hashlib
 import json
 import logging
 import mimetypes
 import os
 import pathlib
-import random
 import re
 import shutil
 import subprocess
@@ -152,8 +150,6 @@ def get_feedback_file_name() -> str:
         # prefix = team_id + "_" + prefix
         file_name += args.tutor_name + "_"
         file_name += "_".join([f"ex{exercise}" for exercise in args.exercises])
-    elif args.marking_mode == "random":
-        file_name += args.tutor_name
     elif args.marking_mode == "static":
         # Remove trailing underscore.
         file_name = file_name[:-1]
@@ -1095,7 +1091,7 @@ def extract_adam_zip() -> tuple[pathlib.Path, str]:
             sheet_root_dir = pathlib.Path(
                 shutil.copytree(unzipped_path, unzipped_destination_path)
             )
-        # Store ADAM exercise sheet name to use as random seed.
+        # Store ADAM exercise sheet name.
         adam_sheet_name = sheet_root_dir.name
         destination = pathlib.Path(
             args.target if args.target else adam_sheet_name
@@ -1193,34 +1189,12 @@ def mark_irrelevant_team_dirs() -> None:
 def get_relevant_teams() -> list[Team]:
     """
     Get a list of teams that the tutor specified in the config has to mark.
-                                     !DANGER!
-    Calling this function multiple times in marking_mode == 'random' will return
-    different results. We only run it once, rename the directories using the
+    We only run it once, rename the directories using the
     `DO_NOT_MARK_PREFIX`, and thereafter only access relevant teams via
     `get_relevant_team_dirs()`.
     """
     if args.marking_mode == "static":
         return args.classes[args.tutor_name]
-    elif args.marking_mode == "random":
-        # Here not all teams are assigned to a tutor, but only those that
-        # submitted something. This is to ensure that submissions can be
-        # distributed fairly among tutors.
-        num_tutors = len(args.tutor_list)
-        seed = int(
-            hashlib.sha256(args.adam_sheet_name.encode("utf-8")).hexdigest(), 16
-        )
-        shuffled_teams = [team for _, team in args.team_dir_to_team.items()]
-        random.Random(seed).shuffle(shuffled_teams)
-        chunks = [shuffled_teams[i::num_tutors] for i in range(num_tutors)]
-        assert len(chunks) == num_tutors
-        assert all(
-            abs(len(this) - len(that)) <= 1
-            for this in chunks
-            for that in chunks
-        )
-        shuffled_tutors = args.tutor_list.copy()
-        random.Random(seed).shuffle(shuffled_tutors)
-        return chunks[shuffled_tutors.index(args.tutor_name)]
     elif args.marking_mode == "exercise":
         return args.teams
     else:
@@ -1299,7 +1273,7 @@ def create_marks_file() -> None:
     """
     exercise_dict: Union[str, dict[str, str]] = ""
     if args.points_per == "exercise":
-        if args.marking_mode == "static" or args.marking_mode == "random":
+        if args.marking_mode == "static":
             exercise_dict = {
                 f"exercise_{i}": "" for i in range(1, args.num_exercises + 1)
             }
@@ -1413,9 +1387,7 @@ def create_sheet_info_file(adam_id_to_team: dict[str, Team]) -> None:
     """
     Write information generated during the execution of the 'init' command in a
     sheet info file. In particular a mapping from team directory names to teams
-    and the name of the exercise sheet as given by ADAM. The latter is used as
-    the seed to make random assignment of submissions to tutors consistent
-    between tutors, but still vary from sheet to sheet. Later commands (e.g.
+    and the name of the exercise sheet as given by ADAM. Later commands (e.g.
     'collect', or 'send') are meant to load the information stored in this file
     into the 'args' object and access it that way.
     """
@@ -1438,15 +1410,11 @@ def create_sheet_info_file(adam_id_to_team: dict[str, Team]) -> None:
     with open(
         args.sheet_root_dir / SHEET_INFO_FILE_NAME, "w", encoding="utf-8"
     ) as sheet_info_file:
-        # Sorting the keys here is essential because the order of teams here
-        # will influence the assignment returned by `get_relevant_teams()` in
-        # case args.marking_mode == "random".
         json.dump(
             info_dict,
             sheet_info_file,
             indent=4,
             ensure_ascii=False,
-            sort_keys=True,
         )
     # Immediately load the info back into args.
     load_sheet_info()
@@ -1482,7 +1450,7 @@ def init() -> None:
                 "separate exercise numbers from the path using '--'."
             )
         if (
-            args.marking_mode == "random" or args.marking_mode == "static"
+            args.marking_mode == "static"
         ) and not args.num_exercises:
             logging.critical(
                 "You must provide the number of exercises in the sheet with "
@@ -1547,14 +1515,13 @@ def init() -> None:
     unzip_internal_zips()
 
     # From here on, we need information about relevant teams.
-    # The function `get_relevant_teams()` depends on the sheet info file
-    # (because `adam_sheet_name` from .sheet_info seeds the random assignment of
-    # submissions to tutors).
+    # The function `mark_irrelevant_team_dirs()` depends on
+    # the dict from team directory names to teams.
     # That's why we create the sheet info file first...
     create_sheet_info_file(adam_id_to_team)
     # then rename the irrelevant team directories...
     mark_irrelevant_team_dirs()
-    # and finally recreate the sheet info file to reflect the final team
+    # and recreate the sheet info file to reflect the final team
     # directory names.
     create_sheet_info_file(adam_id_to_team)
 
@@ -1624,7 +1591,7 @@ def process_static_config(data: dict[str, Any]) -> None:
 def process_dynamic_config(data: dict[str, Any]) -> None:
     """
     Extract and check the config values necessary for the dynamic correction
-    marking modes, i.e., 'random' and 'exercise'.
+    marking mode 'exercise'.
     """
     tutor_list = data["tutor_list"]
     assert type(tutor_list) is list
@@ -1698,7 +1665,7 @@ def process_general_config(
     add_to_args("assistant_email", assistant_email)
 
     marking_mode = data_shared["marking_mode"]
-    assert marking_mode in ["static", "random", "exercise"]
+    assert marking_mode in ["static", "exercise"]
     add_to_args("marking_mode", marking_mode)
 
     max_team_size = data_shared["max_team_size"]
@@ -1894,8 +1861,6 @@ def main():
     # static:   Every tutor corrects the submissions of the teams assigned to
     #           that tutor. These will usually be the teams in that tutors
     #           exercise class.
-    # random:   Every tutor corrects some submissions which are assigned
-    #           randomly with every sheet.
     # exercise: Every tutor corrects some exercise(s) on all sheets.
     process_general_config(data_individual, data_shared)
 
@@ -1912,9 +1877,6 @@ def main():
     args.func()
     logging.info(f"Command '{args.sub_command}' terminated successfully. 🎉")
 
-
-# Only in Python 3.7+ are dicts order preserving, using older Pythons may cause
-# the random assignments to not match up.
 
 if __name__ == "__main__":
     main()
