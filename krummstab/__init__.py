@@ -1189,9 +1189,8 @@ def mark_irrelevant_team_dirs() -> None:
 def get_relevant_teams() -> list[Team]:
     """
     Get a list of teams that the tutor specified in the config has to mark.
-    We only run it once, rename the directories using the
-    `DO_NOT_MARK_PREFIX`, and thereafter only access relevant teams via
-    `get_relevant_team_dirs()`.
+    We rename the directories using the `DO_NOT_MARK_PREFIX` and thereafter only
+    access relevant teams via `get_relevant_team_dirs()`.
     """
     if args.marking_mode == "static":
         return args.classes[args.tutor_name]
@@ -1385,11 +1384,11 @@ def generate_xopp_files() -> None:
 
 def create_sheet_info_file(adam_id_to_team: dict[str, Team]) -> None:
     """
-    Write information generated during the execution of the 'init' command in a
+    Write information generated during the execution of the `init` command in a
     sheet info file. In particular a mapping from team directory names to teams
     and the name of the exercise sheet as given by ADAM. Later commands (e.g.
-    'collect', or 'send') are meant to load the information stored in this file
-    into the 'args' object and access it that way.
+    `collect`, or `send`) are meant to load the information stored in this file
+    into the `args` object and access it that way.
     """
     info_dict: dict[str, Union[str, dict[str, Team]]] = {}
     # Build the dict from team directory names to teams.
@@ -1415,6 +1414,7 @@ def create_sheet_info_file(adam_id_to_team: dict[str, Team]) -> None:
             sheet_info_file,
             indent=4,
             ensure_ascii=False,
+            sort_keys=True,
         )
     # Immediately load the info back into args.
     load_sheet_info()
