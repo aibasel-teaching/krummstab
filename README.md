@@ -243,8 +243,8 @@ as expected.
 
 # Development
 
-I added some tests that use the `pytest` framework. Simply install `pytest` via
+We added some tests that use the `pytest` framework. Simply install `pytest` via
 `pip3 install pytest` (or `pip`, not sure what the difference is), and run the
-command `pytest`. Currently it tests the `init` step and the `collect` step for
-the modes `static` and `exercise`, the `combine` step for the mode `exercise`
-and the `send` step for the `static` marking mode.
+command `pytest`. Currently it tests the `init` and `collect` steps for the
+modes `static` and `exercise`, the `combine` step for the mode `exercise`, and
+the `send` step for the mode `static`.
