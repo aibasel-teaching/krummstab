@@ -594,8 +594,8 @@ def send() -> None:
     """
     After the collection step finished successfully, send the feedback to the
     students via email. This currently only works if the tutor's email account
-    is whitelisted for the smpt-ext.unibas.ch server, or if the tutor uses
-    smtp.unibas.ch with an empty smpt_user.
+    is whitelisted for the smtp-ext.unibas.ch server, or if the tutor uses
+    smtp.unibas.ch with an empty smtp_user.
     """
     # Prepare.
     verify_sheet_root_dir()
@@ -873,8 +873,7 @@ def create_share_archive(overwrite: Optional[bool]) -> None:
         if overwrite:
             share_archive_file.unlink(missing_ok=True)
         else:
-            logging.info("Could not write share archive. Aborting command.")
-            return
+            logging.critical("Aborting 'combine' without overwriting existing share archive.")
     # Take all feedback.zip files and add them to the share archive. The file
     # structure should be similar to the following. In particular, collected
     # feedback that consists of only a single pdf should be zipped to achieve
@@ -949,10 +948,7 @@ def collect() -> None:
         if overwrite:
             delete_collected_feedback_directories()
         else:
-            logging.info(
-                "Could not write collected feedback archives. Aborting command."
-            )
-            return
+            logging.critical("Aborting 'collect' without overwriting existing collected feedback.")
     if args.xopp:
         export_xopp_files()
     create_collected_feedback_directories()
