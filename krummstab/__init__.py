@@ -368,7 +368,8 @@ def construct_email(
     mail["Subject"] = subject
     mail["From"] = sender
     mail["To"] = ", ".join(receivers)
-    mail["Cc"] = ", ".join(cc)
+    if cc:
+        mail["Cc"] = ", ".join(cc)
     add_attachment(mail, attachment)
     return mail
 
@@ -413,6 +414,10 @@ def send_messages(emails: list[EmailMessage]) -> None:
     with smtplib.SMTP(args.smtp_url, args.smtp_port) as smtp:
         smtp.starttls()
         if args.smtp_user:
+            logging.warning(
+                "The setting 'smtp_user' should probably be empty for the"
+                " 'send' command to work, trying anyway."
+            )
             password = getpass("Email password: ")
             smtp.login(args.smtp_user, password)
         for email in emails:
@@ -430,7 +435,7 @@ def send_messages(emails: list[EmailMessage]) -> None:
                     f"Email to '{email['To']}' failed to deliver because all"
                     " recipients were refused."
                 )
-            except smtplib.SenderRefused:
+            except smtplib.SMTPSenderRefused:
                 logging.critical(
                     "Email sender was refused, failed to deliver any emails."
                 )
@@ -448,9 +453,9 @@ def send_messages(emails: list[EmailMessage]) -> None:
                 error_message,
             ) in refused_recipients.items():
                 logging.warning(
-                    "Email to '{refused_recipient}' failed to deliver because"
+                    f"Email to '{refused_recipient}' failed to deliver because"
                     " the recipient was refused with the SMTP error code"
-                    " '{smtp_error}' and the message '{error_message}'."
+                    f" '{smtp_error}' and the message '{error_message}'."
                 )
         logging.info("Done sending emails.")
 
