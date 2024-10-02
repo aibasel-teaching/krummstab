@@ -154,7 +154,7 @@ def get_feedback_file_name() -> str:
         # Remove trailing underscore.
         file_name = file_name[:-1]
     else:
-        logging.critical(f"Unsupported marking mode {args.marking_mode}!")
+        unsupported_marking_mode_error()
     return file_name
 
 
@@ -279,6 +279,30 @@ def get_collected_feedback_file(team_dir: pathlib.Path) -> pathlib.Path:
     return collected_feedback_files[0]
 
 
+def get_combined_feedback_file(team_dir: pathlib.Path) -> pathlib.Path:
+    """
+    Given a team directory, return the combined feedback file. This is always a
+    zip archive because in the usual case it will contain feedback from multiple
+    tutors.
+    """
+    combined_feedback_dir = args.sheet_root_dir / COMBINED_DIR_NAME
+    if not combined_feedback_dir.is_dir():
+        logging.critical(
+            "The directory for combined feedback at"
+            f" '{str(combined_feedback_dir)}' does not exist. You probably"
+            " have to run the 'combine' command first."
+        )
+    combined_feedback_files = list(
+        (combined_feedback_dir / team_dir.name).iterdir()
+    )
+    assert (
+        len(combined_feedback_files) == 1
+        and combined_feedback_files[0].is_file()
+        and combined_feedback_files[0].suffix == ".zip"
+    )
+    return combined_feedback_files[0]
+
+
 def load_sheet_info() -> None:
     """
     Load the information stored in the sheet info file into the args object.
@@ -289,6 +313,18 @@ def load_sheet_info() -> None:
         sheet_info = json.load(sheet_info_file)
     for key, value in sheet_info.items():
         add_to_args(key, value)
+
+
+def unsupported_marking_mode_error() -> None:
+    """
+    Throw an error if a marking mode is encountered that is not handled
+    correctly. This is primarily used in the else case of if-elif-else branches
+    on the marking_mode, which shouldn't be reached in regular operation anyway
+    because the config settings should be validated first. But this function
+    offers an easy way to find sections to consider if we ever want to add a new
+    marking_mode.
+    """
+    logging.critical(f"Unsupported marking mode {args.marking_mode}!")
 
 
 # ============================== Send Sub-Command ==============================
@@ -521,13 +557,19 @@ def get_assistant_email_attachment_path() -> pathlib.Path:
 def create_email_to_team(team_dir):
     team = args.team_dir_to_team[team_dir.name]
     team_first_names, _, team_emails = zip(*team)
+    if args.marking_mode == "exercise":
+        feedback_file_path = get_combined_feedback_file(team_dir)
+    elif args.marking_mode == "static":
+        feedback_file_path = get_collected_feedback_file(team_dir)
+    else:
+        unsupported_marking_mode_error()
     return construct_email(
         list(team_emails),
         args.feedback_email_cc,
         get_team_email_subject(),
         get_team_email_content(team_first_names),
         args.tutor_email,
-        get_collected_feedback_file(team_dir),
+        feedback_file_path,
     )
 
 
@@ -553,16 +595,16 @@ def send() -> None:
     # Prepare.
     verify_sheet_root_dir()
     load_sheet_info()
-    if args.marking_mode == "exercise":
-        logging.critical(
-            "Sending for marking mode 'exercise' is not implemented because "
-            "collection is not yet figured out."
-        )
     # Send emails.
     emails: list[EmailMessage] = []
     for team_dir in get_relevant_team_dirs():
         emails.append(create_email_to_team(team_dir))
-    if args.assistant_email:
+    # TODO: As of now the plan is to only send assistant emails if the marking
+    # mode is "static" because there the assistant collects the points
+    # centrally. In case of "exercise", we plan to distribute the point files
+    # through the share_archives, so there is no need to send an email to the
+    # assistent, but this may change in the future.
+    if args.marking_mode != "exercise" and args.assistant_email:
         emails.append(create_email_to_assistant())
     logging.info(f"Drafted {len(emails)} email(s).")
     if args.dry_run:
@@ -925,8 +967,6 @@ def combine() -> None:
     """
     Combine multiple share archives so that in the end we have one zip archive
     per team containing all feedback for that team.
-    TODO: At the moment we end up with one directory per team containing all
-    feedback, but we need to zip this up again.
     """
     # Prepare.
     verify_sheet_root_dir()
@@ -1197,7 +1237,7 @@ def get_relevant_teams() -> list[Team]:
     elif args.marking_mode == "exercise":
         return args.teams
     else:
-        logging.critical(f"Unsupported marking mode {args.marking_mode}!")
+        unsupported_marking_mode_error()
         return []
 
 
@@ -1449,9 +1489,7 @@ def init() -> None:
                 "is the last option before the ADAM zip path, make sure to "
                 "separate exercise numbers from the path using '--'."
             )
-        if (
-            args.marking_mode == "static"
-        ) and not args.num_exercises:
+        if args.marking_mode == "static" and not args.num_exercises:
             logging.critical(
                 "You must provide the number of exercises in the sheet with "
                 "the '-n' flag, for example '-n 5'."

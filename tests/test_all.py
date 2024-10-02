@@ -141,21 +141,19 @@ def test(
         out, err = capfd.readouterr()
         assert "Command 'combine' terminated successfully." in out
 
-    # Call 'send' for the 'static' marking mode.
-    # TODO: Also test the 'exercise' mode once implemented.
-    if config_shared == CONFIG_STATIC:
-        subprocess.check_call(
-            [
-                "krummstab",
-                "-i",
-                str(CONFIG_INDIVIDUAL),
-                "-s",
-                str(config_shared),
-                "send",
-                "--dry_run",
-                str(SAMPLE_SHEET_DIR),
-            ]
-        )
-        # Verify 'send' ran successfully.
-        out, err = capfd.readouterr()
-        assert "Command 'send' terminated successfully." in out
+    # Call 'send'.
+    subprocess.check_call(
+        [
+            "krummstab",
+            "-i",
+            str(CONFIG_INDIVIDUAL),
+            "-s",
+            str(config_shared),
+            "send",
+            "--dry_run",
+            str(SAMPLE_SHEET_DIR),
+        ]
+    )
+    # Verify 'send' ran successfully.
+    out, err = capfd.readouterr()
+    assert "Command 'send' terminated successfully." in out
