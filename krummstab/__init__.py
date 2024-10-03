@@ -33,6 +33,8 @@ import smtplib
 from email.message import EmailMessage
 from getpass import getpass
 
+from . import config
+
 Student = tuple[str, str, str]
 Team = list[Student]
 
@@ -141,20 +143,20 @@ def get_adam_sheet_name_string() -> str:
     return args.adam_sheet_name.replace(" ", "_").lower()
 
 
-def get_feedback_file_name() -> str:
+def get_feedback_file_name(_the_config: config.Config) -> str:
     file_name = FEEDBACK_FILE_PREFIX + get_adam_sheet_name_string() + "_"
-    if args.marking_mode == "exercise":
+    if _the_config.marking_mode == "exercise":
         # TODO: I'm not sure why I added the team_id here. Add it back in if
         # it's necessary, remove these lines otherwise.
         # team_id = team_dir.name.split("_")[0]
         # prefix = team_id + "_" + prefix
-        file_name += args.tutor_name + "_"
+        file_name += _the_config.tutor_name + "_"
         file_name += "_".join([f"ex{exercise}" for exercise in args.exercises])
-    elif args.marking_mode == "static":
+    elif _the_config.marking_mode == "static":
         # Remove trailing underscore.
         file_name = file_name[:-1]
     else:
-        unsupported_marking_mode_error()
+        unsupported_marking_mode_error(_the_config)
     return file_name
 
 
@@ -162,15 +164,15 @@ def get_combined_feedback_file_name() -> str:
     return FEEDBACK_FILE_PREFIX + get_adam_sheet_name_string()
 
 
-def get_marks_file_path():
+def get_marks_file_path(_the_config: config.Config):
     return (
         args.sheet_root_dir
-        / f"points_{args.tutor_name.lower()}_{get_adam_sheet_name_string()}.json"
+        / f"points_{_the_config.tutor_name.lower()}_{get_adam_sheet_name_string()}.json"
     )
 
 
-def get_individual_marks_file_path():
-    marks_file_path = get_marks_file_path()
+def get_individual_marks_file_path(_the_config: config.Config):
+    marks_file_path = get_marks_file_path(_the_config)
     individual_marks_file_path = marks_file_path.with_name(
         marks_file_path.stem + "_individual" + marks_file_path.suffix
     )
@@ -178,12 +180,6 @@ def get_individual_marks_file_path():
 
 
 # Miscellaneous ----------------------------------------------------------------
-def is_email(email: str) -> bool:
-    """
-    Check if a string more or less matches the format of an email address.
-    """
-    return type(email) is str and bool(re.match(r"[^@]+@[^@]+\.[^@]+", email))
-
 
 def is_hidden_file(name: str) -> bool:
     """
@@ -323,7 +319,7 @@ def load_sheet_info() -> None:
         add_to_args(key, value)
 
 
-def unsupported_marking_mode_error() -> None:
+def unsupported_marking_mode_error(_the_config: config.Config) -> None:
     """
     Throw an error if a marking mode is encountered that is not handled
     correctly. This is primarily used in the else case of if-elif-else branches
@@ -332,7 +328,7 @@ def unsupported_marking_mode_error() -> None:
     offers an easy way to find sections to consider if we ever want to add a new
     marking_mode.
     """
-    logging.critical(f"Unsupported marking mode {args.marking_mode}!")
+    logging.critical(f"Unsupported marking mode {_the_config.marking_mode}!")
 
 
 # ============================== Send Sub-Command ==============================
@@ -418,16 +414,16 @@ def print_emails(emails: list[EmailMessage]) -> None:
     print(f"{separator}{separator.join(email_strings)}{separator}")
 
 
-def send_messages(emails: list[EmailMessage]) -> None:
-    with smtplib.SMTP(args.smtp_url, args.smtp_port) as smtp:
+def send_messages(emails: list[EmailMessage], _the_config: config.Config) -> None:
+    with smtplib.SMTP(_the_config.smtp_url, _the_config.smtp_port) as smtp:
         smtp.starttls()
-        if args.smtp_user:
+        if _the_config.smtp_user:
             logging.warning(
                 "The setting 'smtp_user' should probably be empty for the"
                 " 'send' command to work, trying anyway."
             )
             password = getpass("Email password: ")
-            smtp.login(args.smtp_user, password)
+            smtp.login(_the_config.smtp_user, password)
         for email in emails:
             logging.info(f"Sending email to {email['To']}")
             # During testing, I didn't manage to trigger the exceptions below.
@@ -468,18 +464,18 @@ def send_messages(emails: list[EmailMessage]) -> None:
         logging.info("Done sending emails.")
 
 
-def get_team_email_subject() -> str:
+def get_team_email_subject(_the_config: config.Config) -> str:
     """
     Builds the email subject.
     """
-    return f"Feedback {args.adam_sheet_name} | {args.lecture_title}"
+    return f"Feedback {args.adam_sheet_name} | {_the_config.lecture_title}"
 
 
-def get_assistant_email_subject() -> str:
+def get_assistant_email_subject(_the_config: config.Config) -> str:
     """
     Builds the email subject.
     """
-    return f"Marks for {args.adam_sheet_name} | {args.lecture_title}"
+    return f"Marks for {args.adam_sheet_name} | {_the_config.lecture_title}"
 
 
 def get_email_greeting(name_list: list[str]) -> str:
@@ -499,7 +495,7 @@ def get_email_greeting(name_list: list[str]) -> str:
     return "Dear " + names + ","
 
 
-def get_team_email_content(name_list: list[str]) -> str:
+def get_team_email_content(name_list: list[str], _the_config: config.Config) -> str:
     """
     Builds the body of the email that sends feedback to students.
     """
@@ -511,70 +507,70 @@ def get_team_email_content(name_list: list[str]) -> str:
     If you have any questions, you can contact us in the exercise session or by replying to this email (reply to all).
 
     Best,
-    {args.email_signature}"""  # noqa
+    {_the_config.email_signature}"""  # noqa
     )[
         1:
     ]  # Removes the leading newline.
 
 
-def get_assistant_email_content() -> str:
+def get_assistant_email_content(_the_config: config.Config) -> str:
     """
     Builds the body of the email that sends the points to the assistent.
     """
     return textwrap.dedent(
         f"""
-    Dear assistant for {args.lecture_title}
+    Dear assistant for {_the_config.lecture_title}
 
     Please find my marks for {args.adam_sheet_name} in the attachment.
 
     Best,
-    {args.email_signature}"""
+    {_the_config.email_signature}"""
     )[
         1:
     ]  # Removes the leading newline.
 
 
-def get_assistant_email_attachment_path() -> pathlib.Path:
+def get_assistant_email_attachment_path(_the_config: config.Config) -> pathlib.Path:
     """
     Sending the marks file to the assistant as is has the disadvantage that
     points are only listed per team. This makes it difficult for the assistant
     to figure out how many points each individual student has. So we use the
     individual marks file where points are listed per student.
     """
-    return get_individual_marks_file_path()
+    return get_individual_marks_file_path(_the_config)
 
 
-def create_email_to_team(team_dir):
+def create_email_to_team(team_dir, _the_config: config.Config):
     team = args.team_dir_to_team[team_dir.name]
     team_first_names, _, team_emails = zip(*team)
-    if args.marking_mode == "exercise":
+    if _the_config.marking_mode == "exercise":
         feedback_file_path = get_combined_feedback_file(team_dir)
-    elif args.marking_mode == "static":
+    elif _the_config.marking_mode == "static":
         feedback_file_path = get_collected_feedback_file(team_dir)
     else:
-        unsupported_marking_mode_error()
+        unsupported_marking_mode_error(_the_config)
     return construct_email(
         list(team_emails),
-        args.feedback_email_cc,
-        get_team_email_subject(),
-        get_team_email_content(team_first_names),
-        args.tutor_email,
+        _the_config.feedback_email_cc,
+        get_team_email_subject(_the_config),
+        get_team_email_content(team_first_names, _the_config),
+        _the_config.tutor_email,
         feedback_file_path,
     )
 
 
-def create_email_to_assistant():
+def create_email_to_assistant(_the_config: config.Config):
     return construct_email(
-        [args.assistant_email],
-        args.feedback_email_cc,
-        get_assistant_email_subject(),
-        get_assistant_email_content(),
-        args.tutor_email,
-        get_assistant_email_attachment_path(),
+        [_the_config.assistant_email],
+        _the_config.feedback_email_cc,
+        get_assistant_email_subject(_the_config),
+        get_assistant_email_content(_the_config),
+        _the_config.tutor_email,
+        get_assistant_email_attachment_path(_the_config),
     )
 
 
-def send() -> None:
+def send(_the_config: config.Config) -> None:
     """
     After the collection step finished successfully, send the feedback to the
     students via email. This currently only works if the tutor's email account
@@ -587,14 +583,14 @@ def send() -> None:
     # Send emails.
     emails: list[EmailMessage] = []
     for team_dir in get_relevant_team_dirs():
-        emails.append(create_email_to_team(team_dir))
+        emails.append(create_email_to_team(team_dir, _the_config))
     # TODO: As of now the plan is to only send assistant emails if the marking
     # mode is "static" because there the assistant collects the points
     # centrally. In case of "exercise", we plan to distribute the point files
     # through the share_archives, so there is no need to send an email to the
     # assistent, but this may change in the future.
-    if args.marking_mode != "exercise" and args.assistant_email:
-        emails.append(create_email_to_assistant())
+    if _the_config.marking_mode != "exercise" and _the_config.assistant_email:
+        emails.append(create_email_to_assistant(_the_config))
     logging.info(f"Drafted {len(emails)} email(s).")
     if args.dry_run:
         logging.info("Sending emails now would send the following emails:")
@@ -610,7 +606,7 @@ def send() -> None:
             default=False,
         )
         if really_send:
-            send_messages(emails)
+            send_messages(emails, _the_config)
         else:
             logging.info("No emails sent.")
 
@@ -618,12 +614,12 @@ def send() -> None:
 # ============================ Collect Sub-Command =============================
 
 
-def validate_marks_json() -> None:
+def validate_marks_json(_the_config: config.Config) -> None:
     """
     Verify that all necessary marks are present in the MARK_FILE_NAME file and
     adhere to the granularity defined in the config file.
     """
-    marks_json_file = get_marks_file_path()
+    marks_json_file = get_marks_file_path(_the_config)
     if not marks_json_file.is_file():
         logging.critical(
             f"Missing points file in directory '{args.sheet_root_dir}'!"
@@ -643,7 +639,7 @@ def validate_marks_json() -> None:
             "directory that needs to be marked, and that directory name and "
             "key are the same."
         )
-    if args.points_per == "exercise":
+    if _the_config.points_per == "exercise":
         marks_list = [
             mark
             for team_marks in marks.values()
@@ -656,16 +652,16 @@ def validate_marks_json() -> None:
             f"There are missing points in the '{marks_json_file.name}' file!"
         )
     if not all(
-        (float(mark) / args.min_point_unit).is_integer() for mark in marks_list
+        (float(mark) / _the_config.min_point_unit).is_integer() for mark in marks_list
     ):
         logging.critical(
             f"'{marks_json_file.name}' contains marks that are more"
             " fine-grained than allowed! You may only award points in"
-            f" '{args.min_point_unit}' increments."
+            f" '{_the_config.min_point_unit}' increments."
         )
 
 
-def collect_feedback_files(team_dir: pathlib.Path) -> None:
+def collect_feedback_files(team_dir: pathlib.Path, _the_config: config.Config) -> None:
     """
     Take the contents of a {team_dir}/feedback directory and collect the files
     that actually contain feedback (e.g., no .xopp files). If there are
@@ -675,7 +671,7 @@ def collect_feedback_files(team_dir: pathlib.Path) -> None:
     """
     feedback_dir = team_dir / FEEDBACK_DIR_NAME
     collected_feedback_dir = team_dir / FEEDBACK_COLLECTED_DIR_NAME
-    collected_feedback_zip_name = get_feedback_file_name() + ".zip"
+    collected_feedback_zip_name = get_feedback_file_name(_the_config) + ".zip"
     # Error handling.
     if not feedback_dir.exists():
         logging.critical(
@@ -697,7 +693,7 @@ def collect_feedback_files(team_dir: pathlib.Path) -> None:
     feedback_files = [
         file
         for file in feedback_dir.rglob("*")
-        if file.is_file() and file.suffix not in args.ignore_feedback_suffix
+        if file.is_file() and file.suffix not in _the_config.ignore_feedback_suffix
     ]
     # Ask for confirmation if the feedback directory contains hidden files that
     # are maybe not supposed to be part of the collected feedback.
@@ -783,7 +779,7 @@ def export_xopp_files() -> None:
     logging.info("Done exporting .xopp files.")
 
 
-def print_marks() -> None:
+def print_marks(_the_config: config.Config) -> None:
     """
     Prints the marks so that they can be easily copy-pasted to the file where
     marks are collected.
@@ -791,13 +787,13 @@ def print_marks() -> None:
     # Read marks file.
     # Don't check whether the marks file exists because `validate_marks_json()`
     # would have already complained.
-    with open(get_marks_file_path(), "r", encoding="utf-8") as marks_file:
+    with open(get_marks_file_path(_the_config), "r", encoding="utf-8") as marks_file:
         marks = json.load(marks_file)
 
     # Print marks.
     logging.info("Start of copy-paste marks...")
     # We want all teams printed, not just the marked ones.
-    for team_to_print in args.teams:
+    for team_to_print in _the_config.teams:
         for team_dir, team in args.team_dir_to_team.items():
             # Every team should only be the value of at most one entry in
             # `team_dir_to_team`.
@@ -805,7 +801,7 @@ def print_marks() -> None:
                 for student in team:
                     full_name = f"{student[0]} {student[1]}"
                     output_str = f"{full_name:>35};"
-                    if args.points_per == "exercise":
+                    if _the_config.points_per == "exercise":
                         # The value `marks` assigns to the team_dir key is a
                         # dict with (exercise name, mark) pairs.
                         team_marks = marks.get(team_dir, {"null": ""})
@@ -819,18 +815,18 @@ def print_marks() -> None:
     logging.info("End of copy-paste marks.")
 
 
-def create_individual_marks_file() -> None:
+def create_individual_marks_file(_the_config: config.Config) -> None:
     """
     Write a json file to add the marks per student.
     """
-    with open(get_marks_file_path(), "r", encoding="utf-8") as marks_file:
+    with open(get_marks_file_path(_the_config), "r", encoding="utf-8") as marks_file:
         marks = json.load(marks_file)
     individual_marks = {}
-    if args.points_per == "exercise":
+    if _the_config.points_per == "exercise":
         pass
         # TODO: Implement this once sending is supported for the 'exercise'
         # marking mode.
-    elif args.points_per == "sheet":
+    elif _the_config.points_per == "sheet":
         for team_dir, mark in marks.items():
             for first_name, last_name, email in args.team_dir_to_team[team_dir]:
                 key = (
@@ -839,9 +835,9 @@ def create_individual_marks_file() -> None:
                 )
                 individual_marks.update({key: mark})
     else:
-        logging.critical(f"Unsupported points-per setting '{args.points_per}'!")
+        logging.critical(f"Unsupported points-per setting '{_the_config.points_per}'!")
 
-    with open(get_individual_marks_file_path(), "w", encoding="utf-8") as file:
+    with open(get_individual_marks_file_path(_the_config), "w", encoding="utf-8") as file:
         json.dump(individual_marks, file, indent=4, ensure_ascii=False)
 
 
@@ -927,7 +923,7 @@ def create_share_archive(overwrite: Optional[bool]) -> None:
                 )
 
 
-def collect() -> None:
+def collect(_the_config: config.Config) -> None:
     """
     After marking is done, add feedback files to archives and print marks to be
     copy-pasted to shared point spreadsheet.
@@ -963,19 +959,19 @@ def collect() -> None:
         export_xopp_files()
     create_collected_feedback_directories()
     for team_dir in get_relevant_team_dirs():
-        collect_feedback_files(team_dir)
-    if args.marking_mode == "exercise":
+        collect_feedback_files(team_dir, _the_config)
+    if _the_config.marking_mode == "exercise":
         create_share_archive(overwrite)
-    if args.use_marks_file:
-        validate_marks_json()
-        print_marks()
-        create_individual_marks_file()
+    if _the_config.use_marks_file:
+        validate_marks_json(_the_config)
+        print_marks(_the_config)
+        create_individual_marks_file(_the_config)
 
 
 # ============================ Combine Sub-Command =============================
 
 
-def combine() -> None:
+def combine(_the_config: config.Config) -> None:
     """
     Combine multiple share archives so that in the end we have one zip archive
     per team containing all feedback for that team.
@@ -1172,7 +1168,7 @@ def extract_adam_zip() -> tuple[pathlib.Path, str]:
     return sheet_root_dir, adam_sheet_name
 
 
-def get_adam_id_to_team_dict() -> dict[str, Team]:
+def get_adam_id_to_team_dict(_the_config: config.Config) -> dict[str, Team]:
     """
     ADAM assigns every team a new ID with every exercise sheet. This dict maps
     from that ID to the team represented by a list of [name, email] pairs. At
@@ -1187,7 +1183,7 @@ def get_adam_id_to_team_dict() -> dict[str, Team]:
         submission_email = submission_dir.name.split("_")[-2]
         teams = [
             team
-            for team in args.teams
+            for team in _the_config.teams
             if any(submission_email in student for student in team)
         ]
         if len(teams) == 0:
@@ -1224,12 +1220,12 @@ def get_adam_id_to_team_dict() -> dict[str, Team]:
     return adam_id_to_team
 
 
-def mark_irrelevant_team_dirs() -> None:
+def mark_irrelevant_team_dirs(_the_config: config.Config) -> None:
     """
     Indicate which team directories do not have to be marked by adding the
     `DO_NOT_MARK_PREFIX` to their directory name.
     """
-    relevant_teams = get_relevant_teams()
+    relevant_teams = get_relevant_teams(_the_config)
     for team_dir_name, team in args.team_dir_to_team.items():
         if team not in relevant_teams:
             team_dir = args.sheet_root_dir / team_dir_name
@@ -1238,18 +1234,18 @@ def mark_irrelevant_team_dirs() -> None:
             )
 
 
-def get_relevant_teams() -> list[Team]:
+def get_relevant_teams(_the_config: config.Config) -> list[Team]:
     """
     Get a list of teams that the tutor specified in the config has to mark.
     We rename the directories using the `DO_NOT_MARK_PREFIX` and thereafter only
     access relevant teams via `get_relevant_team_dirs()`.
     """
-    if args.marking_mode == "static":
-        return args.classes[args.tutor_name]
-    elif args.marking_mode == "exercise":
-        return args.teams
+    if _the_config.marking_mode == "static":
+        return _the_config.classes[_the_config.tutor_name]
+    elif _the_config.marking_mode == "exercise":
+        return _the_config.teams
     else:
-        unsupported_marking_mode_error()
+        unsupported_marking_mode_error(_the_config)
         return []
 
 
@@ -1318,17 +1314,17 @@ def unzip_internal_zips() -> None:
             sub_dirs = list(team_dir.iterdir())
 
 
-def create_marks_file() -> None:
+def create_marks_file(_the_config: config.Config) -> None:
     """
     Write a json file to add the marks for all relevant teams and exercises.
     """
     exercise_dict: Union[str, dict[str, str]] = ""
-    if args.points_per == "exercise":
-        if args.marking_mode == "static":
+    if _the_config.points_per == "exercise":
+        if _the_config.marking_mode == "static":
             exercise_dict = {
                 f"exercise_{i}": "" for i in range(1, args.num_exercises + 1)
             }
-        elif args.marking_mode == "exercise":
+        elif _the_config.marking_mode == "exercise":
             exercise_dict = {f"exercise_{i}": "" for i in args.exercises}
     else:
         exercise_dict = ""
@@ -1337,11 +1333,11 @@ def create_marks_file() -> None:
     for team_dir in sorted(list(get_relevant_team_dirs())):
         marks_dict.update({team_dir.name: exercise_dict})
 
-    with open(get_marks_file_path(), "w", encoding="utf-8") as marks_json:
+    with open(get_marks_file_path(_the_config), "w", encoding="utf-8") as marks_json:
         json.dump(marks_dict, marks_json, indent=4, ensure_ascii=False)
 
 
-def create_feedback_directories() -> None:
+def create_feedback_directories(_the_config: config.Config) -> None:
     """
     Create a directory for every team that should be corrected by the tutor
     specified in the config. A copy of every non-PDF file is prefixed and placed
@@ -1355,7 +1351,7 @@ def create_feedback_directories() -> None:
         feedback_dir = team_dir / FEEDBACK_DIR_NAME
         feedback_dir.mkdir()
 
-        feedback_file_name = get_feedback_file_name()
+        feedback_file_name = get_feedback_file_name(_the_config)
         dummy_pdf_name = feedback_file_name + ".pdf.todo"
         pathlib.Path(feedback_dir / dummy_pdf_name).touch(exist_ok=True)
 
@@ -1434,7 +1430,7 @@ def generate_xopp_files() -> None:
     logging.info("Done generating .xopp files.")
 
 
-def create_sheet_info_file(adam_id_to_team: dict[str, Team]) -> None:
+def create_sheet_info_file(adam_id_to_team: dict[str, Team], _the_config: config.Config) -> None:
     """
     Write information generated during the execution of the `init` command in a
     sheet info file. In particular a mapping from team directory names to teams
@@ -1456,7 +1452,7 @@ def create_sheet_info_file(adam_id_to_team: dict[str, Team]) -> None:
         team_dir_to_team.update({team_dir.name: team})
     info_dict.update({"team_dir_to_team": team_dir_to_team})
     info_dict.update({"adam_sheet_name": args.adam_sheet_name})
-    if args.marking_mode == "exercise":
+    if _the_config.marking_mode == "exercise":
         info_dict.update({"exercises": args.exercises})
     with open(
         args.sheet_root_dir / SHEET_INFO_FILE_NAME, "w", encoding="utf-8"
@@ -1472,13 +1468,13 @@ def create_sheet_info_file(adam_id_to_team: dict[str, Team]) -> None:
     load_sheet_info()
 
 
-def print_missing_submissions(adam_id_to_team: dict[str, Team]) -> None:
+def print_missing_submissions(adam_id_to_team: dict[str, Team], _the_config: config.Config) -> None:
     """
     Print all teams that are listed in the config file, but whose submission is
     not present in the zip downloaded from ADAM.
     """
     missing_teams = [
-        team for team in args.teams if team not in adam_id_to_team.values()
+        team for team in _the_config.teams if team not in adam_id_to_team.values()
     ]
     if missing_teams:
         logging.warning("There are no submissions for the following team(s):")
@@ -1486,28 +1482,28 @@ def print_missing_submissions(adam_id_to_team: dict[str, Team]) -> None:
             print(f"* {team_to_string(missing_team)}")
 
 
-def init() -> None:
+def init(_the_config: config.Config) -> None:
     """
     Prepares the directory structure holding the submissions.
     """
     # Catch wrong combinations of marking_mode/points_per/-n/-e.
     # Not possible eariler because marking_mode and points_per are given by the
     # config file.
-    if args.points_per == "exercise":
-        if args.marking_mode == "exercise" and not args.exercises:
+    if _the_config.points_per == "exercise":
+        if _the_config.marking_mode == "exercise" and not args.exercises:
             logging.critical(
                 "You must provide a list of exercise numbers to be marked with "
                 "the '-e' flag, for example '-e 1 3 4'. In case the '-e' flag "
                 "is the last option before the ADAM zip path, make sure to "
                 "separate exercise numbers from the path using '--'."
             )
-        if args.marking_mode == "static" and not args.num_exercises:
+        if _the_config.marking_mode == "static" and not args.num_exercises:
             logging.critical(
                 "You must provide the number of exercises in the sheet with "
                 "the '-n' flag, for example '-n 5'."
             )
     else:  # points per sheet
-        if args.marking_mode == "exercise":
+        if _the_config.marking_mode == "exercise":
             logging.critical(
                 "Points must be given per exercise if marking is done per "
                 "exercise. Set the value of 'poins_per' to 'exercise' or "
@@ -1539,8 +1535,8 @@ def init() -> None:
     # ├── Team 12345
     # .   └── Muster_Hans_hans.muster@unibas.ch_000000
     # .       └── submission.pdf or submission.zip
-    adam_id_to_team = get_adam_id_to_team_dict()
-    print_missing_submissions(adam_id_to_team)
+    adam_id_to_team = get_adam_id_to_team_dict(_the_config)
+    print_missing_submissions(adam_id_to_team, _the_config)
 
     # Structure at this point:
     # <sheet_root_dir>
@@ -1568,17 +1564,17 @@ def init() -> None:
     # The function `mark_irrelevant_team_dirs()` depends on
     # the dict from team directory names to teams.
     # That's why we create the sheet info file first...
-    create_sheet_info_file(adam_id_to_team)
+    create_sheet_info_file(adam_id_to_team, _the_config)
     # then rename the irrelevant team directories...
-    mark_irrelevant_team_dirs()
+    mark_irrelevant_team_dirs(_the_config)
     # and recreate the sheet info file to reflect the final team
     # directory names.
-    create_sheet_info_file(adam_id_to_team)
+    create_sheet_info_file(adam_id_to_team, _the_config)
 
-    if args.use_marks_file:
-        create_marks_file()
+    if _the_config.use_marks_file:
+        create_marks_file(_the_config)
 
-    create_feedback_directories()
+    create_feedback_directories(_the_config)
 
     # Structure at this point:
     # <sheet_root_dir>
@@ -1594,150 +1590,6 @@ def init() -> None:
 
 
 # ============================= Config Processing ==============================
-
-
-def validate_teams(teams: list[Team]) -> None:
-    """
-    Verify that teams and its (first_name, last_name, email) triples are well
-    formed. Also sort teams and their students to make iterating over them
-    predictable, independent of their order in config.json.
-    """
-    assert type(teams) is list
-    all_students: list[tuple[str, str]] = []
-    all_emails: list[str] = []
-    for team in teams:
-        team.sort()
-        assert len(team) <= args.max_team_size
-        first_names, last_names, emails = list(zip(*team))
-        assert all(type(first_name) is str for first_name in first_names)
-        assert all(type(last_name) is str for last_name in last_names)
-        assert all(is_email(email) for email in emails)
-        all_students += list(zip(first_names, last_names))
-        all_emails += emails
-    if len(all_students) != len(set(all_students)):
-        logging.critical("There are duplicate students in the config file!")
-    if len(all_emails) != len(set(all_emails)):
-        logging.critical(
-            "There are duplicate student emails in the config file!"
-        )
-    teams.sort()
-
-
-def process_static_config(data: dict[str, Any]) -> None:
-    """
-    Extracts and checks the config values necessary for the static correction
-    marking mode.
-    """
-    classes = data["teams"]
-    assert type(classes) is dict
-    assert args.tutor_name in classes.keys()
-    add_to_args("classes", classes)
-
-    teams = [team for classs in classes.values() for team in classs]
-    validate_teams(teams)
-    add_to_args("teams", teams)
-
-
-def process_dynamic_config(data: dict[str, Any]) -> None:
-    """
-    Extract and check the config values necessary for the dynamic correction
-    marking mode 'exercise'.
-    """
-    tutor_list = data["tutor_list"]
-    assert type(tutor_list) is list
-    assert all(type(tutor) is str for tutor in tutor_list)
-    assert args.tutor_name in tutor_list
-    add_to_args("tutor_list", sorted(tutor_list))
-
-    teams = data["teams"]
-    validate_teams(teams)
-    add_to_args("teams", teams)
-
-
-def process_general_config(
-    data_individual: dict[str, Any], data_shared: dict[str, Any]
-) -> None:
-    """
-    Extract and check config values that are necessary in all marking modes.
-    This includes both individual and shared settings.
-    """
-    # Individual settings
-    tutor_name = data_individual["tutor_name"]
-    assert type(tutor_name) is str
-    add_to_args("tutor_name", tutor_name)
-
-    # Use `get` because this config setting is optional.
-    ignore_feedback_suffix = data_individual.get("ignore_feedback_suffix", [])
-    assert type(ignore_feedback_suffix) is list
-    assert all(
-        type(suffix) is str and suffix[0] == "."
-        for suffix in ignore_feedback_suffix
-    )
-    add_to_args("ignore_feedback_suffix", ignore_feedback_suffix + [".xopp"])
-
-    # Email settings, currently all optional because not fully functional.
-    tutor_email = data_individual.get("tutor_email", "")
-    assert (tutor_email == "") or (
-        type(tutor_email) is str and is_email(tutor_email)
-    )
-    add_to_args("tutor_email", tutor_email)
-
-    email_signature = data_individual.get("email_signature", "Your Tutors")
-    assert type(email_signature) is str
-    add_to_args("email_signature", email_signature)
-
-    feedback_email_cc = data_individual.get("feedback_email_cc", [])
-    assert type(feedback_email_cc) is list
-    assert (feedback_email_cc == []) or all(
-        type(email) is str and is_email(email) for email in feedback_email_cc
-    )
-    add_to_args("feedback_email_cc", feedback_email_cc)
-
-    smtp_url = data_individual.get("smtp_url", "smtp-ext.unibas.ch")
-    assert type(smtp_url) is str
-    add_to_args("smtp_url", smtp_url)
-
-    smtp_port = data_individual.get("smtp_port", 587)
-    assert type(smtp_port) is int
-    add_to_args("smtp_port", smtp_port)
-
-    smtp_user = data_individual.get("smtp_user", "")
-    assert type(smtp_user) is str
-    add_to_args("smtp_user", smtp_user)
-
-    # Shared settings
-    lecture_title = data_shared["lecture_title"]
-    assert lecture_title and type(lecture_title) is str
-    add_to_args("lecture_title", lecture_title)
-
-    assistant_email = data_shared.get("assistant_email", "")
-    assert type(assistant_email) is str
-    add_to_args("assistant_email", assistant_email)
-
-    marking_mode = data_shared["marking_mode"]
-    assert marking_mode in ["static", "exercise"]
-    add_to_args("marking_mode", marking_mode)
-
-    max_team_size = data_shared["max_team_size"]
-    assert type(max_team_size) is int and max_team_size > 0
-    add_to_args("max_team_size", max_team_size)
-
-    use_marks_file = data_shared["use_marks_file"]
-    assert type(use_marks_file) is str and use_marks_file.lower() in [
-        "true",
-        "false",
-    ]
-    add_to_args("use_marks_file", use_marks_file.lower() == "true")
-
-    points_per = data_shared["points_per"]
-    assert type(points_per) is str
-    assert points_per in ["sheet", "exercise"]
-    add_to_args("points_per", points_per)
-
-    min_point_unit = data_shared["min_point_unit"]
-    assert type(min_point_unit) is float or type(min_point_unit) is int
-    assert min_point_unit > 0
-    add_to_args("min_point_unit", min_point_unit)
 
 
 def add_to_args(key: str, value: Any) -> None:
@@ -1891,40 +1743,13 @@ def main():
         sys.exit(0)
 
     # Process config files =====================================================
-    logging.info(f"Reading shared config file '{args.config_shared}'...")
-    try:
-        with open(args.config_shared, "r", encoding="utf-8") as config_file:
-            data_shared = json.load(config_file)
-    except FileNotFoundError:
-        logging.critical(f"File '{args.config_shared}' not found.")
-    logging.info(
-        f"Reading individual config file '{args.config_individual}'..."
-    )
-    try:
-        with open(args.config_individual, "r", encoding="utf-8") as config_file:
-            data_individual = json.load(config_file)
-        assert data_shared.keys().isdisjoint(data_individual)
-    except FileNotFoundError:
-        logging.critical(f"File '{args.config_individual}' not found.")
-
-    # We currently plan to support the following marking modes.
-    # static:   Every tutor corrects the submissions of the teams assigned to
-    #           that tutor. These will usually be the teams in that tutors
-    #           exercise class.
-    # exercise: Every tutor corrects some exercise(s) on all sheets.
-    process_general_config(data_individual, data_shared)
-
-    if args.marking_mode == "static":
-        process_static_config(data_shared)
-    else:
-        process_dynamic_config(data_shared)
-    logging.info("Processed config successfully.")
+    _the_config = config.Config([args.config_shared, args.config_individual])
 
     # Execute subcommand =======================================================
     logging.info(f"Running command '{args.sub_command}'...")
     # This calls the function set as default in the parser.
     # For example, `func` is set to `init` if the subcommand is "init".
-    args.func()
+    args.func(_the_config)
     logging.info(f"Command '{args.sub_command}' terminated successfully. 🎉")
 
 
