@@ -169,6 +169,14 @@ def get_marks_file_path():
     )
 
 
+def get_individual_marks_file_path():
+    marks_file_path = get_marks_file_path()
+    individual_marks_file_path = marks_file_path.with_name(
+        marks_file_path.stem + "_individual" + marks_file_path.suffix
+    )
+    return individual_marks_file_path
+
+
 # Miscellaneous ----------------------------------------------------------------
 def is_email(email: str) -> bool:
     """
@@ -529,34 +537,11 @@ def get_assistant_email_content() -> str:
 def get_assistant_email_attachment_path() -> pathlib.Path:
     """
     Sending the marks file to the assistant as is has the disadvantage that
-    points are only listed per team. This makes it difficult for the assistent
-    to figure out how many points each individual student has. We re
+    points are only listed per team. This makes it difficult for the assistant
+    to figure out how many points each individual student has. So we use the
+    individual marks file where points are listed per student.
     """
-    with open(get_marks_file_path(), "r", encoding="utf-8") as marks_file:
-        marks = json.load(marks_file)
-    individual_marks = {}
-    if args.points_per == "exercise":
-        pass
-        # TODO: Implement this once sending is supported for the 'exercise'
-        # marking mode.
-    elif args.points_per == "sheet":
-        for team_dir, mark in marks.items():
-            for first_name, last_name, email in args.team_dir_to_team[team_dir]:
-                key = (
-                    f"{first_name.replace(' ', '-')}_"
-                    f"{last_name.replace(' ', '-')}_{email}".lower()
-                )
-                individual_marks.update({key: mark})
-    else:
-        logging.critical(f"Unsupported points-per setting '{args.points_per}'!")
-
-    marks_file_path = get_marks_file_path()
-    individual_marks_file_path = marks_file_path.with_name(
-        marks_file_path.stem + "_individual" + marks_file_path.suffix
-    )
-    with open(individual_marks_file_path, "w", encoding="utf-8") as file:
-        json.dump(individual_marks, file, indent=4, ensure_ascii=False)
-    return individual_marks_file_path
+    return get_individual_marks_file_path()
 
 
 def create_email_to_team(team_dir):
@@ -579,7 +564,6 @@ def create_email_to_team(team_dir):
 
 
 def create_email_to_assistant():
-    get_assistant_email_attachment_path()
     return construct_email(
         [args.assistant_email],
         args.feedback_email_cc,
@@ -835,6 +819,32 @@ def print_marks() -> None:
     logging.info("End of copy-paste marks.")
 
 
+def create_individual_marks_file() -> None:
+    """
+    Write a json file to add the marks per student.
+    """
+    with open(get_marks_file_path(), "r", encoding="utf-8") as marks_file:
+        marks = json.load(marks_file)
+    individual_marks = {}
+    if args.points_per == "exercise":
+        pass
+        # TODO: Implement this once sending is supported for the 'exercise'
+        # marking mode.
+    elif args.points_per == "sheet":
+        for team_dir, mark in marks.items():
+            for first_name, last_name, email in args.team_dir_to_team[team_dir]:
+                key = (
+                    f"{first_name.replace(' ', '-')}_"
+                    f"{last_name.replace(' ', '-')}_{email}".lower()
+                )
+                individual_marks.update({key: mark})
+    else:
+        logging.critical(f"Unsupported points-per setting '{args.points_per}'!")
+
+    with open(get_individual_marks_file_path(), "w", encoding="utf-8") as file:
+        json.dump(individual_marks, file, indent=4, ensure_ascii=False)
+
+
 def create_share_archive(overwrite: Optional[bool]) -> None:
     """
     In case the marking mode is exercise, the final feedback the teams get is
@@ -959,6 +969,7 @@ def collect() -> None:
     if args.use_marks_file:
         validate_marks_json()
         print_marks()
+        create_individual_marks_file()
 
 
 # ============================ Combine Sub-Command =============================
