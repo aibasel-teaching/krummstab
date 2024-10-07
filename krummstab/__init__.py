@@ -1594,10 +1594,9 @@ def init(_the_config: config.Config) -> None:
 
 def add_to_args(key: str, value: Any) -> None:
     """
-    Settings defined in the config file are parsed, checked, and then added to
-    the args object. Similar with information that is calculated using things
-    defined in the config file. After parsing, all necessary information should
-    be contained in the args object.
+    This adds new entries into the args object created by argparse, we are in
+    the process of facing out this hack. This function (and the title above)
+    should be removed when it is not called anywhere anymore.
     """
     vars(args).update({key: value})
 
