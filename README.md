@@ -206,9 +206,13 @@ as expected.
 - `tutor_email`: tutor's email address, feedback will be sent via this address
 - `feedback_email_cc`: list of email addresses that will be CC'd with every
   feedback email, for example the addresses of all tutors
-- `smtp_url`: the url of the smtp server, `smtp-ext.unibas.ch` by default
-- `smtp_port`: smtp port to connect to, `587` by default
-- `smtp_user`: smtp user, usually the short Unibas account name
+- `smtp_url`: the URL of the SMTP server, `smtp.unibas.ch` by default (you may
+  use `smtp-ext.unibas.ch` if your email address is white-listed; this is
+  usually not the case and you would likely know if it is)
+- `smtp_port`: SMTP port to connect to, `25` by default (use `587` for an
+  `smtp-ext` setup)
+- `smtp_user`: SMTP user, empty by default (use your short unibas account name
+  for an `smtp-ext` setup)
 - `ignore_feedback_suffix`: a list of extensions that should be ignored by the
   `collect` sub-command; this is useful if the tools you use for marking create
   files in the feedback folders that you don't want to send to the students
