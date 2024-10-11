@@ -3,6 +3,7 @@ import logging
 from importlib import resources
 from pathlib import Path
 import jsonschema
+from . import schemas
 
 Student = tuple[str, str, str]
 Team = list[Student]
@@ -11,9 +12,9 @@ Team = list[Student]
 class Config:
     def __init__(self, config_paths: list[Path]) -> None:
         schema_config_shared = json.loads(
-            resources.read_text("schemas", "config-shared-schema.json", encoding="utf-8"))
+            resources.read_text(schemas, "config-shared-schema.json", encoding="utf-8"))
         schema_config_individual = json.loads(
-            resources.read_text("schemas", "config-individual-schema.json", encoding="utf-8"))
+            resources.read_text(schemas, "config-individual-schema.json", encoding="utf-8"))
         jsonschema.validate(json.loads(config_paths[0].read_text(encoding="utf-8")),
                             schema_config_shared, jsonschema.Draft7Validator)
         jsonschema.validate(json.loads(config_paths[1].read_text(encoding="utf-8")),
