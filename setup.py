@@ -41,14 +41,15 @@ setup(
     python_requires=">=3.10",
     install_requires=[
         'pypdf==3.1.0',
+        'jsonschema==4.23.0'
     ],
     entry_points={
         'console_scripts': [
             'krummstab = krummstab:main',
         ]
     },
-#    include_package_data=True,
-#    package_data={
-#        "krummstab": ["templates/email.template"],
-#    },
+    include_package_data=True,
+    package_data={
+        "krummstab": ["schemas/config-schema.json"],
+    },
 )
