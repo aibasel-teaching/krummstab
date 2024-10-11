@@ -1,0 +1,44 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "tutor_name": {
+        "type": "string",
+        "minLength": 1
+      },
+      "tutor_email": {
+        "type": "string",
+        "pattern": "[^@]+@[^@]+\\.[^@]+"
+      },
+      "email_signature": {
+        "type": "string"
+      },
+      "feedback_email_cc": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "[^@]+@[^@]+\\.[^@]+"
+        }
+      },
+      "smtp_url": {
+        "type": "string"
+      },
+      "smtp_port": {
+        "type": "integer"
+      },
+      "smtp_user": {
+        "type": "string"
+      },
+      "ignore_feedback_suffix": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^\\.",
+          "minLength": 2
+        }
+      }
+    },
+    "required": [
+      "tutor_name"
+    ]
+}

@@ -1,0 +1,118 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "lecture_title": {
+        "type": "string",
+        "minLength": 1
+      },
+      "assistant_email": {
+        "type": "string",
+        "pattern": "[^@]+@[^@]+\\.[^@]+"
+      },
+      "marking_mode": {
+        "type": "string",
+        "enum": [
+          "static",
+          "exercise"
+        ]
+      },
+      "use_marks_file": {
+        "type": "boolean"
+      },
+      "points_per": {
+        "type": "string",
+        "enum": [
+          "sheet",
+          "exercise"
+        ]
+      },
+      "min_point_unit": {
+        "type": "number",
+        "exclusiveMinimum": 0
+      },
+      "max_team_size": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "classes": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "string",
+                  "pattern": "[^@]+@[^@]+\\.[^@]+"
+                }
+              ],
+              "minItems": 3,
+              "maxItems": 3
+            }
+          }
+        }
+      },
+      "tutor_list": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "teams": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": [
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "string",
+                "minLength": 1
+              },
+              {
+                "type": "string",
+                "pattern": "[^@]+@[^@]+\\.[^@]+"
+              }
+            ],
+            "minItems": 3,
+            "maxItems": 3
+          }
+        }
+      }
+    },
+    "required": [
+        "lecture_title",
+        "marking_mode",
+        "use_marks_file",
+        "points_per",
+        "min_point_unit",
+        "max_team_size"
+      ],
+    "if": {
+      "properties": {
+        "marking_mode": { "const": "static" }
+      }
+    },
+    "then": {
+      "required": ["classes"]
+    },
+    "else": {
+      "required": ["tutor_list", "teams"]
+    }
+}
