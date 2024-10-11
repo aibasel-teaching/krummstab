@@ -50,6 +50,6 @@ setup(
     },
     include_package_data=True,
     package_data={
-        "krummstab": ["schemas/config-schema.json"],
+        "krummstab": ["schemas/config-individual-schema.json", "schemas/config-shared-schema.json"],
     },
 )
