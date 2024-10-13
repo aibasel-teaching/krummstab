@@ -822,21 +822,14 @@ def create_individual_marks_file(_the_config: config.Config) -> None:
     with open(get_marks_file_path(_the_config), "r", encoding="utf-8") as marks_file:
         marks = json.load(marks_file)
     individual_marks = {}
-    if _the_config.points_per == "exercise":
-        pass
-        # TODO: Implement this once sending is supported for the 'exercise'
-        # marking mode.
-    elif _the_config.points_per == "sheet":
-        for team_dir, mark in marks.items():
-            for first_name, last_name, email in args.team_dir_to_team[team_dir]:
-                key = (
-                    f"{first_name.replace(' ', '-')}_"
-                    f"{last_name.replace(' ', '-')}_{email}".lower()
-                )
-                individual_marks.update({key: mark})
-    else:
-        logging.critical(f"Unsupported points-per setting '{_the_config.points_per}'!")
-
+    individual_marks.update({"tutor_name": _the_config.tutor_name})
+    individual_marks.update({"adam_sheet_name": get_adam_sheet_name_string()})
+    if _the_config.points_per == "exercise" and _the_config.marking_mode == "exercise":
+        individual_marks.update({"exercises": args.exercises})
+    for team_dir, mark in marks.items():
+        for first_name, last_name, email in args.team_dir_to_team[team_dir]:
+            key = (f"{email}".lower())
+            individual_marks.update({key: mark})
     with open(get_individual_marks_file_path(_the_config), "w", encoding="utf-8") as file:
         json.dump(individual_marks, file, indent=4, ensure_ascii=False)
 
