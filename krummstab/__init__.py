@@ -822,6 +822,7 @@ def create_individual_marks_file(_the_config: config.Config) -> None:
     with open(get_marks_file_path(_the_config), "r", encoding="utf-8") as marks_file:
         marks = json.load(marks_file)
     individual_marks = {}
+    marks_dict = {}
     individual_marks.update({"tutor_name": _the_config.tutor_name})
     individual_marks.update({"adam_sheet_name": get_adam_sheet_name_string()})
     if _the_config.points_per == "exercise" and _the_config.marking_mode == "exercise":
@@ -829,7 +830,8 @@ def create_individual_marks_file(_the_config: config.Config) -> None:
     for team_dir, mark in marks.items():
         for first_name, last_name, email in args.team_dir_to_team[team_dir]:
             key = (f"{email}".lower())
-            individual_marks.update({key: mark})
+            marks_dict.update({key: mark})
+    individual_marks.update({"marks": marks_dict})
     with open(get_individual_marks_file_path(_the_config), "w", encoding="utf-8") as file:
         json.dump(individual_marks, file, indent=4, ensure_ascii=False)
 
