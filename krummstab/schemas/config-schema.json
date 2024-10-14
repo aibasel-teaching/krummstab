@@ -8,7 +8,7 @@
       },
       "assistant_email": {
         "type": "string",
-        "pattern": "[^@]+@[^@]+\\.[^@]+"
+        "format": "email"
       },
       "marking_mode": {
         "type": "string",
@@ -54,7 +54,7 @@
                 },
                 {
                   "type": "string",
-                  "pattern": "[^@]+@[^@]+\\.[^@]+"
+                  "format": "email"
                 }
               ],
               "minItems": 3,
@@ -87,12 +87,47 @@
               },
               {
                 "type": "string",
-                "pattern": "[^@]+@[^@]+\\.[^@]+"
+                "format": "email"
               }
             ],
             "minItems": 3,
             "maxItems": 3
           }
+        }
+      },
+      "tutor_name": {
+        "type": "string",
+        "minLength": 1
+      },
+      "tutor_email": {
+        "type": "string",
+        "format": "email"
+      },
+      "email_signature": {
+        "type": "string"
+      },
+      "feedback_email_cc": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "format": "email"
+        }
+      },
+      "smtp_url": {
+        "type": "string"
+      },
+      "smtp_port": {
+        "type": "integer"
+      },
+      "smtp_user": {
+        "type": "string"
+      },
+      "ignore_feedback_suffix": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "pattern": "^\\.",
+          "minLength": 2
         }
       }
     },
@@ -102,7 +137,16 @@
         "use_marks_file",
         "points_per",
         "min_point_unit",
-        "max_team_size"
+        "max_team_size",
+        "assistant_email",
+        "tutor_name",
+        "tutor_email",
+        "email_signature",
+        "feedback_email_cc",
+        "smtp_url",
+        "smtp_port",
+        "smtp_user",
+        "ignore_feedback_suffix"
       ],
     "if": {
       "properties": {
@@ -114,5 +158,6 @@
     },
     "else": {
       "required": ["tutor_list", "teams"]
-    }
+    },
+    "additionalProperties": false
 }
