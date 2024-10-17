@@ -15,7 +15,7 @@ class Config:
         for path in config_paths:
             logging.info(f"Reading config file '{path}'")
             data.update(json.loads(path.read_text(encoding="utf-8")))
-        config_schema = json.loads(resources.read_text(schemas, "config-schema.json", encoding="utf-8"))
+        config_schema = json.loads(resources.files(schemas).joinpath("config-schema.json").read_text(encoding="utf-8"))
         jsonschema.validate(data, config_schema, jsonschema.Draft7Validator)
 
         for key, value in data.items():
