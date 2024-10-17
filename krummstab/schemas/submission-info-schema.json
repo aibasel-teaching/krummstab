@@ -1,0 +1,36 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema#",
+    "type": "object",
+    "properties": {
+      "team": {
+        "type": "array",
+        "items": {
+          "type": "array",
+          "items": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "string",
+              "format": "email"
+            }
+          ],
+          "minItems": 3,
+          "maxItems": 3
+        }
+      },
+      "relevant": {
+        "type": "boolean"
+      }
+    },
+    "required": [
+        "team",
+        "relevant"
+    ],
+    "additionalProperties": false
+}
