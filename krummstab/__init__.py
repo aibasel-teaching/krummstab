@@ -46,8 +46,8 @@ DO_NOT_MARK_PREFIX = "DO_NOT_MARK_"
 FEEDBACK_DIR_NAME = "feedback"
 FEEDBACK_COLLECTED_DIR_NAME = "feedback_collected"
 FEEDBACK_FILE_PREFIX = "feedback_"
-SHEET_INFO_FILE_NAME = ".sheet_info"
-SUBMISSION_INFO_FILE_NAME = ".submission_info"
+SHEET_INFO_FILE_NAME = "sheet.json"
+SUBMISSION_INFO_FILE_NAME = "submission.json"
 SHARE_ARCHIVE_PREFIX = "share_archive"
 COMBINED_DIR_NAME = "feedback_combined"
 
@@ -137,6 +137,15 @@ def team_to_string(team: Team) -> str:
     representation of teams.
     """
     return "_".join(sorted([student[1].replace(" ", "-") for student in team]))
+
+
+def get_team_key(submission_info: dict) -> str:
+    """
+    Create a string representation of the team with the ADAM ID: team_id_LastName1-LastName2
+    """
+    team_id = submission_info.get("adam_id")
+    team = submission_info.get("team")
+    return team_id + "_" + team_to_string(team)
 
 
 def get_adam_sheet_name_string() -> str:
@@ -231,38 +240,38 @@ def verify_sheet_root_dir() -> None:
         logging.critical("The given sheet directory is not valid!")
 
 
-def get_submission_info(path: pathlib.Path) -> dict | None:
+def get_submission_info(path: pathlib.Path) -> dict:
     """
     Load the submission info of the team directory. In particular the
-    team and if it is a relevant team. Returns None if it is not a team
-    directory, the .submission file does not exist, or the .submission file
-    has not the right format.
+    team and if it is a relevant team.
     """
-    if path.is_dir():
-        try:
-            with open(
-                    path / SUBMISSION_INFO_FILE_NAME, "r", encoding="utf-8"
-            ) as submission_info_file:
-                submission_info = json.load(submission_info_file)
-                submission_info_schema = json.loads(
-                    resources.files(schemas).joinpath("submission-info-schema.json").read_text(encoding="utf-8"))
-                jsonschema.validate(submission_info, submission_info_schema, jsonschema.Draft7Validator)
-                return submission_info
-        except FileNotFoundError or jsonschema.exceptions.ValidationError or jsonschema.exceptions.SchemaError:
-            return None
-    else:
-        return None
+    try:
+        with open(
+                path / SUBMISSION_INFO_FILE_NAME, "r", encoding="utf-8"
+        ) as submission_info_file:
+            submission_info = json.load(submission_info_file)
+            submission_info_schema = json.loads(
+                resources.files(schemas).joinpath("submission-info-schema.json").read_text(encoding="utf-8"))
+            jsonschema.validate(submission_info, submission_info_schema, jsonschema.Draft7Validator)
+            return submission_info
+    except FileNotFoundError:
+        logging.critical("The submission.json file does not exist.")
+    except NotADirectoryError:
+        logging.critical(f"The path '{path}' is not a team directory.")
+    except jsonschema.exceptions.ValidationError:
+        logging.critical("The submission.json file has not the right format.")
 
 
 def get_all_team_dirs() -> Iterator[pathlib.Path]:
     """
     Return all team directories within the sheet root directory. To find the team
-    directories, the .submission_info files are used. This excludes other
+    directories, the submission.json files are used. This excludes other
     directories that may be created in the sheet root directory, such as
     one containing combined feedback.
     """
     for team_dir in args.sheet_root_dir.iterdir():
-        if get_submission_info(team_dir):
+        if team_dir.is_dir() and team_dir != args.sheet_root_dir / COMBINED_DIR_NAME\
+                and get_submission_info(team_dir):
             yield team_dir
 
 
@@ -273,7 +282,7 @@ def get_relevant_team_dirs() -> Iterator[pathlib.Path]:
     """
     for team_dir in get_all_team_dirs():
         submission_info = get_submission_info(team_dir)
-        if submission_info and submission_info.get("relevant"):
+        if submission_info.get("relevant"):
             yield team_dir
 
 
@@ -653,13 +662,9 @@ def validate_marks_json(_the_config: config.Config) -> None:
     with open(marks_json_file, "r", encoding="utf-8") as marks_file:
         marks = json.load(marks_file)
     relevant_teams = []
-    for team_dir in args.sheet_root_dir.iterdir():
+    for team_dir in get_relevant_team_dirs():
         submission_info = get_submission_info(team_dir)
-        if not submission_info:
-            continue
-        if submission_info.get("relevant"):
-            team_dir_name = team_dir.name.split("_")[0] + "_" + team_to_string(submission_info.get("team"))
-            relevant_teams.append(team_dir_name)
+        relevant_teams.append(get_team_key(submission_info))
     marked_teams = list(marks.keys())
     if sorted(relevant_teams) != sorted(marked_teams):
         logging.critical(
@@ -825,12 +830,10 @@ def print_marks(_the_config: config.Config) -> None:
     logging.info("Start of copy-paste marks...")
     # We want all teams printed, not just the marked ones.
     for team_to_print in _the_config.teams:
-        for team_dir in args.sheet_root_dir.iterdir():
+        for team_dir in get_all_team_dirs():
             submission_info = get_submission_info(team_dir)
-            if not submission_info:
-                continue
             if submission_info.get("team") == team_to_print:
-                key = team_dir.name.split("_", 1)[0] + "_" + team_to_string(submission_info.get("team"))
+                key = get_team_key(submission_info)
                 for student in submission_info.get("team"):
                     full_name = f"{student[0]} {student[1]}"
                     output_str = f"{full_name:>35};"
@@ -860,13 +863,11 @@ def create_individual_marks_file(_the_config: config.Config) -> None:
     individual_marks.update({"adam_sheet_name": get_adam_sheet_name_string()})
     if _the_config.points_per == "exercise" and _the_config.marking_mode == "exercise":
         individual_marks.update({"exercises": args.exercises})
-    for team_dir, mark in marks.items():
-        for t in _the_config.teams:
-            if team_dir.split("_", 1)[1] == team_to_string(t):
-                team = t
-        for first_name, last_name, email in team:
+    for team_dir in get_relevant_team_dirs():
+        submission_info = get_submission_info(team_dir)
+        for first_name, last_name, email in submission_info.get("team"):
             key = (f"{email}".lower())
-            marks_dict.update({key: mark})
+            marks_dict.update({key: marks.get(get_team_key(submission_info))})
     individual_marks.update({"marks": marks_dict})
     with open(get_individual_marks_file_path(_the_config), "w", encoding="utf-8") as file:
         json.dump(individual_marks, file, indent=4, ensure_ascii=False)
@@ -883,7 +884,7 @@ def create_share_archive(overwrite: Optional[bool]) -> None:
     """
     # This function in only used when the correction mode is 'exercise'.
     # Consequently, exercises must be provided when running 'init', which should
-    # be written to .sheet_info and then read in by a load_sheet_info().
+    # be written to sheet.json and then read in by a load_sheet_info().
     assert args.exercises
     # Build share archive file name.
     share_archive_file_name = (
@@ -1199,70 +1200,16 @@ def extract_adam_zip() -> tuple[pathlib.Path, str]:
     return sheet_root_dir, adam_sheet_name
 
 
-def get_adam_id_to_team_dict(_the_config: config.Config) -> dict[str, Team]:
-    """
-    ADAM assigns every team a new ID with every exercise sheet. This dict maps
-    from that ID to the team represented by a list of [name, email] pairs. At
-    the same time, the "Team " prefix is removed from directory names.
-    """
-    adam_id_to_team = {}
-    for team_dir in args.sheet_root_dir.iterdir():
-        if not team_dir.is_dir():
-            continue
-        team_id = team_dir.name.split(" ")[1]
-        submission_dir = list(team_dir.iterdir())[0]
-        submission_email = submission_dir.name.split("_")[-2]
-        teams = [
-            team
-            for team in _the_config.teams
-            if any(submission_email in student for student in team)
-        ]
-        if len(teams) == 0:
-            logging.critical(
-                f"The student with the email '{submission_email}' is not "
-                "assigned to a team. Your config file is likely out of date."
-                "\n"
-                "Please update the config file such that it reflects the team "
-                "assignments of this week correctly and share the updated "
-                "config file with your fellow tutors and the teaching "
-                "assistant."
-            )
-        # The case that a student is assigned to multiple teams would already be
-        # caught when reading in the config file, so we just assert that this is
-        # not the case here.
-        assert len(teams) == 1
-        # TODO: if team[0] in adam_id_to_team.values(): -> multiple separate
-        # submissions
-        # Catch the case where multiple members of a team independently submit
-        # solutions without forming a team on ADAM and print a warning.
-        for existing_id, existing_team in adam_id_to_team.items():
-            if existing_team == teams[0]:
-                logging.warning(
-                    f"There are multiple submissions for team '{teams[0]}'"
-                    f" under separate ADAM IDs ({existing_id} and {team_id})!"
-                    " This probably means that multiple members of a team"
-                    " submitted solutions without forming a team on ADAM. You"
-                    " will have to combine the submissions manually."
-                )
-        adam_id_to_team.update({team_id: teams[0]})
-        team_dir = pathlib.Path(
-            shutil.move(team_dir, team_dir.with_name(team_id))
-        )
-    return adam_id_to_team
-
-
 def mark_irrelevant_team_dirs(_the_config: config.Config) -> None:
     """
     Indicate which team directories do not have to be marked by adding the
     `DO_NOT_MARK_PREFIX` to their directory name.
     """
-    for team_dir_name in args.sheet_root_dir.iterdir():
-        submission_info = get_submission_info(team_dir_name)
-        if not submission_info:
-            continue
+    for team_dir in get_all_team_dirs():
+        submission_info = get_submission_info(team_dir)
         if not submission_info.get("relevant"):
             shutil.move(
-                team_dir_name, team_dir_name.with_name(DO_NOT_MARK_PREFIX + team_dir_name.name)
+                team_dir, team_dir.with_name(DO_NOT_MARK_PREFIX + team_dir.name)
             )
 
 
@@ -1281,19 +1228,16 @@ def get_relevant_teams(_the_config: config.Config) -> list[Team]:
         return []
 
 
-def rename_team_dirs(adam_id_to_team: dict[str, Team]) -> None:
+def rename_team_dirs() -> None:
     """
     The team directories are renamed to: team_id_LastName1-LastName2
     The team ID can be helpful to identify a team on the ADAM web interface.
     """
-    for team_dir in args.sheet_root_dir.iterdir():
-        if not team_dir.is_dir():
-            continue
-        team_id = team_dir.name
-        team = adam_id_to_team[team_id]
-        dir_name = team_id + "_" + team_to_string(team)
+    for team_dir in get_all_team_dirs():
+        submission_info = get_submission_info(team_dir)
+        team_key = get_team_key(submission_info)
         team_dir = pathlib.Path(
-            shutil.move(team_dir, team_dir.with_name(dir_name))
+            shutil.move(team_dir, team_dir.with_name(team_key))
         )
 
 
@@ -1305,7 +1249,7 @@ def flatten_team_dirs() -> None:
     ones silently. In case multiple submissions exist, we put the files within
     them next to each other and print a warning.
     """
-    for team_dir in get_all_team_dirs():
+    for team_dir in args.sheet_root_dir.iterdir():
         # Remove empty subdirectories.
         for team_submission_dir in team_dir.iterdir():
             if team_submission_dir.is_dir() and len(list(team_submission_dir.iterdir())) == 0:
@@ -1363,13 +1307,10 @@ def create_marks_file(_the_config: config.Config) -> None:
         exercise_dict = ""
 
     marks_dict = {}
-    for team_dir in sorted(args.sheet_root_dir.iterdir()):
+    for team_dir in sorted(get_relevant_team_dirs()):
         submission_info = get_submission_info(team_dir)
-        if not submission_info:
-            continue
-        if submission_info.get("relevant"):
-            team_dir_name = team_dir.name.split("_")[0] + "_" + team_to_string(submission_info.get("team"))
-            marks_dict.update({team_dir_name: exercise_dict})
+        team_key = get_team_key(submission_info)
+        marks_dict.update({team_key: exercise_dict})
 
     with open(get_marks_file_path(_the_config), "w", encoding="utf-8") as marks_json:
         json.dump(marks_dict, marks_json, indent=4, ensure_ascii=False)
@@ -1469,22 +1410,63 @@ def generate_xopp_files() -> None:
     logging.info("Done generating .xopp files.")
 
 
-def create_submission_info_files(adam_id_to_team: dict[str, Team], _the_config: config.Config) -> None:
+def create_submission_info(_the_config: config.Config) -> None:
     """
-    Write in each team directory a JSON file which contains the team and if the tutor specified
-    in the config has to mark this team.
+    Write in each team directory a JSON file which contains the team,
+    the ADAM ID of the team which ADAM sets anew with each exercise sheet,
+    and if the tutor specified in the config has to mark this team. At
+    the same time, the "Team " prefix is removed from directory names.
     """
     relevant_teams = get_relevant_teams(_the_config)
+    adam_id_to_team = {}
     for team_dir in args.sheet_root_dir.iterdir():
-        is_relevant = False
-        submission_info = {}
         if not team_dir.is_dir():
             continue
-        team_id = team_dir.name.split("_")[0]
-        team = adam_id_to_team[team_id]
-        if team in relevant_teams:
+        team_id = team_dir.name.split(" ")[1]
+        submission_dir = list(team_dir.iterdir())[0]
+        submission_email = submission_dir.name.split("_")[-2]
+        teams = [
+            team
+            for team in _the_config.teams
+            if any(submission_email in student for student in team)
+        ]
+        if len(teams) == 0:
+            logging.critical(
+                f"The student with the email '{submission_email}' is not "
+                "assigned to a team. Your config file is likely out of date."
+                "\n"
+                "Please update the config file such that it reflects the team "
+                "assignments of this week correctly and share the updated "
+                "config file with your fellow tutors and the teaching "
+                "assistant."
+            )
+        # The case that a student is assigned to multiple teams would already be
+        # caught when reading in the config file, so we just assert that this is
+        # not the case here.
+        assert len(teams) == 1
+        # TODO: if team[0] in adam_id_to_team.values(): -> multiple separate
+        # submissions
+        # Catch the case where multiple members of a team independently submit
+        # solutions without forming a team on ADAM and print a warning.
+        for existing_id, existing_team in adam_id_to_team.items():
+            if existing_team == teams[0]:
+                logging.warning(
+                    f"There are multiple submissions for team '{teams[0]}'"
+                    f" under separate ADAM IDs ({existing_id} and {team_id})!"
+                    " This probably means that multiple members of a team"
+                    " submitted solutions without forming a team on ADAM. You"
+                    " will have to combine the submissions manually."
+                )
+        adam_id_to_team.update({team_id: teams[0]})
+        team_dir = pathlib.Path(
+            shutil.move(team_dir, team_dir.with_name(team_id))
+        )
+        is_relevant = False
+        submission_info = {}
+        if teams[0] in relevant_teams:
             is_relevant = True
-        submission_info.update({"team": team})
+        submission_info.update({"team": teams[0]})
+        submission_info.update({"adam_id": team_id})
         submission_info.update({"relevant": is_relevant})
         with open(
                 team_dir / SUBMISSION_INFO_FILE_NAME, "w", encoding="utf-8"
@@ -1523,13 +1505,16 @@ def create_sheet_info_file(_the_config: config.Config) -> None:
     load_sheet_info()
 
 
-def print_missing_submissions(adam_id_to_team: dict[str, Team], _the_config: config.Config) -> None:
+def print_missing_submissions(_the_config: config.Config) -> None:
     """
     Print all teams that are listed in the config file, but whose submission is
     not present in the zip downloaded from ADAM.
     """
+    teams_who_submitted = []
+    for team_dir in get_all_team_dirs():
+        teams_who_submitted.append(get_submission_info(team_dir).get("team"))
     missing_teams = [
-        team for team in _the_config.teams if team not in adam_id_to_team.values()
+        team for team in _the_config.teams if team not in teams_who_submitted
     ]
     if missing_teams:
         logging.warning("There are no submissions for the following team(s):")
@@ -1590,33 +1575,30 @@ def init(_the_config: config.Config) -> None:
     # ├── Team 12345
     # .   └── Muster_Hans_hans.muster@unibas.ch_000000
     # .       └── submission.pdf or submission.zip
-    adam_id_to_team = get_adam_id_to_team_dict(_the_config)
-    print_missing_submissions(adam_id_to_team, _the_config)
+    create_submission_info(_the_config)
+    print_missing_submissions(_the_config)
 
     # Structure at this point:
     # <sheet_root_dir>
     # ├── 12345
-    # .   └── Muster_Hans_hans.muster@unibas.ch_000000
-    # .       └── submission.pdf or submission.zip
-    rename_team_dirs(adam_id_to_team)
-
-    create_submission_info_files(adam_id_to_team, _the_config)
-
-    # From here on, get_all_team_dirs() should work.
+    # .   ├── Muster_Hans_hans.muster@unibas.ch_000000
+    # .   │   └── submission.pdf or submission.zip
+    # .   └── submission.json
+    rename_team_dirs()
 
     # Structure at this point:
     # <sheet_root_dir>
     # ├── 12345_Muster-Meier-Mueller
     # .   ├── Muster_Hans_hans.muster@unibas.ch_000000
     # .   │   └── submission.pdf or submission.zip
-    # .   └── .submission_info
+    # .   └── submission.json
     flatten_team_dirs()
 
     # Structure at this point:
     # <sheet_root_dir>
     # ├── 12345_Muster-Meier-Mueller
     # .   ├── submission.pdf or submission.zip
-    # .   └── .submission_info
+    # .   └── submission.json
     unzip_internal_zips()
 
     # From here on, we need information about relevant teams.
@@ -1636,8 +1618,8 @@ def init(_the_config: config.Config) -> None:
     # .   │   ├── feedback.pdf.todo
     # .   │   └── feedback_copy-of-submitted-file.cc
     # .   ├── submission.pdf or submission files
-    # .   └── .submission_info
-    # ├── .sheet_info
+    # .   └── submission.json
+    # ├── sheet.json
     # └── points.json
     if args.xopp:
         generate_xopp_files()

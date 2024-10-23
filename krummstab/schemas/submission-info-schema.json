@@ -24,12 +24,16 @@
           "maxItems": 3
         }
       },
+      "adam_id": {
+        "type": "string"
+      },
       "relevant": {
         "type": "boolean"
       }
     },
     "required": [
         "team",
+        "adam_id",
         "relevant"
     ],
     "additionalProperties": false
