@@ -70,8 +70,8 @@ class SubmissionInfo:
             logging.critical("The submission.json file does not exist.")
         except NotADirectoryError:
             logging.critical(f"The path '{self.team_dir}' is not a team directory.")
-        except jsonschema.exceptions.ValidationError:
-            logging.critical("The submission.json file has not the right format.")
+        except jsonschema.exceptions.ValidationError as error:
+            logging.critical(f"The submission.json file does not have the right format: {error.message}")
 
     def __lt__(self, other):
         return self.team_dir < other.team_dir
