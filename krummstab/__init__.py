@@ -258,8 +258,8 @@ def get_submission_info(path: pathlib.Path) -> dict:
         logging.critical("The submission.json file does not exist.")
     except NotADirectoryError:
         logging.critical(f"The path '{path}' is not a team directory.")
-    except jsonschema.exceptions.ValidationError:
-        logging.critical("The submission.json file has not the right format.")
+    except jsonschema.exceptions.ValidationError as error:
+        logging.critical(f"The submission.json file does not have the right format: {error.message}")
 
 
 def get_all_team_dirs() -> Iterator[pathlib.Path]:
@@ -270,8 +270,7 @@ def get_all_team_dirs() -> Iterator[pathlib.Path]:
     one containing combined feedback.
     """
     for team_dir in args.sheet_root_dir.iterdir():
-        if team_dir.is_dir() and team_dir != args.sheet_root_dir / COMBINED_DIR_NAME\
-                and get_submission_info(team_dir):
+        if team_dir.is_dir() and team_dir != args.sheet_root_dir / COMBINED_DIR_NAME:
             yield team_dir
 
 
@@ -856,21 +855,23 @@ def create_individual_marks_file(_the_config: config.Config) -> None:
     Write a json file to add the marks per student.
     """
     with open(get_marks_file_path(_the_config), "r", encoding="utf-8") as marks_file:
-        marks = json.load(marks_file)
-    individual_marks = {}
-    marks_dict = {}
-    individual_marks.update({"tutor_name": _the_config.tutor_name})
-    individual_marks.update({"adam_sheet_name": get_adam_sheet_name_string()})
-    if _the_config.points_per == "exercise" and _the_config.marking_mode == "exercise":
-        individual_marks.update({"exercises": args.exercises})
+        team_marks = json.load(marks_file)
+    student_marks = {}
     for team_dir in get_relevant_team_dirs():
         submission_info = get_submission_info(team_dir)
+        team_key = get_team_key(submission_info)
         for first_name, last_name, email in submission_info.get("team"):
-            key = (f"{email}".lower())
-            marks_dict.update({key: marks.get(get_team_key(submission_info))})
-    individual_marks.update({"marks": marks_dict})
+            student_key = email.lower()
+            student_marks.update({student_key: team_marks.get(team_key)})
+    file_content = {
+        "tutor_name": _the_config.tutor_name,
+        "adam_sheet_name": get_adam_sheet_name_string(),
+        "marks": student_marks
+    }
+    if _the_config.points_per == "exercise" and _the_config.marking_mode == "exercise":
+        file_content["exercises"] = args.exercises
     with open(get_individual_marks_file_path(_the_config), "w", encoding="utf-8") as file:
-        json.dump(individual_marks, file, indent=4, ensure_ascii=False)
+        json.dump(file_content, file, indent=4, ensure_ascii=False)
 
 
 def create_share_archive(overwrite: Optional[bool]) -> None:
