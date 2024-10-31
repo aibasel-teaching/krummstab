@@ -687,7 +687,8 @@ def validate_marks_json(_the_config: config.Config) -> None:
             f"There are missing points in the '{marks_json_file.name}' file!"
         )
     if not all(
-        (float(mark) / _the_config.min_point_unit).is_integer() for mark in marks_list
+        (float(mark) / _the_config.min_point_unit).is_integer()
+        if mark != "Plagiat" else mark == "Plagiat" for mark in marks_list
     ):
         logging.critical(
             f"'{marks_json_file.name}' contains marks that are more"
