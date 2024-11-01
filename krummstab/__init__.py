@@ -22,6 +22,8 @@ import tempfile
 import textwrap
 from importlib import resources
 import jsonschema
+import xlsxwriter
+from xlsxwriter.utility import xl_range
 
 from zipfile import ZipFile
 
@@ -363,6 +365,96 @@ def unsupported_marking_mode_error(_the_config: config.Config) -> None:
     marking_mode.
     """
     logging.critical(f"Unsupported marking mode {_the_config.marking_mode}!")
+
+
+# ============================== Summarize Sub-Command =========================
+
+
+def summarize(_the_config: config.Config):
+    if not args.marks_dir.is_dir():
+        logging.critical("The given individual marks directory is not valid!")
+    if _the_config.marking_mode == "static":
+        email_to_name = {}
+        for team in _the_config.teams:
+            for first_name, last_name, email in team:
+                email_to_name[email] = (first_name, last_name)
+
+        workbook = xlsxwriter.Workbook("Points_Summary_Report.xlsx")
+        worksheet = workbook.add_worksheet("Points Summary")
+        bold_format = workbook.add_format({'bold': True})
+
+        marks_files = args.marks_dir.glob("points_*_individual.json")
+        students_marks = {}
+        sheet_names = set()
+
+        for file in marks_files:
+            with open(file, 'r') as f:
+                data = json.load(f)
+                sheet_name = data["adam_sheet_name"]
+                marks = data["marks"]
+                sheet_names.add(sheet_name)
+
+                for email, mark in marks.items():
+                    if email not in students_marks:
+                        students_marks[email] = {}
+                    students_marks[email][sheet_name] = mark
+
+        sheet_names = sorted(sheet_names)
+
+        worksheet.write(3, 0, "First Name", bold_format)
+        worksheet.write(3, 1, "Last Name", bold_format)
+        worksheet.write(3, 2, "Total Points", bold_format)
+        for col, sheet_name in enumerate(sheet_names, start=3):
+            worksheet.write(0, col, sheet_name, bold_format)
+        worksheet.write(1, 0, "Max Points", bold_format)
+        worksheet.write(2, 0, "Average", bold_format)
+
+        total_max_points = 0
+        for col, sheet_name in enumerate(sheet_names, start=3):
+            max_points_value = _the_config.max_points_per_sheet.get(sheet_name)
+            total_max_points += max_points_value
+            worksheet.write(1, col, max_points_value)
+            student_start_row = 4
+            student_end_row = student_start_row + len(students_marks) - 1
+            avg_range = xlsxwriter.utility.xl_range(student_start_row, col, student_end_row, col)
+            worksheet.write_formula(2, col, f"=AVERAGE({avg_range})")
+
+        sorted_emails = sorted(students_marks.keys(), key=lambda e: email_to_name[e][0])
+        for row, email in enumerate(sorted_emails, start=4):
+            first_name, last_name = email_to_name[email]
+            worksheet.write(row, 0, first_name)
+            worksheet.write(row, 1, last_name)
+            for col, sheet_name in enumerate(sheet_names, start=3):
+                mark = students_marks[email].get(sheet_name)
+                if mark is None:
+                    worksheet.write_blank(row, col, None)
+                elif isinstance(mark, str) and not mark.replace(".", "", 1).isdigit():
+                    worksheet.write(row, col, mark)
+                else:
+                    worksheet.write_number(row, col, float(mark))
+
+            sum_range = xl_range(row, 3, row, 3 + len(sheet_names) - 1)
+            worksheet.write_formula(row, 2, f"=SUM({sum_range})")
+
+            total_col = 2
+            for r in range(4, len(sorted_emails) + 4):
+                worksheet.conditional_format(r, total_col, r, total_col, {
+                    'type': 'formula',
+                    'criteria': f"=(INDIRECT(ADDRESS(ROW(),COLUMN()))/{total_max_points}) >= 0.65",
+                    'format': workbook.add_format({'bg_color': '#9BE189'})
+                })
+                worksheet.conditional_format(r, total_col, r, total_col, {
+                    'type': 'formula',
+                    'criteria': f"=(INDIRECT(ADDRESS(ROW(),COLUMN()))/{total_max_points}) >= 0.5",
+                    'format': workbook.add_format({'bg_color': '#FFFF00'})
+                })
+                worksheet.conditional_format(r, total_col, r, total_col, {
+                    'type': 'formula',
+                    'criteria': f"=(INDIRECT(ADDRESS(ROW(),COLUMN()))/{total_max_points}) < 0.5",
+                    'format': workbook.add_format({'bg_color': '#EE7868'})
+                })
+
+        workbook.close()
 
 
 # ============================== Send Sub-Command ==============================
@@ -1773,6 +1865,17 @@ def main():
         help="only print emails instead of sending them",
     )
     parser_send.set_defaults(func=send)
+    # Summarize command and arguments -----------------------------------------------
+    parser_summarize = subparsers.add_parser(
+        "summarize",
+        help="summarize individual marks files into Excel report",
+    )
+    parser_summarize.add_argument(
+        "marks_dir",
+        type=pathlib.Path,
+        help="path to the directory with all individual marks files",
+    )
+    parser_summarize.set_defaults(func=summarize)
 
     global args
     args = parser.parse_args()
