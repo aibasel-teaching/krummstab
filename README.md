@@ -15,9 +15,10 @@ semester as students drop the course or teams are reassigned. It is important
 that all tutors have an identical copy of the shared config file, meaning that
 whenever a tutor makes changes to the file, she or he should share the new
 version with the others, for example via the Discord server or uploading it to
-ADAM.
+ADAM. (Assistants can find tips for creating this file
+[here](#setting-up-shared-config-file).)
 
-The individual config file contains [personal settings](#individual-settings.md)
+The individual config file contains [personal settings](#individual-settings)
 that are only relevant to each tutor. These only need to be set once at the
 beginning of the course.
 
@@ -75,12 +76,12 @@ krummstab -h
 With the script installed, we continue with the config files. You should have
 gotten a `config-shared.json` file from the teaching assistant, copy this file
 into the directory you just created, in our example `ki-fs23-marking`. Similarly
-you can copy the `config-individual.json` file from the `tests` directory
-of this repository. Replace the example entries in the individual configurations
+you can copy the `config-individual.json` file from the `tests` directory of
+this repository. Replace the example entries in the individual configurations
 with your own information; The parameters are explained
-[here](#individual-settings.md). Make sure that the string you enter in the
-field `tutor_name` in your individual config exactly matches the existing entry
-in the `tutor_list` field of the shared config.
+[here](#individual-settings). Make sure that the string you enter in the field
+`tutor_name` in your individual config exactly matches the existing entry in the
+`tutor_list` field of the shared config.
 
 In general, it is important that the all configurations, besides the individual
 ones you just adjusted, are exactly the same across all tutors, as otherwise
@@ -92,8 +93,8 @@ This may in particular be necessary if teams change throughout the semester.
 In order to work with the script, you will have to call the `krummstab` command
 from a command line whose working directory is the one which contains the two
 config files. If you'd like to keep the config files somewhere else, you'll have
-to provide the paths to the files with the `-s` and `-i` flags whenever you call
-`krummstab`.
+to provide the paths to the files with the `-s path/to/shared` and `-i
+path/to/individual` flags whenever you call `krummstab`.
 
 
 ## Marking a Sheet
@@ -199,6 +200,16 @@ as expected.
 
 
 ## Config File Details
+
+### Setting Up Shared Config File
+- References for the structure of the file can be found in the `tests`
+  directory.
+- You should be able to get the list of students as an Excel file from ADAM:
+  course page > tab 'Content' ('Inhalt') > exercise page > tab 'Submissions and
+  Grades' ('Abgaben und Noten') > 'Grades View' ('Notenübersicht') > button
+  'Export (Excel)' at top of page. You can then run the shell script
+  `scripts/xlsx-to-config.sh` with the downloaded file as input to get a student
+  list in JSON format as a starting point for the shared config file.
 
 ### Individual Settings
 - `tutor_name`: ID of the tutor, this must match with either an element of
