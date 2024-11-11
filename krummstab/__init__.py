@@ -370,91 +370,192 @@ def unsupported_marking_mode_error(_the_config: config.Config) -> None:
 # ============================== Summarize Sub-Command =========================
 
 
-def summarize(_the_config: config.Config):
-    if not args.marks_dir.is_dir():
-        logging.critical("The given individual marks directory is not valid!")
-    if _the_config.marking_mode == "static":
-        email_to_name = {}
-        for team in _the_config.teams:
-            for first_name, last_name, email in team:
-                email_to_name[email] = (first_name, last_name)
+def summarize_points_per_exercise(_the_config: config.Config) -> None:
+    email_to_name = {}
+    for team in _the_config.teams:
+        for first_name, last_name, email in team:
+            email_to_name[email] = (first_name, last_name)
 
-        workbook = xlsxwriter.Workbook("Points_Summary_Report.xlsx")
-        worksheet = workbook.add_worksheet("Points Summary")
-        bold_format = workbook.add_format({'bold': True})
+    workbook = xlsxwriter.Workbook("Points_Summary_Report.xlsx")
+    worksheet = workbook.add_worksheet("Points Summary")
 
-        marks_files = args.marks_dir.glob("points_*_individual.json")
-        students_marks = {}
-        sheet_names = set()
+    marks_files = args.marks_dir.glob("points_*_individual.json")
+    students_marks = {}
+    graded_sheet_names = {}
 
-        for file in marks_files:
-            with open(file, 'r') as f:
-                data = json.load(f)
-                sheet_name = data["adam_sheet_name"]
-                marks = data["marks"]
-                sheet_names.add(sheet_name)
+    for file in marks_files:
+        with open(file, 'r') as f:
+            data = json.load(f)
+            sheet_name = data["adam_sheet_name"]
+            marks = data["marks"]
+            if sheet_name not in graded_sheet_names:
+                graded_sheet_names[sheet_name] = []
 
-                for email, mark in marks.items():
-                    if email not in students_marks:
-                        students_marks[email] = {}
-                    students_marks[email][sheet_name] = mark
+            for email, exercises in marks.items():
+                if email not in students_marks:
+                    students_marks[email] = {}
+                if sheet_name not in students_marks[email]:
+                    students_marks[email][sheet_name] = {}
+                students_marks[email][sheet_name] = exercises
+                for exercise in exercises:
+                    if exercise not in graded_sheet_names[sheet_name]:
+                        graded_sheet_names[sheet_name].append(exercise)
 
-        sheet_names = sorted(sheet_names)
+    bold_format = workbook.add_format({'bold': True})
+    worksheet.write(3, 0, "First Name", bold_format)
+    worksheet.write(3, 1, "Last Name", bold_format)
+    worksheet.write(3, 2, "Total Points", bold_format)
+    worksheet.write(1, 0, "Max Points", bold_format)
+    worksheet.write(2, 0, "Average", bold_format)
 
-        worksheet.write(3, 0, "First Name", bold_format)
-        worksheet.write(3, 1, "Last Name", bold_format)
-        worksheet.write(3, 2, "Total Points", bold_format)
-        for col, sheet_name in enumerate(sheet_names, start=3):
-            worksheet.write(0, col, sheet_name, bold_format)
-        worksheet.write(1, 0, "Max Points", bold_format)
-        worksheet.write(2, 0, "Average", bold_format)
+    all_sheet_names = _the_config.max_points_per_sheet.keys()
+    student_start_row = 4
+    student_end_row = student_start_row + len(students_marks) - 1
+    col = 3
+    for sheet_name in all_sheet_names:
+        worksheet.write(0, col, sheet_name, workbook.add_format({'bold': True, "left": 1}))
+        max_points_value = _the_config.max_points_per_sheet.get(sheet_name)
+        worksheet.write(1, col, max_points_value, workbook.add_format({"left": 1}))
+        if sheet_name in graded_sheet_names:
+            avg_range = xl_range(student_start_row, col, student_end_row, col)
+            worksheet.write_formula(2, col, f"=AVERAGE({avg_range})", workbook.add_format({"left": 1}))
+            col += 1
+            for exercise in sorted(graded_sheet_names[sheet_name]):
+                worksheet.write(0, col, exercise.replace("exercise", "task"), bold_format)
+                col += 1
+        else:
+            col += 1
 
-        total_max_points = 0
-        for col, sheet_name in enumerate(sheet_names, start=3):
-            max_points_value = _the_config.max_points_per_sheet.get(sheet_name)
-            total_max_points += max_points_value
-            worksheet.write(1, col, max_points_value)
-            student_start_row = 4
-            student_end_row = student_start_row + len(students_marks) - 1
-            avg_range = xlsxwriter.utility.xl_range(student_start_row, col, student_end_row, col)
+    workbook.close()
+
+
+def summarize_points_per_sheet(_the_config: config.Config) -> None:
+    email_to_name = {}
+    for team in _the_config.teams:
+        for first_name, last_name, email in team:
+            email_to_name[email] = (first_name, last_name)
+
+    workbook = xlsxwriter.Workbook("Points_Summary_Report.xlsx")
+    worksheet = workbook.add_worksheet("Points Summary")
+
+    marks_files = args.marks_dir.glob("points_*_individual.json")
+    students_marks = {}
+    graded_sheet_names = set()
+
+    for file in marks_files:
+        with open(file, 'r') as f:
+            data = json.load(f)
+            sheet_name = data["adam_sheet_name"]
+            marks = data["marks"]
+            graded_sheet_names.add(sheet_name)
+
+            for email, mark in marks.items():
+                if email not in students_marks:
+                    students_marks[email] = {}
+                students_marks[email][sheet_name] = mark
+
+    bold_format = workbook.add_format({'bold': True})
+    worksheet.write(3, 0, "First Name", bold_format)
+    worksheet.write(3, 1, "Last Name", bold_format)
+    worksheet.write(3, 2, "Total Points", bold_format)
+    worksheet.write(1, 0, "Max Points", bold_format)
+    worksheet.write(2, 0, "Average", bold_format)
+
+    all_sheet_names = _the_config.max_points_per_sheet.keys()
+    student_start_row = 4
+    student_end_row = student_start_row + len(students_marks) - 1
+    for col, sheet_name in enumerate(all_sheet_names, start=3):
+        worksheet.write(0, col, sheet_name, bold_format)
+        max_points_value = _the_config.max_points_per_sheet.get(sheet_name)
+        worksheet.write(1, col, max_points_value)
+        if sheet_name in graded_sheet_names:
+            avg_range = xl_range(student_start_row, col, student_end_row, col)
             worksheet.write_formula(2, col, f"=AVERAGE({avg_range})")
 
-        sorted_emails = sorted(students_marks.keys(), key=lambda e: email_to_name[e][0])
-        for row, email in enumerate(sorted_emails, start=4):
-            first_name, last_name = email_to_name[email]
-            worksheet.write(row, 0, first_name)
-            worksheet.write(row, 1, last_name)
-            for col, sheet_name in enumerate(sheet_names, start=3):
-                mark = students_marks[email].get(sheet_name)
-                if mark is None:
-                    worksheet.write_blank(row, col, None)
-                elif isinstance(mark, str) and not mark.replace(".", "", 1).isdigit():
-                    worksheet.write(row, col, mark)
-                else:
-                    worksheet.write_number(row, col, float(mark))
+    sorted_emails = sorted(students_marks.keys(), key=lambda e: email_to_name[e][0])
+    total_points_all_sheets_range = xl_range(1, 3, 1, 3 + len(all_sheet_names) - 1)
+    graded_sheets_points_range = xl_range(1, 3, 1, 3 + len(graded_sheet_names) - 1)
+    possible_points_range = xl_range(1, 3 + len(graded_sheet_names), 1, 3 + len(all_sheet_names) - 1)
+    for row, email in enumerate(sorted_emails, start=student_start_row):
+        first_name, last_name = email_to_name[email]
+        if row % 2 == 0:
+            worksheet.write(row, 0, first_name, workbook.add_format({'top': 1, 'bottom': 1, 'bg_color': '#E2E2E2'}))
+            worksheet.write(row, 1, last_name, workbook.add_format({'top': 1, 'bottom': 1, 'bg_color': '#E2E2E2'}))
+            worksheet.set_row(row, None, workbook.add_format({'bg_color': '#E2E2E2'}))
+        else:
+            worksheet.write(row, 0, first_name, workbook.add_format({'top': 1, 'bottom': 1}))
+            worksheet.write(row, 1, last_name, workbook.add_format({'top': 1, 'bottom': 1}))
 
-            sum_range = xl_range(row, 3, row, 3 + len(sheet_names) - 1)
-            worksheet.write_formula(row, 2, f"=SUM({sum_range})")
+        for col, sheet_name in enumerate(list(all_sheet_names)[:len(graded_sheet_names)], start=3):
+            mark = students_marks[email].get(sheet_name)
+            if mark is None:
+                worksheet.write_blank(row, col, None)
+            elif isinstance(mark, str) and not mark.replace(".", "", 1).isdigit():
+                worksheet.write(row, col, mark)
+            else:
+                worksheet.write_number(row, col, float(mark))
 
-            total_col = 2
-            for r in range(4, len(sorted_emails) + 4):
-                worksheet.conditional_format(r, total_col, r, total_col, {
-                    'type': 'formula',
-                    'criteria': f"=(INDIRECT(ADDRESS(ROW(),COLUMN()))/{total_max_points}) >= 0.65",
-                    'format': workbook.add_format({'bg_color': '#9BE189'})
-                })
-                worksheet.conditional_format(r, total_col, r, total_col, {
-                    'type': 'formula',
-                    'criteria': f"=(INDIRECT(ADDRESS(ROW(),COLUMN()))/{total_max_points}) >= 0.5",
-                    'format': workbook.add_format({'bg_color': '#FFFF00'})
-                })
-                worksheet.conditional_format(r, total_col, r, total_col, {
-                    'type': 'formula',
-                    'criteria': f"=(INDIRECT(ADDRESS(ROW(),COLUMN()))/{total_max_points}) < 0.5",
-                    'format': workbook.add_format({'bg_color': '#EE7868'})
-                })
+        student_marks_range = xl_range(row, 3, row, 3 + len(all_sheet_names) - 1)
+        worksheet.write_formula(row, 2, f"=SUM({student_marks_range})", workbook.add_format({'border': 1}))
 
-        workbook.close()
+        worksheet.conditional_format(row, 0, row, 0, {
+            'type': 'formula',
+            'criteria': f'=COUNTIF({student_marks_range},"Plagiat") >= 2',
+            'format': workbook.add_format({'bg_color': 'red'})
+        })
+        worksheet.conditional_format(row, 1, row, 1, {
+            'type': 'formula',
+            'criteria': f'=COUNTIF({student_marks_range},"Plagiat") >= 2',
+            'format': workbook.add_format({'bg_color': 'red'})
+        })
+        worksheet.conditional_format(row, 0, row, 0, {
+            'type': 'formula',
+            'criteria': f"=(SUM(INDIRECT(ADDRESS(ROW(),3)), SUM({possible_points_range})))"
+                        f" < (SUM({total_points_all_sheets_range}) * 0.5)",
+            'format': workbook.add_format({'bg_color': 'EE7868'})
+        })
+        worksheet.conditional_format(row, 1, row, 1, {
+            'type': 'formula',
+            'criteria': f"=(SUM(INDIRECT(ADDRESS(ROW(),3)), SUM({possible_points_range})))"
+                        f" < (SUM({total_points_all_sheets_range}) * 0.5)",
+            'format': workbook.add_format({'bg_color': 'EE7868'})
+        })
+        worksheet.conditional_format(row, 0, row, 0, {
+            'type': 'formula',
+            'criteria': f"INDIRECT(ADDRESS(ROW(),3)) >= (SUM({total_points_all_sheets_range}) * 0.5)",
+            'format': workbook.add_format({'bg_color': '#9BE189'})
+        })
+        worksheet.conditional_format(row, 1, row, 1, {
+            'type': 'formula',
+            'criteria': f"INDIRECT(ADDRESS(ROW(),3)) >= (SUM({total_points_all_sheets_range}) * 0.5)",
+            'format': workbook.add_format({'bg_color': '#9BE189'})
+        })
+        worksheet.conditional_format(row, 2, row, 2, {
+            'type': 'formula',
+            'criteria': f"=(INDIRECT(ADDRESS(ROW(),COLUMN()))/SUM({graded_sheets_points_range})) >= 0.65",
+            'format': workbook.add_format({'bg_color': '#9BE189'})
+        })
+        worksheet.conditional_format(row, 2, row, 2, {
+            'type': 'formula',
+            'criteria': f"=(INDIRECT(ADDRESS(ROW(),COLUMN()))/SUM({graded_sheets_points_range})) >= 0.5",
+            'format': workbook.add_format({'bg_color': '#FFFF00'})
+        })
+        worksheet.conditional_format(row, 2, row, 2, {
+            'type': 'formula',
+            'criteria': f"=(INDIRECT(ADDRESS(ROW(),COLUMN()))/SUM({graded_sheets_points_range})) < 0.5",
+            'format': workbook.add_format({'bg_color': '#EE7868'})
+        })
+
+    workbook.close()
+
+
+def summarize(_the_config: config.Config) -> None:
+    if not args.marks_dir.is_dir():
+        logging.critical("The given individual marks directory is not valid!")
+    if _the_config.marking_mode == "static" and _the_config.points_per == "sheet":
+        summarize_points_per_sheet(_the_config)
+    elif _the_config.marking_mode == "static" and _the_config.points_per == "exercise":
+        summarize_points_per_exercise(_the_config)
 
 
 # ============================== Send Sub-Command ==============================
