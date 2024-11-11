@@ -42,6 +42,39 @@ class Config:
         self.teams.sort()
         logging.info("Processed config successfully.")
 
+    def unsupported_marking_mode_error(self) -> None:
+        """
+        Throw an error if a marking mode is encountered that is not handled
+        correctly. This is primarily used in the else case of if-elif-else branches
+        on the marking_mode, which shouldn't be reached in regular operation anyway
+        because the config settings should be validated first. But this function
+        offers an easy way to find sections to consider if we ever want to add a new
+        marking_mode.
+        """
+        logging.critical(f"Unsupported marking mode {self.marking_mode}!")
+
+    def get_relevant_teams(self) -> list[Team]:
+        """
+        Get a list of teams that the tutor specified in the config has to mark.
+        We rename the directories using the `DO_NOT_MARK_PREFIX` and thereafter only
+        access relevant teams via `get_relevant_team_dirs()`.
+        """
+        if self.marking_mode == "static":
+            return self.classes[self.tutor_name]
+        elif self.marking_mode == "exercise":
+            return self.teams
+        else:
+            self.unsupported_marking_mode_error()
+            return []
+
+
+def team_to_string(team: Team) -> str:
+    """
+    Concatenate the last names of students to get a pretty-ish string
+    representation of teams.
+    """
+    return "_".join(sorted([student[1].replace(" ", "-") for student in team]))
+
 
 def _validate_teams(teams: list[Team], max_team_size) -> None:
     """
