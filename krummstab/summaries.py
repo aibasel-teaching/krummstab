@@ -226,8 +226,9 @@ def load_marks_files(marks_dir: Path, _the_config: config.Config):
                         if exercise not in graded_sheet_names[sheet_name]:
                             graded_sheet_names[sheet_name].append(exercise)
             else:
+                graded_sheet_names.add(sheet_name)
                 for email, mark in marks.items():
-                    if students_marks[email][sheet_name]:
+                    if students_marks[email].get(sheet_name):
                         logging.warning(f'Sheet {sheet_name} is marked multiple times for {email}!')
                     students_marks[email][sheet_name] = mark
     for sheet_name, tutor_list in tutors.items():
