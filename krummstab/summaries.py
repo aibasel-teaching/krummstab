@@ -79,9 +79,10 @@ def add_student_marks_worksheet_points_per_exercise(workbook: Workbook, workshee
     points_per_sheet_cell_addresses = []
     for sheet_name in list(all_sheet_names)[:len(graded_sheet_names)]:
         student_marks_range = xl_range_abs(row, col + 1, row, col + len(graded_sheet_names[sheet_name]))
-        worksheet.write_formula(
-            row, col,
-            f'=IF(COUNTIF({student_marks_range},"Plagiat") > 0,"Plagiat",SUM({student_marks_range}))',
+        worksheet.write_dynamic_array_formula(
+            row, col, row, col,
+            f'=IF(COUNTIF({student_marks_range},"Plagiat") > 0,"Plagiat",'
+            f'IF(AND(NOT(ISNUMBER({student_marks_range}))),"",SUM({student_marks_range})))',
             workbook.add_format(BORDER_LEFT)
         )
         cell_address = xl_rowcol_to_cell(row, col)
