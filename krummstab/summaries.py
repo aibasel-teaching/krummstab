@@ -16,10 +16,30 @@ BORDER_LEFT = {'left': 1}
 BORDER_TOP_BOTTOM = {'top': 1, 'bottom': 1}
 GRAY = {'bg_color': '#E2E2E2'}
 GREEN = {'bg_color': '#9BE189'}
-YELLOW = {'bg_color': '#FFFF00'}
+YELLOW = {'bg_color': '#FFE699'}
 RED = {'bg_color': '#EE7868'}
 PLAGIARISM_RED = {'bg_color': 'red'}
 PERCENT = {'num_format': '0%'}
+
+
+def add_legend(workbook: Workbook, worksheet: Worksheet, student_end_row: int):
+    worksheet.merge_range(student_end_row + 3, 0, student_end_row + 3, 2, "Pass", workbook.add_format(GREEN | BORDER))
+    worksheet.merge_range(student_end_row + 4, 0, student_end_row + 4, 2, "Fail", workbook.add_format(RED | BORDER))
+    worksheet.merge_range(
+        student_end_row + 5, 0, student_end_row + 5, 1, "Plagiarism", workbook.add_format(PLAGIARISM_RED | BORDER)
+    )
+    worksheet.merge_range(
+        student_end_row + 6, 3, student_end_row + 6, 4,
+        "Will pass with current average", workbook.add_format(GREEN | BORDER)
+    )
+    worksheet.merge_range(
+        student_end_row + 7, 3, student_end_row + 7, 4,
+        "Improve average slightly", workbook.add_format(YELLOW | BORDER)
+    )
+    worksheet.merge_range(
+        student_end_row + 8, 3, student_end_row + 8, 4,
+        "Improve average a lot", workbook.add_format(RED | BORDER)
+    )
 
 
 def add_pass_or_fail_conditional_formatting(workbook: Workbook, worksheet: Worksheet, row: int,
@@ -184,7 +204,7 @@ def create_worksheet_points_per_sheet(workbook: Workbook, _the_config: config.Co
     worksheet.write(2, 0, "Average", workbook.add_format(BOLD))
 
     student_start_row = 4
-    student_end_row = student_start_row + len(students_marks) - 1
+    student_end_row = student_start_row + len(email_to_name) - 1
     for col, sheet_name in enumerate(all_sheet_names, start=5):
         worksheet.write(0, col, sheet_name, workbook.add_format(BOLD))
         max_points_value = _the_config.max_points_per_sheet.get(sheet_name)
@@ -203,6 +223,7 @@ def create_worksheet_points_per_sheet(workbook: Workbook, _the_config: config.Co
         add_average_conditional_formatting(workbook, worksheet, row)
         add_plagiarism_conditional_formatting(workbook, worksheet, row, all_sheet_names)
         add_pass_or_fail_conditional_formatting(workbook, worksheet, row, graded_sheet_names, all_sheet_names)
+    add_legend(workbook, worksheet, student_end_row)
     worksheet.autofit()
 
 
