@@ -368,6 +368,10 @@ def unsupported_marking_mode_error(_the_config: config.Config) -> None:
 
 
 def summarize(_the_config: config.Config) -> None:
+    """
+    Generate an Excel file summarizing students' marks after the individual marks
+    files have been collected in a directory.
+    """
     if not args.marks_dir.is_dir():
         logging.critical("The given individual marks directory is not valid!")
     summaries.create_marks_summary_excel_file(_the_config, args.marks_dir)
