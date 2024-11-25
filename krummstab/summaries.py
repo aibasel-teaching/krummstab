@@ -23,6 +23,9 @@ PERCENT = {'num_format': '0%'}
 
 
 def add_legend(workbook: Workbook, worksheet: Worksheet, student_end_row: int):
+    """
+    Adds a legend that explains the conditional formatting.
+    """
     worksheet.merge_range(student_end_row + 3, 0, student_end_row + 3, 2, "Pass", workbook.add_format(GREEN | BORDER))
     worksheet.merge_range(student_end_row + 4, 0, student_end_row + 4, 2, "Fail", workbook.add_format(RED | BORDER))
     worksheet.merge_range(
@@ -44,6 +47,10 @@ def add_legend(workbook: Workbook, worksheet: Worksheet, student_end_row: int):
 
 def add_pass_or_fail_conditional_formatting(workbook: Workbook, worksheet: Worksheet, row: int,
                                             graded_sheet_names, all_sheet_names):
+    """
+    Colors the name red if not enough points can be collected.
+    Colors the name green when enough points have been collected.
+    """
     total_points_all_sheets_range = xl_range_abs(1, 5, 1, 5 + len(all_sheet_names) - 1)
     possible_points_range = xl_range_abs(1, 5 + len(graded_sheet_names), 1, 5 + len(all_sheet_names) - 1)
     worksheet.conditional_format(row, 0, row, 2, {
@@ -61,6 +68,9 @@ def add_pass_or_fail_conditional_formatting(workbook: Workbook, worksheet: Works
 
 def add_plagiarism_conditional_formatting(workbook: Workbook, worksheet: Worksheet,
                                           row: int, all_sheet_names):
+    """
+    Colors the name bright red if there are two plagiarisms.
+    """
     student_marks_range = xl_range_abs(row, 5, row, 5 + len(all_sheet_names) - 1)
     worksheet.conditional_format(row, 0, row, 1, {
         'type': 'formula',
@@ -70,6 +80,10 @@ def add_plagiarism_conditional_formatting(workbook: Workbook, worksheet: Workshe
 
 
 def add_average_conditional_formatting(workbook: Workbook, worksheet: Worksheet, row: int):
+    """
+    Adds the conditional formatting for the current average and the percentage
+    by which the average must be improved.
+    """
     worksheet.conditional_format(row, 3, row, 4, {
         'type': 'formula',
         'criteria': f'=INDIRECT(ADDRESS(ROW(),5)) <= 0%',
@@ -88,6 +102,11 @@ def add_average_conditional_formatting(workbook: Workbook, worksheet: Worksheet,
 
 
 def add_student_average(workbook: Workbook, worksheet: Worksheet, row: int, graded_sheet_names, all_sheet_names):
+    """
+    Calculates a student's current weighted average and the percentage
+    by which the average must be improved to pass with the remaining
+    exercise sheets.
+    """
     student_marks_range = xl_range_abs(row, 5, row, 5 + len(all_sheet_names) - 1)
     total_points_all_sheets_range = xl_range_abs(1, 5, 1, 5 + len(all_sheet_names) - 1)
     possible_points_range = xl_range_abs(1, 5 + len(graded_sheet_names), 1, 5 + len(all_sheet_names) - 1)
@@ -104,6 +123,9 @@ def add_student_average(workbook: Workbook, worksheet: Worksheet, row: int, grad
 
 
 def write_mark(worksheet, row, col, mark) -> None:
+    """
+    Writes a mark in the cell specified by row and column.
+    """
     if mark is None:
         worksheet.write_blank(row, col, None)
     elif isinstance(mark, str) and not mark.replace(".", "", 1).isdigit():
@@ -116,6 +138,12 @@ def add_student_marks_worksheet_points_per_sheet(workbook: Workbook, worksheet: 
                                                  _the_config: config.Config, row, email,
                                                  students_marks, all_sheet_names, graded_sheet_names,
                                                  points_per_sheet_cell_addresses):
+    """
+    Writes the points per sheet of a student in the worksheet for the sheets and calculates
+    the sum to get the total points of the student.
+    If points are given per exercise: Uses cell addresses from the points per
+    exercise worksheet that contain the calculated points per sheet.
+    """
     if _the_config.points_per == 'exercise':
         for col, cell_address in enumerate(points_per_sheet_cell_addresses[email], start=5):
             worksheet.write(row, col, f"={cell_address}")
@@ -130,6 +158,11 @@ def add_student_marks_worksheet_points_per_sheet(workbook: Workbook, worksheet: 
 def add_student_marks_worksheet_points_per_exercise(workbook: Workbook, worksheet: Worksheet,
                                                     row, email, students_marks, all_sheet_names,
                                                     graded_sheet_names) -> list[str]:
+    """
+    Writes the points per exercise of a student in the worksheet for the exercises, calculates
+    the sum to get the points per sheet and handles plagiarism. Returns a list of
+    cell addresses containing the calculated points per sheet.
+    """
     col = 2
     points_per_sheet_cell_addresses = []
     for sheet_name in list(all_sheet_names)[:len(graded_sheet_names)]:
@@ -151,6 +184,11 @@ def add_student_marks_worksheet_points_per_exercise(workbook: Workbook, workshee
 
 
 def add_student_name(workbook, worksheet, row, name) -> None:
+    """
+    Writes the specified name of the student in the first two columns
+    for the specified row. Changes the background color of the row
+    alternately to gray for better readability.
+    """
     first_name, last_name = name
     if row % 2 == 0:
         worksheet.write(row, 0, first_name, workbook.add_format(BORDER_TOP_BOTTOM | GRAY))
@@ -162,7 +200,11 @@ def add_student_name(workbook, worksheet, row, name) -> None:
 
 
 def create_worksheet_points_per_exercise(workbook: Workbook, email_to_name, students_marks, all_sheet_names,
-                                         graded_sheet_names) -> (Worksheet, defaultdict[str, list[str]]):
+                                         graded_sheet_names) -> defaultdict[str, list[str]]:
+    """
+    Creates an Excel worksheet that contains the points per exercise. Returns a dict with the
+    students' email addresses and the cell addresses that contain the calculated points per sheet.
+    """
     worksheet = workbook.add_worksheet("Points Per Exercise")
     worksheet.write(0, 0, "First Name", workbook.add_format(BOLD))
     worksheet.write(0, 1, "Last Name", workbook.add_format(BOLD))
@@ -186,13 +228,17 @@ def create_worksheet_points_per_exercise(workbook: Workbook, email_to_name, stud
         )
         all_points_per_sheet_cell_addresses[email] = points_per_sheet_cell_addresses
     worksheet.autofit()
-    return worksheet, all_points_per_sheet_cell_addresses
+    return all_points_per_sheet_cell_addresses
 
 
 def create_worksheet_points_per_sheet(workbook: Workbook, _the_config: config.Config,
                                       email_to_name, students_marks,
                                       all_sheet_names, graded_sheet_names,
                                       points_per_sheet_cell_addresses) -> None:
+    """
+    Creates an Excel worksheet that contains the points per sheet,
+    useful values calculated with functions, and conditional formatting.
+    """
     worksheet = workbook.add_worksheet("Points Summary")
     worksheet.activate()
     worksheet.write(3, 0, "First Name", workbook.add_format(BOLD))
@@ -228,6 +274,9 @@ def create_worksheet_points_per_sheet(workbook: Workbook, _the_config: config.Co
 
 
 def load_marks_files(marks_dir: Path, _the_config: config.Config):
+    """
+    Loads the data of the individual marks files in the specified directory.
+    """
     marks_files = marks_dir.glob("points_*_individual.json")
     if _the_config.points_per == 'exercise':
         students_marks = defaultdict(lambda: defaultdict(dict))
@@ -264,6 +313,9 @@ def load_marks_files(marks_dir: Path, _the_config: config.Config):
 
 
 def create_email_to_name_dict(_the_config: config.Config) -> dict[str, tuple[str, str]]:
+    """
+    Maps the students' email addresses to their first and last name.
+    """
     email_to_name = {}
     for team in _the_config.teams:
         for first_name, last_name, email in team:
@@ -272,13 +324,18 @@ def create_email_to_name_dict(_the_config: config.Config) -> dict[str, tuple[str
 
 
 def create_marks_summary_excel_file(_the_config: config.Config, marks_dir: Path) -> None:
+    """
+    Generates an Excel file that summarizes the students' marks. Uses a path
+    to a directory
+    containing the individual marks files.
+    """
     email_to_name = create_email_to_name_dict(_the_config)
     workbook = xlsxwriter.Workbook("Points_Summary_Report.xlsx")
     students_marks, graded_sheet_names = load_marks_files(marks_dir, _the_config)
     all_sheet_names = _the_config.max_points_per_sheet.keys()
     points_per_sheet_cell_addresses = None
     if _the_config.points_per == 'exercise':
-        worksheet_exercise, points_per_sheet_cell_addresses = create_worksheet_points_per_exercise(
+        points_per_sheet_cell_addresses = create_worksheet_points_per_exercise(
             workbook, email_to_name, students_marks, all_sheet_names, graded_sheet_names
         )
     create_worksheet_points_per_sheet(

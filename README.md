@@ -23,9 +23,9 @@ beginning of the course.
 
 Depending on the general settings of the shared config file, different command
 line options may be mandatory. The `help` option provides information about the
-script, its subcommands (currently `init`, `collect`, `combine` and `send`), and
-their parameters. Once you have completed the one-time setup below, you'll be
-able to access the help via:
+script, its subcommands (currently `init`, `collect`, `combine`, `send` and 
+`summarize`), and their parameters. Once you have completed the one-time 
+setup below, you'll be able to access the help via:
 ```
 krummstab -h
 krummstab <subcommand> -h
@@ -178,7 +178,8 @@ This will create a zip archive in every feedback directory containing the
 feedback for that team. Additionally, a semicolon-separated list of all points
 is printed. This can be useful in case you have to paste the points into a
 shared spreadsheet. The names are there to be able to double-check that the rows
-match up.
+match up. A json file containing the individual points per student is also 
+generated.
 
 In case you need make changes to the markings and rerun the collection step, use
 the `-r` flag to overwrite existing feedback archives. If you are using
@@ -196,6 +197,18 @@ university network, which likely means you'll have to connect to the university
 VPN. You may find the `--dry_run` option useful, instead of sending the e-mails
 directly, it only prints them so that you can double-check that everything looks
 as expected.
+
+### summarize
+This command generates an Excel file that summarizes the students' marks. 
+It needs a path to a directory containing the individual marks json files:
+```
+krummstab summarize path-to-a-directory-with-individual-marks-files
+```
+If you use LibreOffice, it is possible that the formulas are not calculated 
+immediately. To calculate them, use the Recalculate Hard command in 
+LibreOffice. To access this command:
+- From the menu bar: Data - Calculate - Recalculate hard
+- From the keyboard: Command + Shift + F9
 
 
 ## Config File Details
@@ -230,6 +243,8 @@ as expected.
 - `min_point_unit`: a float denoting the smallest allowed point fraction, for
   example `0.5`, or `1`
 - `tutor_list`: list to identify tutors, for example a list of first names
+- `max_points_per_sheet`: a dictionary with all exercise sheet names as keys 
+  and their maximum possible points as values
 - `max_team_size`: integer denoting the maximum number of members a team may
   have
 
