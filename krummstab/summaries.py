@@ -19,12 +19,13 @@ GREEN = {'bg_color': '#9BE189'}
 YELLOW = {'bg_color': '#FFFF00'}
 RED = {'bg_color': '#EE7868'}
 PLAGIARISM_RED = {'bg_color': 'red'}
+PERCENT = {'num_format': '0%'}
 
 
 def add_pass_or_fail_conditional_formatting(workbook: Workbook, worksheet: Worksheet, row: int,
                                             graded_sheet_names, all_sheet_names):
-    total_points_all_sheets_range = xl_range_abs(1, 3, 1, 3 + len(all_sheet_names) - 1)
-    possible_points_range = xl_range_abs(1, 3 + len(graded_sheet_names), 1, 3 + len(all_sheet_names) - 1)
+    total_points_all_sheets_range = xl_range_abs(1, 5, 1, 5 + len(all_sheet_names) - 1)
+    possible_points_range = xl_range_abs(1, 5 + len(graded_sheet_names), 1, 5 + len(all_sheet_names) - 1)
     worksheet.conditional_format(row, 0, row, 2, {
         'type': 'formula',
         'criteria': f"=(SUM(INDIRECT(ADDRESS(ROW(),3)), SUM({possible_points_range})))"
@@ -40,12 +41,46 @@ def add_pass_or_fail_conditional_formatting(workbook: Workbook, worksheet: Works
 
 def add_plagiarism_conditional_formatting(workbook: Workbook, worksheet: Worksheet,
                                           row: int, all_sheet_names):
-    student_marks_range = xl_range_abs(row, 3, row, 3 + len(all_sheet_names) - 1)
+    student_marks_range = xl_range_abs(row, 5, row, 5 + len(all_sheet_names) - 1)
     worksheet.conditional_format(row, 0, row, 1, {
         'type': 'formula',
         'criteria': f'=COUNTIF({student_marks_range},"Plagiat") >= 2',
         'format': workbook.add_format(PLAGIARISM_RED)
     })
+
+
+def add_average_conditional_formatting(workbook: Workbook, worksheet: Worksheet, row: int):
+    worksheet.conditional_format(row, 3, row, 4, {
+        'type': 'formula',
+        'criteria': f'=INDIRECT(ADDRESS(ROW(),5)) <= 0%',
+        'format': workbook.add_format(GREEN)
+    })
+    worksheet.conditional_format(row, 3, row, 4, {
+        'type': 'formula',
+        'criteria': f'=INDIRECT(ADDRESS(ROW(),5)) <= 15%',
+        'format': workbook.add_format(YELLOW)
+    })
+    worksheet.conditional_format(row, 3, row, 4, {
+        'type': 'formula',
+        'criteria': f'=INDIRECT(ADDRESS(ROW(),5)) > 15%',
+        'format': workbook.add_format(RED)
+    })
+
+
+def add_student_average(workbook: Workbook, worksheet: Worksheet, row: int, graded_sheet_names, all_sheet_names):
+    student_marks_range = xl_range_abs(row, 5, row, 5 + len(all_sheet_names) - 1)
+    total_points_all_sheets_range = xl_range_abs(1, 5, 1, 5 + len(all_sheet_names) - 1)
+    possible_points_range = xl_range_abs(1, 5 + len(graded_sheet_names), 1, 5 + len(all_sheet_names) - 1)
+    worksheet.write_formula(row, 3,
+                            f'=IFERROR(SUMPRODUCT(ISNUMBER({student_marks_range})*1,{student_marks_range},'
+                            f' {total_points_all_sheets_range}) / SUMPRODUCT(ISNUMBER({student_marks_range})*1,'
+                            f' {total_points_all_sheets_range}),"")',
+                            workbook.add_format(BORDER))
+    worksheet.write_formula(row, 4,
+                            f'=IFERROR((SUM({total_points_all_sheets_range})*0.5'
+                            f' - (INDIRECT(ADDRESS(ROW(),3))))/(COLUMNS({possible_points_range})'
+                            f'*(INDIRECT(ADDRESS(ROW(),4))))-1,"")',
+                            workbook.add_format(BORDER | PERCENT))
 
 
 def write_mark(worksheet, row, col, mark) -> None:
@@ -62,13 +97,13 @@ def add_student_marks_worksheet_points_per_sheet(workbook: Workbook, worksheet: 
                                                  students_marks, all_sheet_names, graded_sheet_names,
                                                  points_per_sheet_cell_addresses):
     if _the_config.points_per == 'exercise':
-        for col, cell_address in enumerate(points_per_sheet_cell_addresses[email], start=3):
+        for col, cell_address in enumerate(points_per_sheet_cell_addresses[email], start=5):
             worksheet.write(row, col, f"={cell_address}")
     else:
-        for col, sheet_name in enumerate(list(all_sheet_names)[:len(graded_sheet_names)], start=3):
+        for col, sheet_name in enumerate(list(all_sheet_names)[:len(graded_sheet_names)], start=5):
             mark = students_marks[email].get(sheet_name)
             write_mark(worksheet, row, col, mark)
-    student_marks_range = xl_range_abs(row, 3, row, 3 + len(all_sheet_names) - 1)
+    student_marks_range = xl_range_abs(row, 5, row, 5 + len(all_sheet_names) - 1)
     worksheet.write_formula(row, 2, f"=SUM({student_marks_range})", workbook.add_format(BORDER))
 
 
@@ -123,13 +158,14 @@ def create_worksheet_points_per_exercise(workbook: Workbook, email_to_name, stud
             col += 1
     all_points_per_sheet_cell_addresses = defaultdict(list)
     student_start_row = 1
-    sorted_emails = sorted(email_to_name.keys(), key=lambda e: email_to_name[e][0])
+    sorted_emails = sorted(email_to_name.keys(), key=lambda e: (email_to_name[e][0], email_to_name[e][1]))
     for row, email in enumerate(sorted_emails, start=student_start_row):
         add_student_name(workbook, worksheet, row, email_to_name[email])
         points_per_sheet_cell_addresses = add_student_marks_worksheet_points_per_exercise(
             workbook, worksheet, row, email, students_marks, all_sheet_names, graded_sheet_names
         )
         all_points_per_sheet_cell_addresses[email] = points_per_sheet_cell_addresses
+    worksheet.autofit()
     return worksheet, all_points_per_sheet_cell_addresses
 
 
@@ -142,28 +178,32 @@ def create_worksheet_points_per_sheet(workbook: Workbook, _the_config: config.Co
     worksheet.write(3, 0, "First Name", workbook.add_format(BOLD))
     worksheet.write(3, 1, "Last Name", workbook.add_format(BOLD))
     worksheet.write(3, 2, "Total Points", workbook.add_format(BOLD))
+    worksheet.write(3, 3, "Current Average", workbook.add_format(BOLD))
+    worksheet.write(3, 4, "Improve", workbook.add_format(BOLD))
     worksheet.write(1, 0, "Max Points", workbook.add_format(BOLD))
     worksheet.write(2, 0, "Average", workbook.add_format(BOLD))
 
     student_start_row = 4
     student_end_row = student_start_row + len(students_marks) - 1
-    for col, sheet_name in enumerate(all_sheet_names, start=3):
+    for col, sheet_name in enumerate(all_sheet_names, start=5):
         worksheet.write(0, col, sheet_name, workbook.add_format(BOLD))
         max_points_value = _the_config.max_points_per_sheet.get(sheet_name)
         worksheet.write(1, col, max_points_value)
-        if sheet_name in graded_sheet_names:
-            avg_range = xl_range_abs(student_start_row, col, student_end_row, col)
-            worksheet.write_formula(2, col, f"=AVERAGE({avg_range})")
+        avg_range = xl_range_abs(student_start_row, col, student_end_row, col)
+        worksheet.write_formula(2, col, f'=IFERROR(AVERAGE({avg_range}),"")')
 
-    sorted_emails = sorted(email_to_name.keys(), key=lambda e: email_to_name[e][0])
+    sorted_emails = sorted(email_to_name.keys(), key=lambda e: (email_to_name[e][0], email_to_name[e][1]))
     for row, email in enumerate(sorted_emails, start=student_start_row):
         add_student_name(workbook, worksheet, row, email_to_name[email])
         add_student_marks_worksheet_points_per_sheet(workbook, worksheet, _the_config,
                                                      row, email, students_marks,
                                                      all_sheet_names, graded_sheet_names,
                                                      points_per_sheet_cell_addresses)
+        add_student_average(workbook, worksheet, row, graded_sheet_names, all_sheet_names)
+        add_average_conditional_formatting(workbook, worksheet, row)
         add_plagiarism_conditional_formatting(workbook, worksheet, row, all_sheet_names)
         add_pass_or_fail_conditional_formatting(workbook, worksheet, row, graded_sheet_names, all_sheet_names)
+    worksheet.autofit()
 
 
 def load_marks_files(marks_dir: Path, _the_config: config.Config):
