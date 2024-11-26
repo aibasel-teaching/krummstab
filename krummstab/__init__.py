@@ -1185,6 +1185,7 @@ def extract_adam_zip() -> tuple[pathlib.Path, str]:
         sheet_root_dir = shutil.move(sheet_root_dir, destination)
     # Flatten intermediate directory.
     sub_dirs = list(sheet_root_dir.glob("*"))
+    sub_dirs = [item for item in sub_dirs if item.suffix != '.xlsx']
     if len(sub_dirs) != 1:
         logging.critical(
             "The ADAM zip file contains an unexpected number of"
@@ -1251,25 +1252,26 @@ def flatten_team_dirs() -> None:
     them next to each other and print a warning.
     """
     for team_dir in args.sheet_root_dir.iterdir():
-        # Remove empty subdirectories.
-        for team_submission_dir in team_dir.iterdir():
-            if team_submission_dir.is_dir() and len(list(team_submission_dir.iterdir())) == 0:
-                team_submission_dir.rmdir()
-        # Store the list of team submission directories in variable, because the
-        # generator may include subdirectories of team submission directories
-        # that have already been flattened.
-        team_submission_dirs = [path for path in team_dir.iterdir() if not path.name == SUBMISSION_INFO_FILE_NAME]
-        if len(team_submission_dirs) > 1:
-            logging.warning(
-                f"There are multiple submissions for group '{team_dir.name}'!"
-            )
-        if len(team_submission_dirs) < 1:
-            logging.warning(
-                f"The submission of group '{team_dir.name}' is empty!"
-            )
-        for team_submission_dir in team_submission_dirs:
-            if team_submission_dir.is_dir():
-                move_content_and_delete(team_submission_dir, team_dir)
+        if team_dir.is_dir():
+            # Remove empty subdirectories.
+            for team_submission_dir in team_dir.iterdir():
+                if team_submission_dir.is_dir() and len(list(team_submission_dir.iterdir())) == 0:
+                    team_submission_dir.rmdir()
+            # Store the list of team submission directories in variable, because the
+            # generator may include subdirectories of team submission directories
+            # that have already been flattened.
+            team_submission_dirs = [path for path in team_dir.iterdir() if not path.name == SUBMISSION_INFO_FILE_NAME]
+            if len(team_submission_dirs) > 1:
+                logging.warning(
+                    f"There are multiple submissions for group '{team_dir.name}'!"
+                )
+            if len(team_submission_dirs) < 1:
+                logging.warning(
+                    f"The submission of group '{team_dir.name}' is empty!"
+                )
+            for team_submission_dir in team_submission_dirs:
+                if team_submission_dir.is_dir():
+                    move_content_and_delete(team_submission_dir, team_dir)
 
 
 def unzip_internal_zips() -> None:
