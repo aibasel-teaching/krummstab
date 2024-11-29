@@ -20,28 +20,67 @@ YELLOW = {'bg_color': '#FFE699'}
 RED = {'bg_color': '#EE7868'}
 PLAGIARISM_RED = {'bg_color': 'red'}
 PERCENT = {'num_format': '0%'}
+TEXT_WRAP = {'text_wrap': True}
+
+PERCENTAGE_TO_PASS_CELL = '$B$4'
+IMPROVE_AVG_RED_CELL = '$E$3'
+IMPROVE_AVG_GREEN_CELL = '$E$1'
 
 
-def add_legend(workbook: Workbook, worksheet: Worksheet, student_end_row: int):
+def add_legend(workbook: Workbook, worksheet: Worksheet):
     """
     Adds a legend that explains the conditional formatting.
     """
-    worksheet.merge_range(student_end_row + 3, 0, student_end_row + 3, 2, "Pass", workbook.add_format(GREEN | BORDER))
-    worksheet.merge_range(student_end_row + 4, 0, student_end_row + 4, 2, "Fail", workbook.add_format(RED | BORDER))
+    worksheet.set_row(0, 28)
+    worksheet.set_row(1, 28)
+    worksheet.set_row(2, 28)
+    worksheet.set_row(3, 28)
     worksheet.merge_range(
-        student_end_row + 5, 0, student_end_row + 5, 1, "Plagiarism", workbook.add_format(PLAGIARISM_RED | BORDER)
+        0, 0, 0, 2, "Pass", workbook.add_format(GREEN | BORDER)
     )
     worksheet.merge_range(
-        student_end_row + 6, 3, student_end_row + 6, 4,
-        "Will pass with current average", workbook.add_format(GREEN | BORDER)
+        1, 0, 1, 2, "Fail", workbook.add_format(RED | BORDER)
     )
     worksheet.merge_range(
-        student_end_row + 7, 3, student_end_row + 7, 4,
-        "Improve average slightly", workbook.add_format(YELLOW | BORDER)
+        2, 0, 2, 1, "2 x Plagiarism",
+        workbook.add_format(PLAGIARISM_RED | BORDER)
     )
-    worksheet.merge_range(
-        student_end_row + 8, 3, student_end_row + 8, 4,
-        "Improve average a lot", workbook.add_format(RED | BORDER)
+    worksheet.write(
+        0, 3,
+        "Does not need to improve average\nif percentage is lower "
+        "than:",
+        workbook.add_format(GREEN | TEXT_WRAP)
+    )
+    worksheet.write_number(
+        0, 4,
+        -0.05, workbook.add_format(GREEN | PERCENT)
+    )
+    worksheet.write(
+        1, 3,
+        "Should improve average\nif percentage is between:",
+        workbook.add_format(YELLOW | TEXT_WRAP)
+    )
+    worksheet.write_formula(
+        1, 4,
+        f'TEXT({IMPROVE_AVG_GREEN_CELL},"0%")'
+        f'& " to " & TEXT({IMPROVE_AVG_RED_CELL},"0%")',
+        workbook.add_format(YELLOW | PERCENT)
+    )
+    worksheet.write(
+        2, 3,
+        "Has to improve average\nby at least the following percentage:",
+        workbook.add_format(RED | TEXT_WRAP)
+    )
+    worksheet.write_number(
+        2, 4,
+        0.10, workbook.add_format(RED | PERCENT)
+    )
+    worksheet.write(
+        3, 0, "Percentage of points\nrequired to pass:",
+        workbook.add_format(TEXT_WRAP)
+    )
+    worksheet.write_number(
+        3, 1, 0.5, workbook.add_format(PERCENT)
     )
 
 
@@ -51,17 +90,22 @@ def add_pass_or_fail_conditional_formatting(workbook: Workbook, worksheet: Works
     Colors the name red if not enough points can be collected.
     Colors the name green when enough points have been collected.
     """
-    total_points_all_sheets_range = xl_range_abs(1, 5, 1, 5 + len(all_sheet_names) - 1)
-    possible_points_range = xl_range_abs(1, 5 + len(graded_sheet_names), 1, 5 + len(all_sheet_names) - 1)
+    total_points_all_sheets_range = xl_range_abs(
+        1 + 4, 5, 1 + 4, 5 + len(all_sheet_names) - 1
+    )
+    possible_points_range = xl_range_abs(
+        1 + 4, 5 + len(graded_sheet_names), 1 + 4, 5 + len(all_sheet_names) - 1
+    )
     worksheet.conditional_format(row, 0, row, 2, {
         'type': 'formula',
         'criteria': f"=(SUM(INDIRECT(ADDRESS(ROW(),3)), SUM({possible_points_range})))"
-                    f" < (SUM({total_points_all_sheets_range}) * 0.5)",
+                    f" < (SUM({total_points_all_sheets_range}) * {PERCENTAGE_TO_PASS_CELL})",
         'format': workbook.add_format(RED)
     })
     worksheet.conditional_format(row, 0, row, 2, {
         'type': 'formula',
-        'criteria': f"INDIRECT(ADDRESS(ROW(),3)) >= (SUM({total_points_all_sheets_range}) * 0.5)",
+        'criteria': f"INDIRECT(ADDRESS(ROW(),3)) >= (SUM("
+                    f"{total_points_all_sheets_range}) * {PERCENTAGE_TO_PASS_CELL})",
         'format': workbook.add_format(GREEN)
     })
 
@@ -86,17 +130,17 @@ def add_average_conditional_formatting(workbook: Workbook, worksheet: Worksheet,
     """
     worksheet.conditional_format(row, 3, row, 4, {
         'type': 'formula',
-        'criteria': f'=INDIRECT(ADDRESS(ROW(),5)) <= 0%',
+        'criteria': f'=INDIRECT(ADDRESS(ROW(),5)) <= {IMPROVE_AVG_GREEN_CELL}',
         'format': workbook.add_format(GREEN)
     })
     worksheet.conditional_format(row, 3, row, 4, {
         'type': 'formula',
-        'criteria': f'=INDIRECT(ADDRESS(ROW(),5)) <= 15%',
+        'criteria': f'=INDIRECT(ADDRESS(ROW(),5)) <= {IMPROVE_AVG_RED_CELL}',
         'format': workbook.add_format(YELLOW)
     })
     worksheet.conditional_format(row, 3, row, 4, {
         'type': 'formula',
-        'criteria': f'=INDIRECT(ADDRESS(ROW(),5)) > 15%',
+        'criteria': f'=INDIRECT(ADDRESS(ROW(),5)) > {IMPROVE_AVG_RED_CELL} ',
         'format': workbook.add_format(RED)
     })
 
@@ -108,15 +152,20 @@ def add_student_average(workbook: Workbook, worksheet: Worksheet, row: int, grad
     exercise sheets.
     """
     student_marks_range = xl_range_abs(row, 5, row, 5 + len(all_sheet_names) - 1)
-    total_points_all_sheets_range = xl_range_abs(1, 5, 1, 5 + len(all_sheet_names) - 1)
-    possible_points_range = xl_range_abs(1, 5 + len(graded_sheet_names), 1, 5 + len(all_sheet_names) - 1)
+    total_points_all_sheets_range = xl_range_abs(
+        1 + 4, 5, 1 + 4, 5 + len(all_sheet_names) - 1
+    )
+    possible_points_range = xl_range_abs(
+        1 + 4, 5 + len(graded_sheet_names), 1 + 4, 5 + len(all_sheet_names) - 1
+    )
     worksheet.write_formula(row, 3,
                             f'=IFERROR(SUMPRODUCT(ISNUMBER({student_marks_range})*1,{student_marks_range},'
                             f' {total_points_all_sheets_range}) / SUMPRODUCT(ISNUMBER({student_marks_range})*1,'
                             f' {total_points_all_sheets_range}),"")',
                             workbook.add_format(BORDER))
     worksheet.write_formula(row, 4,
-                            f'=IFERROR((SUM({total_points_all_sheets_range})*0.5'
+                            f'=IFERROR((SUM('
+                            f'{total_points_all_sheets_range})*{PERCENTAGE_TO_PASS_CELL}'
                             f' - (INDIRECT(ADDRESS(ROW(),3))))/(COLUMNS({possible_points_range})'
                             f'*(INDIRECT(ADDRESS(ROW(),4))))-1,"")',
                             workbook.add_format(BORDER | PERCENT))
@@ -241,22 +290,23 @@ def create_worksheet_points_per_sheet(workbook: Workbook, _the_config: config.Co
     """
     worksheet = workbook.add_worksheet("Points Summary")
     worksheet.activate()
-    worksheet.write(3, 0, "First Name", workbook.add_format(BOLD))
-    worksheet.write(3, 1, "Last Name", workbook.add_format(BOLD))
-    worksheet.write(3, 2, "Total Points", workbook.add_format(BOLD))
-    worksheet.write(3, 3, "Current Average", workbook.add_format(BOLD))
-    worksheet.write(3, 4, "Improve", workbook.add_format(BOLD))
-    worksheet.write(1, 0, "Max Points", workbook.add_format(BOLD))
-    worksheet.write(2, 0, "Average", workbook.add_format(BOLD))
+    worksheet.write(3 + 4, 0, "First Name", workbook.add_format(BOLD))
+    worksheet.write(3 + 4, 1, "Last Name", workbook.add_format(BOLD))
+    worksheet.write(3 + 4, 2, "Total Points", workbook.add_format(BOLD))
+    worksheet.write(3 + 4, 3, "Current Average", workbook.add_format(BOLD))
+    worksheet.write(3 + 4, 4, "Improve", workbook.add_format(BOLD))
+    worksheet.write(1 + 4, 0, "Max Points", workbook.add_format(BOLD))
+    worksheet.write(2 + 4, 0, "Average", workbook.add_format(BOLD))
 
-    student_start_row = 4
+    worksheet.set_row(0 + 4, cell_format=workbook.add_format(BORDER_TOP_BOTTOM))
+    student_start_row = 4 + 4
     student_end_row = student_start_row + len(email_to_name) - 1
     for col, sheet_name in enumerate(all_sheet_names, start=5):
-        worksheet.write(0, col, sheet_name, workbook.add_format(BOLD))
+        worksheet.write(0 + 4, col, sheet_name, workbook.add_format(BOLD | BORDER_TOP_BOTTOM))
         max_points_value = _the_config.max_points_per_sheet.get(sheet_name)
-        worksheet.write(1, col, max_points_value)
+        worksheet.write(1 + 4, col, max_points_value)
         avg_range = xl_range_abs(student_start_row, col, student_end_row, col)
-        worksheet.write_formula(2, col, f'=IFERROR(AVERAGE({avg_range}),"")')
+        worksheet.write_formula(2 + 4, col, f'=IFERROR(AVERAGE({avg_range}),"")')
 
     sorted_emails = sorted(email_to_name.keys(), key=lambda e: (email_to_name[e][0], email_to_name[e][1]))
     for row, email in enumerate(sorted_emails, start=student_start_row):
@@ -269,7 +319,7 @@ def create_worksheet_points_per_sheet(workbook: Workbook, _the_config: config.Co
         add_average_conditional_formatting(workbook, worksheet, row)
         add_plagiarism_conditional_formatting(workbook, worksheet, row, all_sheet_names)
         add_pass_or_fail_conditional_formatting(workbook, worksheet, row, graded_sheet_names, all_sheet_names)
-    add_legend(workbook, worksheet, student_end_row)
+    add_legend(workbook, worksheet)
     worksheet.autofit()
 
 
