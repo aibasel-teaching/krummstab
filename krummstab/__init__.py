@@ -1193,27 +1193,35 @@ def print_missing_submissions(_the_config: config.Config, sheet: sheets.Sheet) -
             print(f"* {config.team_to_string(missing_team)}")
 
 
-def process_adam_team_directories(_the_config: config.Config,
-                                  sheet_root_dir: pathlib.Path) -> None:
+def lookup_teams(_the_config: config.Config, team_dir: pathlib.Path):
     """
-    Parse the ADAM team directory names, look up the teams in the config and
-    check for multiple submissions under separate ADAM IDs, and create the
-    submission info files. Additionally, remove the "Team " prefix from
-    directory names.
+    Extracts the team ID from the directory name and searches for teams
+    based on the extracted email address from the subdirectory name.
+    """
+    team_id = team_dir.name.split(" ")[1]
+    submission_dir = list(team_dir.iterdir())[0]
+    submission_email = submission_dir.name.split("_")[-2]
+    teams = [
+        team
+        for team in _the_config.teams
+        if any(submission_email in student for student in team)
+    ]
+    return team_id, teams
+
+
+def validate_team_dirs(_the_config: config.Config,
+                       sheet_root_dir: pathlib.Path) -> None:
+    """
+    Checks whether all students are assigned to a team and checks for
+    multiple submissions from teams under different IDs.
     """
     adam_id_to_team = {}
     for team_dir in sheet_root_dir.iterdir():
         if not team_dir.is_dir():
             continue
-        team_id = team_dir.name.split(" ")[1]
-        submission_dir = list(team_dir.iterdir())[0]
-        submission_email = submission_dir.name.split("_")[-2]
-        teams = [
-            team
-            for team in _the_config.teams
-            if any(submission_email in student for student in team)
-        ]
+        team_id, teams = lookup_teams(_the_config, team_dir)
         if len(teams) == 0:
+            submission_email = list(team_dir.iterdir())[0].name.split("_")[-2]
             logging.critical(
                 f"The student with the email '{submission_email}' is not "
                 "assigned to a team. Your config file is likely out of date."
@@ -1241,12 +1249,19 @@ def process_adam_team_directories(_the_config: config.Config,
                     " will have to combine the submissions manually."
                 )
         adam_id_to_team.update({team_id: teams[0]})
-        team_dir = pathlib.Path(
-            shutil.move(team_dir, team_dir.with_name(team_id))
-        )
-        submissions.create_submission_info_file(
-            _the_config, teams[0], team_id, team_dir
-        )
+
+
+def create_all_submission_info_files(_the_config: config.Config,
+                                     sheet_root_dir: pathlib.Path) -> None:
+    """
+    Creates the submission info JSON files in all team directories.
+    """
+    for team_dir in sheet_root_dir.iterdir():
+        if team_dir.is_dir():
+            team_id, teams = lookup_teams(_the_config, team_dir)
+            submissions.create_submission_info_file(
+                _the_config, teams[0], team_id, team_dir
+            )
 
 
 def init(_the_config: config.Config) -> None:
@@ -1300,13 +1315,16 @@ def init(_the_config: config.Config) -> None:
     # ├── Team 12345
     # .   └── Muster_Hans_hans.muster@unibas.ch_000000
     # .       └── submission.pdf or submission.zip
-    process_adam_team_directories(_the_config, sheet_root_dir)
-    sheet = sheets.create_sheet_info_file(sheet_root_dir, adam_sheet_name, _the_config, args.exercises)
+    validate_team_dirs(_the_config, sheet_root_dir)
+    create_all_submission_info_files(_the_config, sheet_root_dir)
+    sheet = sheets.create_sheet_info_file(
+        sheet_root_dir, adam_sheet_name, _the_config, args.exercises
+    )
     print_missing_submissions(_the_config, sheet)
 
     # Structure at this point:
     # <sheet_root_dir>
-    # ├── 12345
+    # ├── Team 12345
     # .   ├── Muster_Hans_hans.muster@unibas.ch_000000
     # .   │   └── submission.pdf or submission.zip
     # .   └── submission.json
