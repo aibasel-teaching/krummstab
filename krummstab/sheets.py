@@ -3,7 +3,7 @@ from pathlib import Path
 import logging
 import json
 
-from . import config, submissions
+from . import config, submissions, errors
 
 SHEET_INFO_FILE_NAME = "sheet.json"
 FEEDBACK_FILE_PREFIX = "feedback_"
@@ -43,7 +43,7 @@ class Sheet:
             # Remove trailing underscore.
             file_name = file_name[:-1]
         else:
-            _the_config.unsupported_marking_mode_error()
+            errors.unsupported_marking_mode_error(_the_config.marking_mode)
         return file_name
 
     def get_combined_feedback_file_name(self) -> str:

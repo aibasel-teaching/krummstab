@@ -32,7 +32,7 @@ import smtplib
 from email.message import EmailMessage
 from getpass import getpass
 
-from . import config, sheets, submissions
+from . import config, sheets, submissions, errors
 
 Student = tuple[str, str, str]
 Team = list[Student]
@@ -375,7 +375,7 @@ def create_email_to_team(submission, _the_config: config.Config, sheet: sheets.S
     elif _the_config.marking_mode == "static":
         feedback_file_path = submission.get_collected_feedback_path()
     else:
-        _the_config.unsupported_marking_mode_error()
+        errors.unsupported_marking_mode_error(_the_config.marking_mode)
     return construct_email(
         list(team_emails),
         _the_config.feedback_email_cc,
