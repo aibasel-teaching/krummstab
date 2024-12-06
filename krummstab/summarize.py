@@ -26,6 +26,8 @@ PERCENTAGE_TO_PASS_CELL = '$B$4'
 IMPROVE_AVG_RED_CELL = '$E$3'
 IMPROVE_AVG_GREEN_CELL = '$E$1'
 
+PLAGIARISM = "Plagiarism"
+
 
 def add_legend(workbook: Workbook, worksheet: Worksheet):
     """
@@ -90,11 +92,12 @@ def add_pass_or_fail_conditional_formatting(workbook: Workbook, worksheet: Works
     Colors the name red if not enough points can be collected.
     Colors the name green when enough points have been collected.
     """
+    num_legend_rows = 4
     total_points_all_sheets_range = xl_range_abs(
-        1 + 4, 5, 1 + 4, 5 + len(all_sheet_names) - 1
+        1 + num_legend_rows, 5, 1 + num_legend_rows, 5 + len(all_sheet_names) - 1
     )
     possible_points_range = xl_range_abs(
-        1 + 4, 5 + len(graded_sheet_names), 1 + 4, 5 + len(all_sheet_names) - 1
+        1 + num_legend_rows, 5 + len(graded_sheet_names), 1 + num_legend_rows, 5 + len(all_sheet_names) - 1
     )
     worksheet.conditional_format(row, 0, row, 2, {
         'type': 'formula',
@@ -118,7 +121,7 @@ def add_plagiarism_conditional_formatting(workbook: Workbook, worksheet: Workshe
     student_marks_range = xl_range_abs(row, 5, row, 5 + len(all_sheet_names) - 1)
     worksheet.conditional_format(row, 0, row, 1, {
         'type': 'formula',
-        'criteria': f'=COUNTIF({student_marks_range},"Plagiat") >= 2',
+        'criteria': f'=COUNTIF({student_marks_range},"{PLAGIARISM}") >= 2',
         'format': workbook.add_format(PLAGIARISM_RED)
     })
 
@@ -151,12 +154,13 @@ def add_student_average(workbook: Workbook, worksheet: Worksheet, row: int, grad
     by which the average must be improved to pass with the remaining
     exercise sheets.
     """
+    num_legend_rows = 4
     student_marks_range = xl_range_abs(row, 5, row, 5 + len(all_sheet_names) - 1)
     total_points_all_sheets_range = xl_range_abs(
-        1 + 4, 5, 1 + 4, 5 + len(all_sheet_names) - 1
+        1 + num_legend_rows, 5, 1 + num_legend_rows, 5 + len(all_sheet_names) - 1
     )
     possible_points_range = xl_range_abs(
-        1 + 4, 5 + len(graded_sheet_names), 1 + 4, 5 + len(all_sheet_names) - 1
+        1 + num_legend_rows, 5 + len(graded_sheet_names), 1 + num_legend_rows, 5 + len(all_sheet_names) - 1
     )
     worksheet.write_formula(row, 3,
                             f'=IFERROR(SUMPRODUCT(ISNUMBER({student_marks_range})*1,{student_marks_range},'
@@ -218,7 +222,7 @@ def add_student_marks_worksheet_points_per_exercise(workbook: Workbook, workshee
         student_marks_range = xl_range_abs(row, col + 1, row, col + len(graded_sheet_names[sheet_name]))
         worksheet.write_dynamic_array_formula(
             row, col, row, col,
-            f'=IF(COUNTIF({student_marks_range},"Plagiat") > 0,"Plagiat",'
+            f'=IF(COUNTIF({student_marks_range},"{PLAGIARISM}") > 0,"{PLAGIARISM}",'
             f'IF(AND(NOT(ISNUMBER({student_marks_range}))),"",SUM({student_marks_range})))',
             workbook.add_format(BORDER_LEFT)
         )
@@ -290,23 +294,24 @@ def create_worksheet_points_per_sheet(workbook: Workbook, _the_config: config.Co
     """
     worksheet = workbook.add_worksheet("Points Summary")
     worksheet.activate()
-    worksheet.write(3 + 4, 0, "First Name", workbook.add_format(BOLD))
-    worksheet.write(3 + 4, 1, "Last Name", workbook.add_format(BOLD))
-    worksheet.write(3 + 4, 2, "Total Points", workbook.add_format(BOLD))
-    worksheet.write(3 + 4, 3, "Current Average", workbook.add_format(BOLD))
-    worksheet.write(3 + 4, 4, "Improve", workbook.add_format(BOLD))
-    worksheet.write(1 + 4, 0, "Max Points", workbook.add_format(BOLD))
-    worksheet.write(2 + 4, 0, "Average", workbook.add_format(BOLD))
+    num_legend_rows = 4
+    worksheet.write(3 + num_legend_rows, 0, "First Name", workbook.add_format(BOLD))
+    worksheet.write(3 + num_legend_rows, 1, "Last Name", workbook.add_format(BOLD))
+    worksheet.write(3 + num_legend_rows, 2, "Total Points", workbook.add_format(BOLD))
+    worksheet.write(3 + num_legend_rows, 3, "Current Average", workbook.add_format(BOLD))
+    worksheet.write(3 + num_legend_rows, 4, "Improve", workbook.add_format(BOLD))
+    worksheet.write(1 + num_legend_rows, 0, "Max Points", workbook.add_format(BOLD))
+    worksheet.write(2 + num_legend_rows, 0, "Average", workbook.add_format(BOLD))
 
-    worksheet.set_row(0 + 4, cell_format=workbook.add_format(BORDER_TOP_BOTTOM))
-    student_start_row = 4 + 4
+    worksheet.set_row(0 + num_legend_rows, cell_format=workbook.add_format(BORDER_TOP_BOTTOM))
+    student_start_row = 4 + num_legend_rows
     student_end_row = student_start_row + len(email_to_name) - 1
     for col, sheet_name in enumerate(all_sheet_names, start=5):
-        worksheet.write(0 + 4, col, sheet_name, workbook.add_format(BOLD | BORDER_TOP_BOTTOM))
+        worksheet.write(0 + num_legend_rows, col, sheet_name, workbook.add_format(BOLD | BORDER_TOP_BOTTOM))
         max_points_value = _the_config.max_points_per_sheet.get(sheet_name)
-        worksheet.write(1 + 4, col, max_points_value)
+        worksheet.write(1 + num_legend_rows, col, max_points_value)
         avg_range = xl_range_abs(student_start_row, col, student_end_row, col)
-        worksheet.write_formula(2 + 4, col, f'=IFERROR(AVERAGE({avg_range}),"")')
+        worksheet.write_formula(2 + num_legend_rows, col, f'=IFERROR(AVERAGE({avg_range}),"")')
 
     sorted_emails = sorted(email_to_name.keys(), key=lambda e: (email_to_name[e][0], email_to_name[e][1]))
     for row, email in enumerate(sorted_emails, start=student_start_row):
