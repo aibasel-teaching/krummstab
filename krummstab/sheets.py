@@ -83,11 +83,13 @@ class Sheet:
             if submission.relevant:
                 yield submission
 
-    def get_share_archive_file_name(self) -> str:
-        return (SHARE_ARCHIVE_PREFIX
+    def get_share_archive_file_path(self) -> Path:
+        return self.root_dir / (
+                SHARE_ARCHIVE_PREFIX
                 + f"_{self.get_adam_sheet_name_string()}_"
                 + "_".join([f"ex{num}" for num in self.exercises])
-                + ".zip")
+                + ".zip"
+        )
 
     def get_share_archive_files(self) -> Iterator[Path]:
         """

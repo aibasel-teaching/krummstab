@@ -678,8 +678,7 @@ def create_share_archive(overwrite: Optional[bool], sheet: sheets.Sheet) -> None
     # be written to sheet.json and then read in when initializing sheets.Sheet.
     assert sheet.exercises
     # Build share archive file name.
-    share_archive_file_name = sheet.get_share_archive_file_name()
-    share_archive_file = sheet.root_dir / share_archive_file_name
+    share_archive_file = sheet.get_share_archive_file_path()
     if share_archive_file.is_file():
         # If the user has already chosen to overwrite when considering feedback
         # zips, then overwrite here too. Otherwise, ask here.

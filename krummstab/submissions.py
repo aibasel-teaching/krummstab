@@ -29,7 +29,7 @@ class Submission:
         either a single pdf file, or a single zip archive. Throw an error if neither
         exists.
         """
-        collected_feedback_dir = self.root_dir / FEEDBACK_COLLECTED_DIR_NAME
+        collected_feedback_dir = self.get_collected_feedback_dir()
         if not collected_feedback_dir.is_dir():
             logging.critical(
                 "The directory for collected feedback at"
