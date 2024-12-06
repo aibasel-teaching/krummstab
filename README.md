@@ -166,7 +166,8 @@ Xournal++ is supported by default: Simply add the flag `-x` to the `init`
 command above to automatically create the relevant `.xopp` files.
 
 While writing the feedback, you can keep track of the points the teams get in
-the file `points.json`.
+the file `points.json`. In the case of plagiarism, write `Plagiarism` in the 
+place for the points.
 
 ### collect
 Once you have marked all the teams assigned to you and added their points to

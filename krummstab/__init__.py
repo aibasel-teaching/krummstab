@@ -34,7 +34,8 @@ import smtplib
 from email.message import EmailMessage
 from getpass import getpass
 
-from . import config, schemas, summaries
+from . import config, schemas
+from . import summarize as summarize_module
 
 Student = tuple[str, str, str]
 Team = list[Student]
@@ -369,12 +370,14 @@ def unsupported_marking_mode_error(_the_config: config.Config) -> None:
 
 def summarize(_the_config: config.Config) -> None:
     """
-    Generate an Excel file summarizing students' marks after the individual marks
-    files have been collected in a directory.
+    Generate an Excel file summarizing students' marks after the individual
+    marks files have been collected in a directory.
     """
     if not args.marks_dir.is_dir():
         logging.critical("The given individual marks directory is not valid!")
-    summaries.create_marks_summary_excel_file(_the_config, args.marks_dir)
+    summarize_module.create_marks_summary_excel_file(
+        _the_config, args.marks_dir
+    )
 
 
 # ============================== Send Sub-Command ==============================
@@ -700,7 +703,7 @@ def validate_marks_json(_the_config: config.Config) -> None:
         )
     if not all(
         (float(mark) / _the_config.min_point_unit).is_integer()
-        for mark in marks_list if mark != "Plagiat"
+        for mark in marks_list if mark != summarize_module.PLAGIARISM
     ):
         logging.critical(
             f"'{marks_json_file.name}' contains marks that are more"
@@ -1785,7 +1788,7 @@ def main():
         help="only print emails instead of sending them",
     )
     parser_send.set_defaults(func=send)
-    # Summarize command and arguments -----------------------------------------------
+    # Summarize command and arguments ------------------------------------------
     parser_summarize = subparsers.add_parser(
         "summarize",
         help="summarize individual marks files into Excel report",
