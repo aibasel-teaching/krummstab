@@ -31,6 +31,12 @@
         "type": "number",
         "exclusiveMinimum": 0
       },
+      "max_points_per_sheet": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "integer"
+        }
+      },
       "max_team_size": {
         "type": "integer",
         "minimum": 1
@@ -137,6 +143,7 @@
         "use_marks_file",
         "points_per",
         "min_point_unit",
+        "max_points_per_sheet",
         "max_team_size",
         "assistant_email",
         "tutor_name",
