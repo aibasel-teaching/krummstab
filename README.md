@@ -15,17 +15,18 @@ semester as students drop the course or teams are reassigned. It is important
 that all tutors have an identical copy of the shared config file, meaning that
 whenever a tutor makes changes to the file, she or he should share the new
 version with the others, for example via the Discord server or uploading it to
-ADAM.
+ADAM. (Assistants can find tips for creating this file
+[here](#setting-up-shared-config-file).)
 
-The individual config file contains [personal settings](#individual-settings.md)
+The individual config file contains [personal settings](#individual-settings)
 that are only relevant to each tutor. These only need to be set once at the
 beginning of the course.
 
 Depending on the general settings of the shared config file, different command
 line options may be mandatory. The `help` option provides information about the
-script, its subcommands (currently `init`, `collect`, `combine` and `send`), and
-their parameters. Once you have completed the one-time setup below, you'll be
-able to access the help via:
+script, its subcommands (currently `init`, `collect`, `combine`, `send` and 
+`summarize`), and their parameters. Once you have completed the one-time 
+setup below, you'll be able to access the help via:
 ```
 krummstab -h
 krummstab <subcommand> -h
@@ -75,12 +76,12 @@ krummstab -h
 With the script installed, we continue with the config files. You should have
 gotten a `config-shared.json` file from the teaching assistant, copy this file
 into the directory you just created, in our example `ki-fs23-marking`. Similarly
-you can copy the `config-individual.json` file from the `tests` directory
-of this repository. Replace the example entries in the individual configurations
+you can copy the `config-individual.json` file from the `tests` directory of
+this repository. Replace the example entries in the individual configurations
 with your own information; The parameters are explained
-[here](#individual-settings.md). Make sure that the string you enter in the
-field `tutor_name` in your individual config exactly matches the existing entry
-in the `tutor_list` field of the shared config.
+[here](#individual-settings). Make sure that the string you enter in the field
+`tutor_name` in your individual config exactly matches the existing entry in the
+`tutor_list` field of the shared config.
 
 In general, it is important that the all configurations, besides the individual
 ones you just adjusted, are exactly the same across all tutors, as otherwise
@@ -92,8 +93,8 @@ This may in particular be necessary if teams change throughout the semester.
 In order to work with the script, you will have to call the `krummstab` command
 from a command line whose working directory is the one which contains the two
 config files. If you'd like to keep the config files somewhere else, you'll have
-to provide the paths to the files with the `-s` and `-i` flags whenever you call
-`krummstab`.
+to provide the paths to the files with the `-s path/to/shared` and `-i
+path/to/individual` flags whenever you call `krummstab`.
 
 
 ## Marking a Sheet
@@ -165,7 +166,8 @@ Xournal++ is supported by default: Simply add the flag `-x` to the `init`
 command above to automatically create the relevant `.xopp` files.
 
 While writing the feedback, you can keep track of the points the teams get in
-the file `points.json`.
+the file `points.json`. In the case of plagiarism, write `Plagiarism` in the 
+place for the points.
 
 ### collect
 Once you have marked all the teams assigned to you and added their points to
@@ -178,7 +180,8 @@ This will create a zip archive in every feedback directory containing the
 feedback for that team. Additionally, a semicolon-separated list of all points
 is printed. This can be useful in case you have to paste the points into a
 shared spreadsheet. The names are there to be able to double-check that the rows
-match up.
+match up. A json file containing the individual points per student is also 
+generated.
 
 In case you need make changes to the markings and rerun the collection step, use
 the `-r` flag to overwrite existing feedback archives. If you are using
@@ -197,8 +200,30 @@ VPN. You may find the `--dry_run` option useful, instead of sending the e-mails
 directly, it only prints them so that you can double-check that everything looks
 as expected.
 
+### summarize
+This command generates an Excel file that summarizes the students' marks. 
+It needs a path to a directory containing the individual marks json files:
+```
+krummstab summarize path-to-a-directory-with-individual-marks-files
+```
+If you use LibreOffice, it is possible that the formulas are not calculated 
+immediately. To calculate them, use the Recalculate Hard command in 
+LibreOffice. To access this command:
+- From the menu bar: Data - Calculate - Recalculate hard
+- From the keyboard: Command + Shift + F9
+
 
 ## Config File Details
+
+### Setting Up Shared Config File
+- References for the structure of the file can be found in the `tests`
+  directory.
+- You should be able to get the list of students as an Excel file from ADAM:
+  course page > tab 'Content' ('Inhalt') > exercise page > tab 'Submissions and
+  Grades' ('Abgaben und Noten') > 'Grades View' ('Notenübersicht') > button
+  'Export (Excel)' at top of page. You can then run the shell script
+  `scripts/xlsx-to-config.sh` with the downloaded file as input to get a student
+  list in JSON format as a starting point for the shared config file.
 
 ### Individual Settings
 - `tutor_name`: ID of the tutor, this must match with either an element of
@@ -230,6 +255,8 @@ as expected.
 - `min_point_unit`: a float denoting the smallest allowed point fraction, for
   example `0.5`, or `1`
 - `tutor_list`: list to identify tutors, for example a list of first names
+- `max_points_per_sheet`: a dictionary with all exercise sheet names as keys 
+  and their maximum possible points as values
 - `max_team_size`: integer denoting the maximum number of members a team may
   have
 

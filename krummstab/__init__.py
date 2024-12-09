@@ -33,6 +33,7 @@ from email.message import EmailMessage
 from getpass import getpass
 
 from . import config, sheets, submissions, errors
+from . import summarize as summarize_module
 
 Student = tuple[str, str, str]
 Team = list[Student]
@@ -157,6 +158,21 @@ def move_content_and_delete(src: pathlib.Path, dst: pathlib.Path) -> None:
         shutil.copytree(src, temp_dir, dirs_exist_ok=True)
         shutil.rmtree(src)
         shutil.copytree(temp_dir, dst, dirs_exist_ok=True)
+
+
+# ============================== Summarize Sub-Command =========================
+
+
+def summarize(_the_config: config.Config) -> None:
+    """
+    Generate an Excel file summarizing students' marks after the individual
+    marks files have been collected in a directory.
+    """
+    if not args.marks_dir.is_dir():
+        logging.critical("The given individual marks directory is not valid!")
+    summarize_module.create_marks_summary_excel_file(
+        _the_config, args.marks_dir
+    )
 
 
 # ============================== Send Sub-Command ==============================
@@ -478,7 +494,8 @@ def validate_marks_json(_the_config: config.Config, sheet: sheets.Sheet) -> None
             f"There are missing points in the '{marks_json_file.name}' file!"
         )
     if not all(
-        (float(mark) / _the_config.min_point_unit).is_integer() for mark in marks_list
+        (float(mark) / _the_config.min_point_unit).is_integer()
+        for mark in marks_list if mark != summarize_module.PLAGIARISM
     ):
         logging.critical(
             f"'{marks_json_file.name}' contains marks that are more"
@@ -965,6 +982,7 @@ def extract_adam_zip() -> tuple[pathlib.Path, str]:
         sheet_root_dir = shutil.move(sheet_root_dir, destination)
     # Flatten intermediate directory.
     sub_dirs = list(sheet_root_dir.glob("*"))
+    sub_dirs = [item for item in sub_dirs if item.suffix != '.xlsx']
     if len(sub_dirs) != 1:
         logging.critical(
             "The ADAM zip file contains an unexpected number of"
@@ -1502,6 +1520,17 @@ def main():
         help="only print emails instead of sending them",
     )
     parser_send.set_defaults(func=send)
+    # Summarize command and arguments ------------------------------------------
+    parser_summarize = subparsers.add_parser(
+        "summarize",
+        help="summarize individual marks files into Excel report",
+    )
+    parser_summarize.add_argument(
+        "marks_dir",
+        type=pathlib.Path,
+        help="path to the directory with all individual marks files",
+    )
+    parser_summarize.set_defaults(func=summarize)
 
     global args
     args = parser.parse_args()
