@@ -57,14 +57,6 @@ class Config:
             return []
 
 
-def team_to_string(team: Team) -> str:
-    """
-    Concatenate the last names of students to get a pretty-ish string
-    representation of teams.
-    """
-    return "_".join(sorted([student[1].replace(" ", "-") for student in team]))
-
-
 def _validate_teams(teams: list[Team], max_team_size) -> None:
     """
     Check for duplicate entries and maximal team size.

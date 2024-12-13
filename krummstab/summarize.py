@@ -7,8 +7,7 @@ from xlsxwriter import Workbook
 from xlsxwriter.utility import xl_rowcol_to_cell, xl_range_abs
 from xlsxwriter.worksheet import Worksheet
 
-from . import config
-
+from . import config, team
 
 BOLD = {'bold': True}
 BORDER = {'border': 1}
@@ -367,24 +366,12 @@ def load_marks_files(marks_dir: Path, _the_config: config.Config):
     return students_marks, graded_sheet_names
 
 
-def create_email_to_name_dict(_the_config: config.Config) -> dict[str, tuple[str, str]]:
-    """
-    Maps the students' email addresses to their first and last name.
-    """
-    email_to_name = {}
-    for team in _the_config.teams:
-        for first_name, last_name, email in team:
-            email_to_name[email] = (first_name, last_name)
-    return email_to_name
-
-
 def create_marks_summary_excel_file(_the_config: config.Config, marks_dir: Path) -> None:
     """
     Generates an Excel file that summarizes the students' marks. Uses a path
-    to a directory
-    containing the individual marks files.
+    to a directory containing the individual marks files.
     """
-    email_to_name = create_email_to_name_dict(_the_config)
+    email_to_name = team.create_email_to_name_dict(_the_config.teams)
     workbook = xlsxwriter.Workbook("Points_Summary_Report.xlsx")
     students_marks, graded_sheet_names = load_marks_files(marks_dir, _the_config)
     all_sheet_names = _the_config.max_points_per_sheet.keys()
