@@ -9,7 +9,6 @@ relevant - a team whose submission has to be marked by the tutor running the
 to mark  - grading/correcting a sheet; giving feedback
 marks    - points awarded for a sheet or exercise
 """
-import argparse
 import json
 import logging
 import mimetypes
@@ -32,16 +31,11 @@ import smtplib
 from email.message import EmailMessage
 from getpass import getpass
 
-from . import config, sheets, submissions, errors
+from . import config, sheets, submissions, errors, parsers
 from . import summarize as summarize_module
 
 Student = tuple[str, str, str]
 Team = list[Student]
-
-DEFAULT_SHARED_CONFIG_FILE = "config-shared.json"
-DEFAULT_INDIVIDUAL_CONFIG_FILE = "config-individual.json"
-
-args = None
 
 # Might be necessary to make colored output work on Windows.
 os.system("")
@@ -163,7 +157,7 @@ def move_content_and_delete(src: pathlib.Path, dst: pathlib.Path) -> None:
 # ============================== Summarize Sub-Command =========================
 
 
-def summarize(_the_config: config.Config) -> None:
+def summarize(_the_config: config.Config, args) -> None:
     """
     Generate an Excel file summarizing students' marks after the individual
     marks files have been collected in a directory.
@@ -413,7 +407,7 @@ def create_email_to_assistant(_the_config: config.Config, sheet: sheets.Sheet):
     )
 
 
-def send(_the_config: config.Config) -> None:
+def send(_the_config: config.Config, args) -> None:
     """
     After the collection step finished successfully, send the feedback to the
     students via email. This currently only works if the tutor's email account
@@ -757,7 +751,7 @@ def create_share_archive(overwrite: Optional[bool], sheet: sheets.Sheet) -> None
                 )
 
 
-def collect(_the_config: config.Config) -> None:
+def collect(_the_config: config.Config, args) -> None:
     """
     After marking is done, add feedback files to archives and print marks to be
     copy-pasted to shared point spreadsheet.
@@ -804,7 +798,7 @@ def collect(_the_config: config.Config) -> None:
 # ============================ Combine Sub-Command =============================
 
 
-def combine(_the_config: config.Config) -> None:
+def combine(_the_config: config.Config, args) -> None:
     """
     Combine multiple share archives so that in the end we have one zip archive
     per team containing all feedback for that team.
@@ -943,7 +937,7 @@ def combine(_the_config: config.Config) -> None:
 # ============================== Init Sub-Command ==============================
 
 
-def extract_adam_zip() -> tuple[pathlib.Path, str]:
+def extract_adam_zip(args) -> tuple[pathlib.Path, str]:
     """
     Unzips the given ADAM zip file and renames the directory to *target* if one
     is given. This is done stupidly right now, it would be better to extract to
@@ -1076,7 +1070,8 @@ def unzip_internal_zips(sheet: sheets.Sheet) -> None:
                         if not path.name == submissions.SUBMISSION_INFO_FILE_NAME]
 
 
-def create_marks_file(_the_config: config.Config, sheet: sheets.Sheet) -> None:
+def create_marks_file(_the_config: config.Config, sheet: sheets.Sheet,
+                      args) -> None:
     """
     Write a json file to add the marks for all relevant teams and exercises.
     """
@@ -1282,7 +1277,7 @@ def create_all_submission_info_files(_the_config: config.Config,
             )
 
 
-def init(_the_config: config.Config) -> None:
+def init(_the_config: config.Config, args) -> None:
     """
     Prepares the directory structure holding the submissions.
     """
@@ -1326,7 +1321,7 @@ def init(_the_config: config.Config) -> None:
     #         ├── Team 12345
     #         .   └── Muster_Hans_hans.muster@unibas.ch_000000
     #         .       └── submission.pdf or submission.zip
-    sheet_root_dir, adam_sheet_name = extract_adam_zip()
+    sheet_root_dir, adam_sheet_name = extract_adam_zip(args)
 
     # Structure at this point:
     # <sheet_root_dir>
@@ -1370,7 +1365,7 @@ def init(_the_config: config.Config) -> None:
     mark_irrelevant_team_dirs(_the_config, sheet)
 
     if _the_config.use_marks_file:
-        create_marks_file(_the_config, sheet)
+        create_marks_file(_the_config, sheet, args)
 
     create_feedback_directories(_the_config, sheet)
 
@@ -1393,146 +1388,15 @@ def init(_the_config: config.Config) -> None:
 
 def main():
     configure_logging()
-    parser = argparse.ArgumentParser(description="")
-    # Main command arguments ---------------------------------------------------
-    parser.add_argument(
-        "-s",
-        "--config-shared",
-        default=DEFAULT_SHARED_CONFIG_FILE,
-        type=pathlib.Path,
-        help=(
-            "path to the json config file containing shared settings such as "
-            "the student/email list"
-        ),
-    )
-    parser.add_argument(
-        "-i",
-        "--config-individual",
-        default=DEFAULT_INDIVIDUAL_CONFIG_FILE,
-        type=pathlib.Path,
-        help=(
-            "path to the json config file containing individual settings such "
-            "as tutor name and email configuration"
-        ),
-    )
-    # Subcommands ==============================================================
-    subparsers = parser.add_subparsers(
-        required=True,
-        help="available sub-commands",
-        dest="sub_command",
-    )
-    # Help command -------------------------------------------------------------
-    parser_init = subparsers.add_parser(
-        "help",
-        help=(
-            "print this help message; "
-            "run e.g. 'krummstab init -h' to print the help of a sub-command"
-        ),
-    )
-    # Init command and arguments -----------------------------------------------
-    parser_init = subparsers.add_parser(
-        "init",
-        help="unpack zip file from ADAM and prepare directory structure",
-    )
-    parser_init.add_argument(
-        "adam_zip_path",
-        type=pathlib.Path,
-        help="path to the zip file downloaded from ADAM",
-    )
-    parser_init.add_argument(
-        "-t",
-        "--target",
-        type=pathlib.Path,
-        required=False,
-        help="path to the directory that will contain the submissions",
-    )
-    group = parser_init.add_mutually_exclusive_group(required=False)
-    group.add_argument(
-        "-n",
-        "--num-exercises",
-        dest="num_exercises",
-        type=int,
-        help="the number of exercises in the sheet",
-    )
-    group.add_argument(
-        "-e",
-        "--exercises",
-        dest="exercises",
-        nargs="+",
-        type=int,
-        help="the exercises you have to mark",
-    )
-    parser_init.add_argument(
-        "-x",
-        "--xopp",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help="generate .xopp files",
-    )
+
+    (parser, parser_init, parser_collect, parser_combine, parser_send,
+     parser_summarize) = parsers.add_parsers()
     parser_init.set_defaults(func=init)
-    # Collect command and arguments --------------------------------------------
-    parser_collect = subparsers.add_parser(
-        "collect",
-        help="collect feedback files after marking is done",
-    )
-    parser_collect.add_argument(
-        "-x",
-        "--xopp",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help="export .xopp files",
-    )
-    parser_collect.add_argument(
-        "sheet_root_dir",
-        type=pathlib.Path,
-        help="path to the sheet's directory",
-    )
     parser_collect.set_defaults(func=collect)
-    # Combine command and arguments  -------------------------------------------
-    parser_combine = subparsers.add_parser(
-        "combine",
-        help=(
-            "combine multiple share archives, only necessary if tutors mark per"
-            " exercise and have to integrate their individual feedback into a"
-            " single ZIP file to send to the students"
-        ),
-    )
-    parser_combine.add_argument(
-        "sheet_root_dir",
-        type=pathlib.Path,
-        help="path to the sheet's directory",
-    )
     parser_combine.set_defaults(func=combine)
-    # Send command and arguments -----------------------------------------------
-    parser_send = subparsers.add_parser(
-        "send",
-        help="send feedback via email",
-    )
-    parser_send.add_argument(
-        "sheet_root_dir",
-        type=pathlib.Path,
-        help="path to the sheet's directory",
-    )
-    parser_send.add_argument(
-        "-d",
-        "--dry_run",
-        action="store_true",
-        help="only print emails instead of sending them",
-    )
     parser_send.set_defaults(func=send)
-    # Summarize command and arguments ------------------------------------------
-    parser_summarize = subparsers.add_parser(
-        "summarize",
-        help="summarize individual marks files into Excel report",
-    )
-    parser_summarize.add_argument(
-        "marks_dir",
-        type=pathlib.Path,
-        help="path to the directory with all individual marks files",
-    )
     parser_summarize.set_defaults(func=summarize)
 
-    global args
     args = parser.parse_args()
 
     if args.sub_command == "help":
@@ -1546,7 +1410,7 @@ def main():
     logging.info(f"Running command '{args.sub_command}'...")
     # This calls the function set as default in the parser.
     # For example, `func` is set to `init` if the subcommand is "init".
-    args.func(_the_config)
+    args.func(_the_config, args)
     logging.info(f"Command '{args.sub_command}' terminated successfully. 🎉")
 
 
