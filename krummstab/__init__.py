@@ -31,7 +31,7 @@ import smtplib
 from email.message import EmailMessage
 from getpass import getpass
 
-from . import config, sheets, submissions, errors, parsers
+from . import config, errors, parsers, sheets, submissions
 from . import summarize as summarize_module
 
 Student = tuple[str, str, str]
