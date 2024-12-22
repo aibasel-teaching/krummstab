@@ -5,7 +5,7 @@ from pathlib import Path
 import jsonschema
 
 from . import config, schemas, sheets
-from .team import Team
+from .teams import Team
 
 SUBMISSION_INFO_FILE_NAME = "submission.json"
 FEEDBACK_DIR_NAME = "feedback"

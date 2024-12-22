@@ -32,11 +32,10 @@ import smtplib
 from email.message import EmailMessage
 from getpass import getpass
 
-from . import config, sheets, submissions, errors, team
+from . import config, errors, sheets, submissions
 from . import summarize as summarize_module
+from .teams import *
 
-Student = tuple[str, str, str]
-Team = list[Student]
 
 DEFAULT_SHARED_CONFIG_FILE = "config-shared.json"
 DEFAULT_INDIVIDUAL_CONFIG_FILE = "config-individual.json"
@@ -1203,13 +1202,13 @@ def print_missing_submissions(_the_config: config.Config, sheet: sheets.Sheet) -
     for submission in sheet.get_all_team_submission_info():
         teams_who_submitted.append(submission.team.members)
     missing_teams = [
-        config_team for config_team in _the_config.teams if config_team not in
+        team for team in _the_config.teams if team not in
         teams_who_submitted
     ]
     if missing_teams:
         logging.warning("There are no submissions for the following team(s):")
         for missing_team in missing_teams:
-            print(f"* {team.Team(missing_team, None).team_to_string()}")
+            print(f"* {Team(missing_team, None).team_to_string()}")
 
 
 def lookup_teams(_the_config: config.Config, team_dir: pathlib.Path):

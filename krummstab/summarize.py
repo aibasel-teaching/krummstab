@@ -7,7 +7,8 @@ from xlsxwriter import Workbook
 from xlsxwriter.utility import xl_rowcol_to_cell, xl_range_abs
 from xlsxwriter.worksheet import Worksheet
 
-from . import config, team
+from . import config
+from .teams import *
 
 BOLD = {'bold': True}
 BORDER = {'border': 1}
@@ -371,7 +372,7 @@ def create_marks_summary_excel_file(_the_config: config.Config, marks_dir: Path)
     Generates an Excel file that summarizes the students' marks. Uses a path
     to a directory containing the individual marks files.
     """
-    email_to_name = team.create_email_to_name_dict(_the_config.teams)
+    email_to_name = create_email_to_name_dict(_the_config.teams)
     workbook = xlsxwriter.Workbook("Points_Summary_Report.xlsx")
     students_marks, graded_sheet_names = load_marks_files(marks_dir, _the_config)
     all_sheet_names = _the_config.max_points_per_sheet.keys()
