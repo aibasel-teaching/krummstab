@@ -384,7 +384,8 @@ def get_assistant_email_attachment_path(_the_config: config.Config, sheet: sheet
 
 
 def create_email_to_team(submission, _the_config: config.Config, sheet: sheets.Sheet):
-    team_first_names, _, team_emails = zip(*submission.team.members)
+    team_first_names = submission.team.get_first_names()
+    team_emails = submission.team.get_emails()
     if _the_config.marking_mode == "exercise":
         feedback_file_path = submission.get_combined_feedback_file()
     elif _the_config.marking_mode == "static":
@@ -638,7 +639,7 @@ def print_marks(_the_config: config.Config, sheet: sheets.Sheet) -> None:
     # We want all teams printed, not just the marked ones.
     for team_to_print in _the_config.teams:
         for submission in sheet.get_all_team_submission_info():
-            if submission.team.members == team_to_print:
+            if submission.team == team_to_print:
                 key = submission.team.get_team_key()
                 for student in submission.team.members:
                     full_name = f"{student[0]} {student[1]}"
@@ -1200,7 +1201,7 @@ def print_missing_submissions(_the_config: config.Config, sheet: sheets.Sheet) -
     """
     teams_who_submitted = []
     for submission in sheet.get_all_team_submission_info():
-        teams_who_submitted.append(submission.team.members)
+        teams_who_submitted.append(submission.team)
     missing_teams = [
         team for team in _the_config.teams if team not in
         teams_who_submitted
@@ -1208,7 +1209,7 @@ def print_missing_submissions(_the_config: config.Config, sheet: sheets.Sheet) -
     if missing_teams:
         logging.warning("There are no submissions for the following team(s):")
         for missing_team in missing_teams:
-            print(f"* {Team(missing_team, None).team_to_string()}")
+            print(f"* {missing_team.last_names_to_string()}")
 
 
 def lookup_teams(_the_config: config.Config, team_dir: pathlib.Path):
@@ -1222,7 +1223,7 @@ def lookup_teams(_the_config: config.Config, team_dir: pathlib.Path):
     teams = [
         team
         for team in _the_config.teams
-        if any(submission_email in student for student in team)
+        if any(submission_email in student for student in team.members)
     ]
     return team_id, teams
 
@@ -1260,7 +1261,7 @@ def validate_team_dirs(_the_config: config.Config,
         for existing_id, existing_team in adam_id_to_team.items():
             if existing_team == teams[0]:
                 logging.warning(
-                    f"There are multiple submissions for team '{teams[0]}'"
+                    f"There are multiple submissions for team '{teams[0].members}'"
                     f" under separate ADAM IDs ({existing_id} and {team_id})!"
                     " This probably means that multiple members of a team"
                     " submitted solutions without forming a team on ADAM. You"

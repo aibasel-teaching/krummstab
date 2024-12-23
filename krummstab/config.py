@@ -3,10 +3,9 @@ import logging
 from importlib import resources
 from pathlib import Path
 import jsonschema
-from . import schemas, errors
 
-Student = tuple[str, str, str]
-Team = list[Student]
+from . import errors, schemas
+from .teams import *
 
 
 class Config:
@@ -34,12 +33,14 @@ class Config:
             if self.tutor_name not in self.tutor_list:
                 logging.critical(f"Did not find '{self.tutor_name}' in tutor_list in the config.")
 
-        _validate_teams(self.teams, self.max_team_size)
         # Sort teams and their students to make iterating over them
         # predictable, independent of their order in config.json.
         for team in self.teams:
             team.sort()
         self.teams.sort()
+
+        self.teams = [Team(team, None) for team in self.teams]
+        _validate_teams(self.teams, self.max_team_size)
         logging.info("Processed config successfully.")
 
     def get_relevant_teams(self) -> list[Team]:
@@ -49,7 +50,7 @@ class Config:
         access relevant teams via `get_relevant_submissions()`.
         """
         if self.marking_mode == "static":
-            return self.classes[self.tutor_name]
+            return [Team(team, None) for team in self.classes[self.tutor_name]]
         elif self.marking_mode == "exercise":
             return self.teams
         else:
@@ -64,9 +65,10 @@ def _validate_teams(teams: list[Team], max_team_size) -> None:
     all_students: list[tuple[str, str]] = []
     all_emails: list[str] = []
     for team in teams:
-        if len(team) > max_team_size:
-            logging.critical(f"Team with size {len(team)} violates maximal team size.")
-        for first, last, email in team:
+        if len(team.members) > max_team_size:
+            logging.critical(f"Team with size {len(team.members)} violates maximal "
+                             f"team size.")
+        for first, last, email in team.members:
             all_students.append((first, last))
             all_emails.append(email)
     if len(all_students) != len(set(all_students)):

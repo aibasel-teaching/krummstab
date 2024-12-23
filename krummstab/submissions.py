@@ -96,14 +96,16 @@ class Submission:
         return self.root_dir < other.root_dir
 
 
-def create_submission_info_file(_the_config: config.Config,
-                                team, team_id, team_dir) -> None:
+def create_submission_info_file(_the_config: config.Config, team: Team,
+                                team_id: str, team_dir: Path) -> None:
     """
     Write in each team directory a JSON file which contains the team,
     the ADAM ID of the team which ADAM sets anew with each exercise sheet,
     and if the tutor specified in the config has to mark this team.
     """
-    relevant_teams = _the_config.get_relevant_teams()
+    team = team.to_tuples()
+    relevant_teams = [team.to_tuples() for team in
+                      _the_config.get_relevant_teams()]
     is_relevant = False
     submission_info = {}
     if team in relevant_teams:
