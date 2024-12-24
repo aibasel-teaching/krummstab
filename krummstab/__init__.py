@@ -33,9 +33,8 @@ from getpass import getpass
 
 from . import config, errors, parsers, sheets, submissions
 from . import summarize as summarize_module
+from .teams import *
 
-Student = tuple[str, str, str]
-Team = list[Student]
 
 # Might be necessary to make colored output work on Windows.
 os.system("")
@@ -379,7 +378,8 @@ def get_assistant_email_attachment_path(_the_config: config.Config, sheet: sheet
 
 
 def create_email_to_team(submission, _the_config: config.Config, sheet: sheets.Sheet):
-    team_first_names, _, team_emails = zip(*submission.team)
+    team_first_names = submission.team.get_first_names()
+    team_emails = submission.team.get_emails()
     if _the_config.marking_mode == "exercise":
         feedback_file_path = submission.get_combined_feedback_file()
     elif _the_config.marking_mode == "static":
@@ -464,7 +464,7 @@ def validate_marks_json(_the_config: config.Config, sheet: sheets.Sheet) -> None
         marks = json.load(marks_file)
     relevant_teams = []
     for submission in sheet.get_relevant_submissions():
-        relevant_teams.append(submission.get_team_key())
+        relevant_teams.append(submission.team.get_team_key())
     marked_teams = list(marks.keys())
     if sorted(relevant_teams) != sorted(marked_teams):
         logging.critical(
@@ -634,8 +634,8 @@ def print_marks(_the_config: config.Config, sheet: sheets.Sheet) -> None:
     for team_to_print in _the_config.teams:
         for submission in sheet.get_all_team_submission_info():
             if submission.team == team_to_print:
-                key = submission.get_team_key()
-                for student in submission.team:
+                key = submission.team.get_team_key()
+                for student in submission.team.members:
                     full_name = f"{student[0]} {student[1]}"
                     output_str = f"{full_name:>35};"
                     if _the_config.points_per == "exercise":
@@ -660,8 +660,8 @@ def create_individual_marks_file(_the_config: config.Config, sheet: sheets.Sheet
         team_marks = json.load(marks_file)
     student_marks = {}
     for submission in sheet.get_relevant_submissions():
-        team_key = submission.get_team_key()
-        for first_name, last_name, email in submission.team:
+        team_key = submission.team.get_team_key()
+        for first_name, last_name, email in submission.team.members:
             student_key = email.lower()
             student_marks.update({student_key: team_marks.get(team_key)})
     file_content = {
@@ -1013,7 +1013,7 @@ def rename_team_dirs(sheet: sheets.Sheet) -> None:
     The team ID can be helpful to identify a team on the ADAM web interface.
     """
     for submission in sheet.get_all_team_submission_info():
-        team_key = submission.get_team_key()
+        team_key = submission.team.get_team_key()
         team_dir = pathlib.Path(
             shutil.move(submission.root_dir, submission.root_dir.with_name(team_key))
         )
@@ -1088,7 +1088,7 @@ def create_marks_file(_the_config: config.Config, sheet: sheets.Sheet,
 
     marks_dict = {}
     for submission in sorted(sheet.get_relevant_submissions()):
-        team_key = submission.get_team_key()
+        team_key = submission.team.get_team_key()
         marks_dict.update({team_key: exercise_dict})
 
     with open(sheet.get_marks_file_path(_the_config), "w", encoding="utf-8") as marks_json:
@@ -1198,12 +1198,13 @@ def print_missing_submissions(_the_config: config.Config, sheet: sheets.Sheet) -
     for submission in sheet.get_all_team_submission_info():
         teams_who_submitted.append(submission.team)
     missing_teams = [
-        team for team in _the_config.teams if team not in teams_who_submitted
+        team for team in _the_config.teams if team not in
+        teams_who_submitted
     ]
     if missing_teams:
         logging.warning("There are no submissions for the following team(s):")
         for missing_team in missing_teams:
-            print(f"* {config.team_to_string(missing_team)}")
+            print(f"* {missing_team.last_names_to_string()}")
 
 
 def lookup_teams(_the_config: config.Config, team_dir: pathlib.Path):
@@ -1217,7 +1218,7 @@ def lookup_teams(_the_config: config.Config, team_dir: pathlib.Path):
     teams = [
         team
         for team in _the_config.teams
-        if any(submission_email in student for student in team)
+        if any(submission_email in student for student in team.members)
     ]
     return team_id, teams
 
@@ -1255,7 +1256,7 @@ def validate_team_dirs(_the_config: config.Config,
         for existing_id, existing_team in adam_id_to_team.items():
             if existing_team == teams[0]:
                 logging.warning(
-                    f"There are multiple submissions for team '{teams[0]}'"
+                    f"There are multiple submissions for team '{teams[0].members}'"
                     f" under separate ADAM IDs ({existing_id} and {team_id})!"
                     " This probably means that multiple members of a team"
                     " submitted solutions without forming a team on ADAM. You"

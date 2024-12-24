@@ -5,6 +5,7 @@ from pathlib import Path
 import jsonschema
 
 from . import config, schemas, sheets
+from .teams import Team
 
 SUBMISSION_INFO_FILE_NAME = "submission.json"
 FEEDBACK_DIR_NAME = "feedback"
@@ -67,12 +68,6 @@ class Submission:
         )
         return combined_feedback_files[0]
 
-    def get_team_key(self) -> str:
-        """
-        Create a string representation of the team with the ADAM ID: team_id_LastName1-LastName2
-        """
-        return self.adam_id + "_" + config.team_to_string(self.team)
-
     def _load(self):
         """
         Load the submission info of the team directory. In particular the
@@ -86,8 +81,9 @@ class Submission:
                 submission_info_schema = json.loads(
                     resources.files(schemas).joinpath("submission-info-schema.json").read_text(encoding="utf-8"))
                 jsonschema.validate(submission_info, submission_info_schema, jsonschema.Draft7Validator)
-                self.team = submission_info.get("team")
-                self.adam_id = submission_info.get("adam_id")
+                self.team = Team(
+                    submission_info.get("team"), submission_info.get("adam_id")
+                )
                 self.relevant = submission_info.get("relevant")
         except FileNotFoundError:
             logging.critical("The submission.json file does not exist.")
@@ -100,14 +96,16 @@ class Submission:
         return self.root_dir < other.root_dir
 
 
-def create_submission_info_file(_the_config: config.Config,
-                                team, team_id, team_dir) -> None:
+def create_submission_info_file(_the_config: config.Config, team: Team,
+                                team_id: str, team_dir: Path) -> None:
     """
     Write in each team directory a JSON file which contains the team,
     the ADAM ID of the team which ADAM sets anew with each exercise sheet,
     and if the tutor specified in the config has to mark this team.
     """
-    relevant_teams = _the_config.get_relevant_teams()
+    team = team.to_tuples()
+    relevant_teams = [team.to_tuples() for team in
+                      _the_config.get_relevant_teams()]
     is_relevant = False
     submission_info = {}
     if team in relevant_teams:
