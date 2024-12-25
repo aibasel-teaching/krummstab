@@ -5,6 +5,7 @@ from pathlib import Path
 import jsonschema
 
 from . import config, schemas, sheets
+from .students import Student
 from .teams import Team
 
 SUBMISSION_INFO_FILE_NAME = "submission.json"
@@ -82,7 +83,9 @@ class Submission:
                     resources.files(schemas).joinpath("submission-info-schema.json").read_text(encoding="utf-8"))
                 jsonschema.validate(submission_info, submission_info_schema, jsonschema.Draft7Validator)
                 self.team = Team(
-                    submission_info.get("team"), submission_info.get("adam_id")
+                    [Student(*student) for student
+                     in submission_info.get("team")],
+                    submission_info.get("adam_id")
                 )
                 self.relevant = submission_info.get("relevant")
         except FileNotFoundError:
