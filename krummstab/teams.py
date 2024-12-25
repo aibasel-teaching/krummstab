@@ -1,5 +1,10 @@
+from typing import Optional
+
+from .students import *
+
+
 class Team:
-    def __init__(self, members, adam_id):
+    def __init__(self, members: list[Student], adam_id: Optional[str] = None):
         self.members = members
         self.adam_id = adam_id
 
@@ -10,13 +15,13 @@ class Team:
         """
         Get a list of the first names of all team members.
         """
-        return [member[0] for member in self.members]
+        return [member.first_name for member in self.members]
 
     def get_emails(self) -> list[str]:
         """
         Get a list of the emails of all team members.
         """
-        return [member[2] for member in self.members]
+        return [member.email for member in self.members]
 
     def get_team_key(self) -> str:
         """
@@ -31,14 +36,16 @@ class Team:
         representation of a team.
         """
         return "_".join(
-            sorted([member[1].replace(" ", "-") for member in self.members])
+            sorted(
+                [member.last_name.replace(" ", "-") for member in self.members]
+            )
         )
 
     def to_tuples(self) -> list[tuple[str, str, str]]:
         """
         Get a tuples of strings representation of a team.
         """
-        return [(member[0], member[1], member[2]) for member in self.members]
+        return [member.to_tuple() for member in self.members]
 
 
 def create_email_to_name_dict(teams: list[Team]) -> dict[str, tuple[str, str]]:
@@ -47,6 +54,6 @@ def create_email_to_name_dict(teams: list[Team]) -> dict[str, tuple[str, str]]:
     """
     email_to_name = {}
     for team in teams:
-        for first_name, last_name, email in team.members:
-            email_to_name[email] = (first_name, last_name)
+        for member in team.members:
+            email_to_name[member.email] = (member.first_name, member.last_name)
     return email_to_name

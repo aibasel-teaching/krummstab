@@ -39,7 +39,8 @@ class Config:
             team.sort()
         self.teams.sort()
 
-        self.teams = [Team(team, None) for team in self.teams]
+        self.teams = [Team([Student(*student) for student in team], None)
+                      for team in self.teams]
         _validate_teams(self.teams, self.max_team_size)
         logging.info("Processed config successfully.")
 
@@ -50,7 +51,8 @@ class Config:
         access relevant teams via `get_relevant_submissions()`.
         """
         if self.marking_mode == "static":
-            return [Team(team, None) for team in self.classes[self.tutor_name]]
+            return [Team([Student(*student) for student in team], None)
+                    for team in self.classes[self.tutor_name]]
         elif self.marking_mode == "exercise":
             return self.teams
         else:
@@ -68,9 +70,9 @@ def _validate_teams(teams: list[Team], max_team_size) -> None:
         if len(team.members) > max_team_size:
             logging.critical(f"Team with size {len(team.members)} violates maximal "
                              f"team size.")
-        for first, last, email in team.members:
-            all_students.append((first, last))
-            all_emails.append(email)
+        for member in team.members:
+            all_students.append((member.first_name, member.last_name))
+            all_emails.append(member.email)
     if len(all_students) != len(set(all_students)):
         logging.critical("There are duplicate students in the config file!")
     if len(all_emails) != len(set(all_emails)):

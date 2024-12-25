@@ -636,7 +636,7 @@ def print_marks(_the_config: config.Config, sheet: sheets.Sheet) -> None:
             if submission.team == team_to_print:
                 key = submission.team.get_team_key()
                 for student in submission.team.members:
-                    full_name = f"{student[0]} {student[1]}"
+                    full_name = f"{student.first_name} {student.last_name}"
                     output_str = f"{full_name:>35};"
                     if _the_config.points_per == "exercise":
                         # The value `marks` assigned to the team_dir key is a
@@ -661,8 +661,8 @@ def create_individual_marks_file(_the_config: config.Config, sheet: sheets.Sheet
     student_marks = {}
     for submission in sheet.get_relevant_submissions():
         team_key = submission.team.get_team_key()
-        for first_name, last_name, email in submission.team.members:
-            student_key = email.lower()
+        for student in submission.team.members:
+            student_key = student.email.lower()
             student_marks.update({student_key: team_marks.get(team_key)})
     file_content = {
         "tutor_name": _the_config.tutor_name,
@@ -1207,7 +1207,8 @@ def print_missing_submissions(_the_config: config.Config, sheet: sheets.Sheet) -
             print(f"* {missing_team.last_names_to_string()}")
 
 
-def lookup_teams(_the_config: config.Config, team_dir: pathlib.Path):
+def lookup_teams(_the_config: config.Config,
+                 team_dir: pathlib.Path) -> tuple[str, list[Team]]:
     """
     Extracts the team ID from the directory name and searches for teams
     based on the extracted email address from the subdirectory name.
@@ -1218,7 +1219,7 @@ def lookup_teams(_the_config: config.Config, team_dir: pathlib.Path):
     teams = [
         team
         for team in _the_config.teams
-        if any(submission_email in student for student in team.members)
+        if any(student.email == submission_email for student in team.members)
     ]
     return team_id, teams
 
