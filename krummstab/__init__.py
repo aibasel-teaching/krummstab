@@ -13,7 +13,7 @@ import logging
 import os
 import sys
 
-from . import config, parsers, utils
+from . import config, utils, parsers
 
 
 # Might be necessary to make colored output work on Windows.
