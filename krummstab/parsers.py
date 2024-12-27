@@ -96,13 +96,6 @@ def add_init_command_parser(subparsers):
         type=int,
         help="the exercises you have to mark",
     )
-    parser_init.add_argument(
-        "-x",
-        "--xopp",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help="generate .xopp files",
-    )
     return parser_init
 
 
@@ -110,13 +103,6 @@ def add_collect_command_parser(subparsers):
     parser_collect = subparsers.add_parser(
         "collect",
         help="collect feedback files after marking is done",
-    )
-    parser_collect.add_argument(
-        "-x",
-        "--xopp",
-        action=argparse.BooleanOptionalAction,
-        default=False,
-        help="export .xopp files",
     )
     parser_collect.add_argument(
         "sheet_root_dir",

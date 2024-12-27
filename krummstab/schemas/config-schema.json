@@ -128,6 +128,9 @@
       "smtp_user": {
         "type": "string"
       },
+      "xopp": {
+        "type": "boolean"
+      },
       "ignore_feedback_suffix": {
         "type": "array",
         "items": {
@@ -153,6 +156,7 @@
         "smtp_url",
         "smtp_port",
         "smtp_user",
+        "xopp",
         "ignore_feedback_suffix"
       ],
     "if": {

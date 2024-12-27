@@ -162,8 +162,8 @@ PDF feedback you can use whichever tool you like, and overwrite the `.pdf.todo`
 placeholder with the resulting output. If this tool adds files to the feedback
 directory that you do not want to send to the students, you can add their
 endings to the config file under the `ignore_feedback_suffix` key. Marking with
-Xournal++ is supported by default: Simply add the flag `-x` to the `init`
-command above to automatically create the relevant `.xopp` files.
+Xournal++ is supported by default: Simply set the value of the `xopp` key in 
+the config file to `true` to automatically create the relevant `.xopp` files.
 
 While writing the feedback, you can keep track of the points the teams get in
 the file `points.json`. In the case of plagiarism, write `Plagiarism` in the 
@@ -184,9 +184,9 @@ match up. A json file containing the individual points per student is also
 generated.
 
 In case you need make changes to the markings and rerun the collection step, use
-the `-r` flag to overwrite existing feedback archives. If you are using
-Xournal++, you can also use the `-x` flag here to automatically export the
-`.xopp` files before collecting the feedback.
+the `-r` flag to overwrite existing feedback archives. If you use
+Xournal++, the `.xopp` files will be exported automatically before collecting 
+the feedback if the value of the `xopp` key in the config file is set to `true`.
 
 ### combine
 This command is only relevant for the `exercise` marking mode.
@@ -238,6 +238,10 @@ LibreOffice. To access this command:
   `smtp-ext` setup)
 - `smtp_user`: SMTP user, empty by default (use your short unibas account name
   for an `smtp-ext` setup)
+- `xopp`: if you use Xournal++ for marking, set the value to `true`; the 
+  relevant `xopp` files are then automatically created with the `init` 
+  subcommand and exported with the `collect` subcommand before the feedback 
+  is collected.
 - `ignore_feedback_suffix`: a list of extensions that should be ignored by the
   `collect` sub-command; this is useful if the tools you use for marking create
   files in the feedback folders that you don't want to send to the students
