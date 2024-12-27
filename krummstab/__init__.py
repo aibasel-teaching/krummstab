@@ -552,8 +552,7 @@ def collect_feedback_files(submission: submissions.Submission,
 
     if not feedback_files:
         logging.critical(
-            f"Feedback archive for team {submission.root_dir.name} is empty! "
-            "Did you forget the '-x' flag to export .xopp files?"
+            f"Feedback archive for team {submission.root_dir.name} is empty!"
         )
 
     # If there is exactly one pdf in the feedback directory, we do not need to
@@ -782,7 +781,7 @@ def collect(_the_config: config.Config, args) -> None:
             delete_collected_feedback_directories(sheet)
         else:
             logging.critical("Aborting 'collect' without overwriting existing collected feedback.")
-    if args.xopp:
+    if _the_config.xopp:
         export_xopp_files(sheet)
     create_collected_feedback_directories(sheet)
     for submission in sheet.get_relevant_submissions():
@@ -1380,7 +1379,7 @@ def init(_the_config: config.Config, args) -> None:
     # .   └── submission.json
     # ├── sheet.json
     # └── points.json
-    if args.xopp:
+    if _the_config.xopp:
         generate_xopp_files(sheet)
 
 
