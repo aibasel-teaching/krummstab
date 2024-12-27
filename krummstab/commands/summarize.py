@@ -7,8 +7,8 @@ from xlsxwriter import Workbook
 from xlsxwriter.utility import xl_rowcol_to_cell, xl_range_abs
 from xlsxwriter.worksheet import Worksheet
 
-from . import config
-from .teams import *
+from .. import config
+from ..teams import *
 
 BOLD = {'bold': True}
 BORDER = {'border': 1}
@@ -386,3 +386,15 @@ def create_marks_summary_excel_file(_the_config: config.Config, marks_dir: Path)
         points_per_sheet_cell_addresses
     )
     workbook.close()
+
+
+def summarize(_the_config: config.Config, args) -> None:
+    """
+    Generate an Excel file summarizing students' marks after the individual
+    marks files have been collected in a directory.
+    """
+    if not args.marks_dir.is_dir():
+        logging.critical("The given individual marks directory is not valid!")
+    create_marks_summary_excel_file(
+        _the_config, args.marks_dir
+    )
