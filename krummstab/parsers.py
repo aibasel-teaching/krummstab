@@ -1,6 +1,8 @@
 import argparse
 import pathlib
 
+from .commands import *
+
 
 DEFAULT_SHARED_CONFIG_FILE = "config-shared.json"
 DEFAULT_INDIVIDUAL_CONFIG_FILE = "config-individual.json"
@@ -11,13 +13,12 @@ def add_parsers():
     add_main_command_parser(parser)
     subparsers = add_subcommand_parser(parser)
     add_help_command_parser(subparsers)
-    parser_init = add_init_command_parser(subparsers)
-    parser_collect = add_collect_command_parser(subparsers)
-    parser_combine = add_combine_command_parser(subparsers)
-    parser_send = add_send_command_parser(subparsers)
-    parser_summarize = add_summarize_command_parser(subparsers)
-    return (parser, parser_init, parser_collect, parser_combine, parser_send,
-            parser_summarize)
+    add_init_command_parser(subparsers)
+    add_collect_command_parser(subparsers)
+    add_combine_command_parser(subparsers)
+    add_send_command_parser(subparsers)
+    add_summarize_command_parser(subparsers)
+    return parser
 
 
 def add_main_command_parser(parser):
@@ -31,7 +32,6 @@ def add_main_command_parser(parser):
             "the student/email list"
         ),
     )
-
     parser.add_argument(
         "-i",
         "--config-individual",
@@ -103,7 +103,7 @@ def add_init_command_parser(subparsers):
         default=False,
         help="generate .xopp files",
     )
-    return parser_init
+    parser_init.set_defaults(func=init)
 
 
 def add_collect_command_parser(subparsers):
@@ -123,7 +123,7 @@ def add_collect_command_parser(subparsers):
         type=pathlib.Path,
         help="path to the sheet's directory",
     )
-    return parser_collect
+    parser_collect.set_defaults(func=collect)
 
 
 def add_combine_command_parser(subparsers):
@@ -140,7 +140,7 @@ def add_combine_command_parser(subparsers):
         type=pathlib.Path,
         help="path to the sheet's directory",
     )
-    return parser_combine
+    parser_combine.set_defaults(func=combine)
 
 
 def add_send_command_parser(subparsers):
@@ -159,7 +159,7 @@ def add_send_command_parser(subparsers):
         action="store_true",
         help="only print emails instead of sending them",
     )
-    return parser_send
+    parser_send.set_defaults(func=send)
 
 
 def add_summarize_command_parser(subparsers):
@@ -172,4 +172,4 @@ def add_summarize_command_parser(subparsers):
         type=pathlib.Path,
         help="path to the directory with all individual marks files",
     )
-    return parser_summarize
+    parser_summarize.set_defaults(func=summarize)
