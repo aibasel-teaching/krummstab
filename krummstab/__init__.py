@@ -20,8 +20,6 @@ from . import config, parsers, utils
 os.system("")
 
 
-# =============================== Main Function ================================
-
 def main():
     utils.configure_logging()
 
@@ -32,13 +30,12 @@ def main():
         parser.print_help()
         sys.exit(0)
 
-    # Process config files =====================================================
+    # Process config files
     _the_config = config.Config([args.config_shared, args.config_individual])
 
-    # Execute subcommand =======================================================
+    # Execute subcommand. This calls the function set as default in the parser.
+    # For example, `args.func` is set to `init` if the subcommand is "init".
     logging.info(f"Running command '{args.sub_command}'...")
-    # This calls the function set as default in the parser.
-    # For example, `func` is set to `init` if the subcommand is "init".
     args.func(_the_config, args)
     logging.info(f"Command '{args.sub_command}' terminated successfully. 🎉")
 
