@@ -11,6 +11,6 @@ class Student:
 
     def to_tuple(self) -> tuple[str, str, str]:
         """
-         Get a tuple of strings representation of a student.
+        Get a tuple of strings representation of a student.
         """
         return self.first_name, self.last_name, self.email
