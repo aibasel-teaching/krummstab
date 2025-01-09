@@ -1,3 +1,5 @@
+<img src="./logo/banner.svg" alt="krummstab-logo">
+
 # Krummstab Feedback Script
 
 The purpose of this script is to automate some of the menial steps involved in
