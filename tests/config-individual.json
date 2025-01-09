@@ -6,6 +6,6 @@
     "smtp_url": "smtp.unibas.ch",
     "smtp_port": 25,
     "smtp_user": "",
-    "xopp": false,
+    "xopp": PLACEHOLDER_XOPP_SETTING,
     "ignore_feedback_suffix": [ ".xopp" ]
 }

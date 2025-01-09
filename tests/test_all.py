@@ -30,11 +30,16 @@ def setup_test_directory(request, tmp_path: pathlib.Path):
     sheet directory.
     """
     shutil.copytree(SAMPLE_SHEET_DIR, tmp_path / SAMPLE_SHEET_DIR.name)
-    shutil.move(tmp_path / SAMPLE_SHEET_SUB_DIR, tmp_path / SAMPLE_SHEET_DIR / request.param)
+    shutil.move(
+        tmp_path / SAMPLE_SHEET_SUB_DIR,
+        tmp_path / SAMPLE_SHEET_DIR / request.param,
+    )
     os.makedirs(tmp_path / "temp")
     shutil.move(tmp_path / SAMPLE_SHEET_DIR, tmp_path / "temp")
-    shutil.move(tmp_path / "temp", tmp_path / SAMPLE_SHEET_DIR )
-    shutil.make_archive(str(tmp_path / SAMPLE_SHEET_DIR), 'zip', tmp_path / SAMPLE_SHEET_DIR)
+    shutil.move(tmp_path / "temp", tmp_path / SAMPLE_SHEET_DIR)
+    shutil.make_archive(
+        str(tmp_path / SAMPLE_SHEET_DIR), "zip", tmp_path / SAMPLE_SHEET_DIR
+    )
     shutil.rmtree(tmp_path / SAMPLE_SHEET_DIR)
     # Copy individual config file.
     shutil.copy(CONFIG_INDIVIDUAL, tmp_path)
@@ -55,6 +60,14 @@ def config_shared(request, monkeypatch, setup_test_directory: pathlib.Path):
 def insert_tutor_name(request):
     with open("config-individual.json", "r") as f:
         filled_in = f.read().replace("PLACEHOLDER_NAME", request.param)
+    with open("config-individual.json", "w") as f:
+        f.write(filled_in)
+
+
+@pytest.fixture(params=["true", "false"])
+def insert_xopp_setting(request):
+    with open("config-individual.json", "r") as f:
+        filled_in = f.read().replace("PLACEHOLDER_XOPP_SETTING", request.param)
     with open("config-individual.json", "w") as f:
         f.write(filled_in)
 
@@ -81,7 +94,11 @@ def give_feedback():
     indirect=["config_shared"],
 )
 def test(
-    capfd, config_shared: pathlib.Path, insert_tutor_name, args: list[str]
+    capfd,
+    config_shared: pathlib.Path,
+    insert_tutor_name,
+    insert_xopp_setting,
+    args: list[str],
 ):
     # Call 'init'.
     subprocess.check_call(

@@ -188,9 +188,9 @@ match up. A json file containing the individual points per student is also
 generated.
 
 In case you need make changes to the markings and rerun the collection step, use
-the `-r` flag to overwrite existing feedback archives. If you use
-Xournal++, the `.xopp` files will be exported automatically before collecting 
-the feedback if the value of the `xopp` key in the config file is set to `true`.
+the `-r` flag to overwrite existing feedback archives. When using Xournal++
+(that is, when the `xopp` key is set to true), the `.xopp` files will be
+exported automatically before collecting the feedback.
 
 ### combine
 This command is only relevant for the `exercise` marking mode.
