@@ -2,7 +2,7 @@
 
 # Krummstab Feedback Script
 
-The purpose of this script is to automate some of the menial steps involved in
+The purpose of this script is to automate some of the tedious steps involved in
 marking ADAM submissions.
 
 The system is made up of three components: the central
@@ -26,9 +26,9 @@ beginning of the course.
 
 Depending on the general settings of the shared config file, different command
 line options may be mandatory. The `help` option provides information about the
-script, its subcommands (currently `init`, `collect`, `combine`, `send` and 
-`summarize`), and their parameters. Once you have completed the one-time 
-setup below, you'll be able to access the help via:
+script, its subcommands (currently `init`, `collect`, `combine`, `send` and
+`summarize`), and their parameters. Once you have completed the one-time setup
+below, you'll be able to access the help via:
 ```
 krummstab -h
 krummstab <subcommand> -h
@@ -40,9 +40,8 @@ as an example.
 
 ## Requirements
 
-- `Python 3.10+`: I only tested the script with 3.10 and I think it makes use of
-some new-ish language features, so I cannot guarantee that everything works as
-expected with older Python versions.
+- `Python 3.10+`: Our `pytest` setup tests Python versions 3.10, 3.11, and 3.12
+  on an Ubuntu machine. Older Python versions will likely cause problems.
 
 
 ## One-Time Setup
@@ -50,9 +49,9 @@ expected with older Python versions.
 > 📝 I'm assuming a Linux environment in the following. In case you are using
 > macOS, I hope that the following instructions work without major differences.
 > In case you are using Windows, I recommend trying to install a Windows
-> Subsystem for Linux (WSL), which should allow you to follow these
-> instructions exactly. Alternatively you can try to install the necessary
-> software natively, but I don't offer support here.
+> Subsystem for Linux (WSL), which should allow you to follow these instructions
+> exactly. Alternatively you can try to install the necessary software natively,
+> but I don't offer support here.
 
 To get started, create an empty directory where you want to do your marking, in
 this example the directory will be called `ki-fs23-marking`:
@@ -114,8 +113,8 @@ could not be found.
 
 ### init
 First, download the submissions from ADAM and save the zip file in the marking
-directory. (It's important that you only download the submissions after the
-ADAM deadline has passed, so that all tutors have the same, complete pool of
+directory. (It's important that you only download the submissions after the ADAM
+deadline has passed, so that all tutors have the same, complete pool of
 submissions.) Our example directory `ki-fs23-marking`, with `Sheet 1.zip` being
 the file downloaded from ADAM, should look like this:
 ```
@@ -168,7 +167,7 @@ Xournal++ is supported by default: Simply add the flag `-x` to the `init`
 command above to automatically create the relevant `.xopp` files.
 
 While writing the feedback, you can keep track of the points the teams get in
-the file `points.json`. In the case of plagiarism, write `Plagiarism` in the 
+the file `points.json`. In the case of plagiarism, write `Plagiarism` in the
 place for the points.
 
 ### collect
@@ -182,7 +181,7 @@ This will create a zip archive in every feedback directory containing the
 feedback for that team. Additionally, a semicolon-separated list of all points
 is printed. This can be useful in case you have to paste the points into a
 shared spreadsheet. The names are there to be able to double-check that the rows
-match up. A json file containing the individual points per student is also 
+match up. A json file containing the individual points per student is also
 generated.
 
 In case you need make changes to the markings and rerun the collection step, use
@@ -195,23 +194,23 @@ This command is only relevant for the `exercise` marking mode.
 `TODO: Document this.`
 
 ### send
-For the `static` marking mode, it is possible to directly send the
-feedback to the students via e-mail. For this to work you have to be in the
-university network, which likely means you'll have to connect to the university
-VPN. You may find the `--dry_run` option useful, instead of sending the e-mails
-directly, it only prints them so that you can double-check that everything looks
-as expected.
+For the `static` marking mode, it is possible to directly send the feedback to
+the students via e-mail. For this to work you have to be in the university
+network, which likely means you'll have to connect to the university VPN. You
+may find the `--dry_run` option useful, instead of sending the e-mails directly,
+it only prints them so that you can double-check that everything looks as
+expected.
 
 ### summarize
-This command generates an Excel file that summarizes the students' marks. 
-It needs a path to a directory containing the individual marks json files:
+This command generates an Excel file that summarizes the students' marks. It
+needs a path to a directory containing the individual marks json files:
 ```
-krummstab summarize path-to-a-directory-with-individual-marks-files
+krummstab summarize path/to/a/directory/with/individual/marks/files
 ```
-If you use LibreOffice, it is possible that the formulas are not calculated 
-immediately. To calculate them, use the Recalculate Hard command in 
-LibreOffice. To access this command:
-- From the menu bar: Data - Calculate - Recalculate hard
+If you use LibreOffice, it is possible that the formulas are not calculated
+immediately. To calculate them, use the Recalculate Hard command in LibreOffice.
+To access this command
+- From the menu bar: Data > Calculate > Recalculate Hard
 - From the keyboard: Command + Shift + F9
 
 
@@ -276,8 +275,8 @@ LibreOffice. To access this command:
 
 # Development
 
-We added some tests that use the `pytest` framework. Simply install `pytest` via
-`pip3 install pytest` (or `pip`, not sure what the difference is), and run the
-command `pytest`. Currently it tests the `init` and `collect` steps for the
-modes `static` and `exercise`, the `combine` step for the mode `exercise`, and
-the `send` step for the mode `static`.
+There are some tests written in the `pytest` framework. This requires `pytest`,
+which can be installed via `pip3 install pytest` for example, and Xournal++
+(https://github.com/xournalpp/xournalpp), which can be installed via `sudo apt
+install xournalpp` on Ubuntu. Tests can then be executed by running `pytest` in
+the root directory of the project.
