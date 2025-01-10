@@ -40,8 +40,11 @@ as an example.
 
 ## Requirements
 
-- `Python 3.10+`: Our `pytest` setup tests Python versions 3.10, 3.11, and 3.12
+- Python 3.10+: Our `pytest` setup tests Python versions 3.10, 3.11, and 3.12
   on an Ubuntu machine. Older Python versions will likely cause problems.
+- [Xournal++](https://github.com/xournalpp/xournalpp) (optional): The script
+  includes some convenient functionality when using Xournal++ to write feedback,
+  but you can also do so by any other means.
 
 
 ## One-Time Setup
@@ -276,7 +279,7 @@ To access this command
 # Development
 
 There are some tests written in the `pytest` framework. This requires `pytest`,
-which can be installed via `pip3 install pytest` for example, and Xournal++
-(https://github.com/xournalpp/xournalpp), which can be installed via `sudo apt
-install xournalpp` on Ubuntu. Tests can then be executed by running `pytest` in
-the root directory of the project.
+which can be installed via `pip3 install pytest` for example, and
+[Xournal++](https://github.com/xournalpp/xournalpp), which can be installed via
+`sudo apt install xournalpp` on Ubuntu. Tests can then be executed by running
+`pytest` in the root directory of the project.
