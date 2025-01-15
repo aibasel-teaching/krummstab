@@ -1,0 +1,30 @@
+\usetikzlibrary{lindenmayersystems}
+\tikzset{%
+    stab line/.style={cap=round, line join=round,},
+    stab/.pic={
+        \draw[rotate=90] lindenmayer system[lindenmayer
+            system={krummstab, step=.1pt, angle=4, axiom=F, order=18}];
+        \draw[overlay, line width=55pt] (0, 0) -- (0, -1);}
+}%
+\pgfdeclarelindenmayersystem{krummstab}{%
+    % The fact that these \draw commands actually affect the styling is a
+    % hack I came across accidentally. I'm not sure how and why it works.
+    \symbol{F}{\draw[stab line, line width=55pt];\pgflsystemdrawforward}
+    \symbol{A}{\draw[stab line, line width=34pt];\pgflsystemdrawforward}
+    \symbol{R}{\draw[stab line, line width=21pt];\pgflsystemdrawforward}
+    \symbol{L}{\pgflsystemdrawforward}
+    \symbol{B}{\pgflsystemdrawforward}
+    \symbol{S}{\pgflsystemdrawforward}
+    \rule{F -> LLLL[+MF][-NA]}
+    \rule{M -> +M}
+    \rule{O -> ++O}
+    \rule{N -> -N}
+    \rule{L -> LX}
+    \rule{X -> L}
+    \rule{A -> BB[-NA][+MR]}
+    \rule{B -> BY}
+    \rule{Y -> B}
+    \rule{R -> S[+MR]}
+    \rule{S -> ST}
+    \rule{T -> S}
+}%
