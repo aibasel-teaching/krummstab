@@ -9,6 +9,7 @@ from typing import Union
 from zipfile import ZipFile
 
 from .. import config, sheets, submissions, utils
+from ..teams import *
 
 
 def extract_adam_zip(args) -> tuple[pathlib.Path, str]:
@@ -282,7 +283,8 @@ def print_missing_submissions(_the_config: config.Config, sheet: sheets.Sheet) -
             print(f"* {missing_team.last_names_to_string()}")
 
 
-def lookup_teams(_the_config: config.Config, team_dir: pathlib.Path):
+def lookup_teams(_the_config: config.Config,
+                 team_dir: pathlib.Path) -> tuple[str, list[Team]]:
     """
     Extracts the team ID from the directory name and searches for teams
     based on the extracted email address from the subdirectory name.
@@ -293,7 +295,7 @@ def lookup_teams(_the_config: config.Config, team_dir: pathlib.Path):
     teams = [
         team
         for team in _the_config.teams
-        if any(submission_email in student for student in team.members)
+        if any(student.email == submission_email for student in team.members)
     ]
     return team_id, teams
 
@@ -455,5 +457,5 @@ def init(_the_config: config.Config, args) -> None:
     # .   └── submission.json
     # ├── sheet.json
     # └── points.json
-    if args.xopp:
+    if _the_config.xopp:
         generate_xopp_files(sheet)

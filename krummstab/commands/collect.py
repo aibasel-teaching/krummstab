@@ -110,8 +110,7 @@ def collect_feedback_files(submission: submissions.Submission,
 
     if not feedback_files:
         logging.critical(
-            f"Feedback archive for team {submission.root_dir.name} is empty! "
-            "Did you forget the '-x' flag to export .xopp files?"
+            f"Feedback archive for team {submission.root_dir.name} is empty!"
         )
 
     # If there is exactly one pdf in the feedback directory, we do not need to
@@ -194,7 +193,7 @@ def print_marks(_the_config: config.Config, sheet: sheets.Sheet) -> None:
             if submission.team == team_to_print:
                 key = submission.team.get_team_key()
                 for student in submission.team.members:
-                    full_name = f"{student[0]} {student[1]}"
+                    full_name = f"{student.first_name} {student.last_name}"
                     output_str = f"{full_name:>35};"
                     if _the_config.points_per == "exercise":
                         # The value `marks` assigned to the team_dir key is a
@@ -219,8 +218,8 @@ def create_individual_marks_file(_the_config: config.Config, sheet: sheets.Sheet
     student_marks = {}
     for submission in sheet.get_relevant_submissions():
         team_key = submission.team.get_team_key()
-        for first_name, last_name, email in submission.team.members:
-            student_key = email.lower()
+        for student in submission.team.members:
+            student_key = student.email.lower()
             student_marks.update({student_key: team_marks.get(team_key)})
     file_content = {
         "tutor_name": _the_config.tutor_name,
@@ -340,7 +339,7 @@ def collect(_the_config: config.Config, args) -> None:
             delete_collected_feedback_directories(sheet)
         else:
             logging.critical("Aborting 'collect' without overwriting existing collected feedback.")
-    if args.xopp:
+    if _the_config.xopp:
         export_xopp_files(sheet)
     create_collected_feedback_directories(sheet)
     for submission in sheet.get_relevant_submissions():
