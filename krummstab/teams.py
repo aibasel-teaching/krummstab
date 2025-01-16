@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 from .students import *
@@ -28,6 +29,9 @@ class Team:
         Create a string representation of the team with the ADAM ID:
         team_id_LastName1-LastName2
         """
+        if not self.adam_id:
+            logging.critical("Internal error for developers: get_team_key() "
+                             "cannot be used when the team's adam_id is None.")
         return self.adam_id + "_" + self.last_names_to_string()
 
     def last_names_to_string(self) -> str:

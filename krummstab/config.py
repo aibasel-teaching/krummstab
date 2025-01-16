@@ -8,6 +8,9 @@ from . import errors, schemas
 from .teams import *
 
 
+# Within this class, Team objects are created with their adam_id set to None
+# because the adam_id is not available at the time of the Config class
+# instantiation.
 class Config:
     def __init__(self, config_paths: list[Path]) -> None:
         data = {}
@@ -39,6 +42,14 @@ class Config:
             team.sort()
         self.teams.sort()
 
+        # Create Team objects with their adam_id set to None because
+        # the adam_id is not available here
+        if self.marking_mode == "static":
+            self.classes = {
+                tutor: [Team([Student(*student) for student in team], None)
+                        for team in teams]
+                for tutor, teams in self.classes.items()
+            }
         self.teams = [Team([Student(*student) for student in team], None)
                       for team in self.teams]
         _validate_teams(self.teams, self.max_team_size)
@@ -51,8 +62,7 @@ class Config:
         access relevant teams via `get_relevant_submissions()`.
         """
         if self.marking_mode == "static":
-            return [Team([Student(*student) for student in team], None)
-                    for team in self.classes[self.tutor_name]]
+            return self.classes[self.tutor_name]
         elif self.marking_mode == "exercise":
             return self.teams
         else:
