@@ -1,3 +1,4 @@
+import glob
 import json
 import logging
 import os
@@ -5,8 +6,11 @@ import pathlib
 import shutil
 import tempfile
 import textwrap
+from collections import defaultdict
 from typing import Union
 from zipfile import ZipFile
+
+import openpyxl
 
 from .. import config, sheets, submissions, utils
 from ..teams import *
@@ -335,7 +339,8 @@ def validate_team_dirs(_the_config: config.Config,
         for existing_id, existing_team in adam_id_to_team.items():
             if existing_team == teams[0]:
                 logging.warning(
-                    f"There are multiple submissions for team '{teams[0].members}'"
+                    f"There are multiple submissions for team '"
+                    f"{teams[0].to_tuples()}'"
                     f" under separate ADAM IDs ({existing_id} and {team_id})!"
                     " This probably means that multiple members of a team"
                     " submitted solutions without forming a team on ADAM. You"
@@ -345,16 +350,43 @@ def validate_team_dirs(_the_config: config.Config,
 
 
 def create_all_submission_info_files(_the_config: config.Config,
+                                     submission_teams: dict[str, Team],
                                      sheet_root_dir: pathlib.Path) -> None:
     """
     Creates the submission info JSON files in all team directories.
     """
     for team_dir in sheet_root_dir.iterdir():
         if team_dir.is_dir():
-            team_id, teams = lookup_teams(_the_config, team_dir)
+            team_id = team_dir.name.split(" ")[1]
             submissions.create_submission_info_file(
-                _the_config, teams[0], team_id, team_dir
+                _the_config, submission_teams[team_id], team_dir
             )
+
+
+def read_teams_from_adam_spreadsheet(sheet_root_dir: pathlib.Path
+                          ) -> dict[str, Team]:
+    excel_files = list(sheet_root_dir.glob("*.xlsx"))
+    if not excel_files:
+        logging.critical("No ADAM Excel spreadsheet found.")
+    wb = openpyxl.load_workbook(excel_files[0])
+    sheet = wb.active
+    col_last_name = 0
+    col_first_name = 1
+    col_email = 2
+    col_team_id = 4
+    teams_data = defaultdict(list)
+    for row in sheet.iter_rows(min_row=2, values_only=True):
+        team_id = str(row[col_team_id])
+        first_name = row[col_first_name]
+        last_name = row[col_last_name]
+        email = row[col_email]
+        teams_data[team_id].append((first_name, last_name, email))
+    for team in teams_data.values():
+        team.sort()
+    teams = {}
+    for team_id, team in teams_data.items():
+        teams[team_id] = Team([Student(*student) for student in team], team_id)
+    return teams
 
 
 def init(_the_config: config.Config, args) -> None:
@@ -408,8 +440,11 @@ def init(_the_config: config.Config, args) -> None:
     # ├── Team 12345
     # .   └── Muster_Hans_hans.muster@unibas.ch_000000
     # .       └── submission.pdf or submission.zip
+    submission_teams = read_teams_from_adam_spreadsheet(sheet_root_dir)
     validate_team_dirs(_the_config, sheet_root_dir)
-    create_all_submission_info_files(_the_config, sheet_root_dir)
+    create_all_submission_info_files(
+        _the_config, submission_teams, sheet_root_dir
+    )
     sheet = sheets.create_sheet_info_file(
         sheet_root_dir, adam_sheet_name, _the_config, args.exercises
     )
