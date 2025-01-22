@@ -276,12 +276,15 @@ def print_missing_submissions(_the_config: config.Config, sheet: sheets.Sheet) -
     Print all teams that are listed in the config file, but whose submission is
     not present in the zip downloaded from ADAM.
     """
-    teams_who_submitted = []
-    for submission in sheet.get_all_team_submission_info():
-        teams_who_submitted.append(submission.team)
+    teams_who_submitted = [submission.team for submission in
+                           sheet.get_all_team_submission_info()]
+    students_who_submitted = [member for team in teams_who_submitted
+                             for member in team.members]
+    # Also checks if the team has been restructured
     missing_teams = [
-        team for team in _the_config.teams if team not in
-        teams_who_submitted
+        team for team in _the_config.teams
+        if team not in teams_who_submitted and not any(
+            member in students_who_submitted for member in team.members)
     ]
     if missing_teams:
         logging.warning("There are no submissions for the following team(s):")
@@ -365,6 +368,10 @@ def create_all_submission_info_files(_the_config: config.Config,
 
 def read_teams_from_adam_spreadsheet(sheet_root_dir: pathlib.Path
                           ) -> dict[str, Team]:
+    """
+    Reads the teams from the ADAM Excel spreadsheet and returns a dictionary
+    with the team IDs as keys and the teams as values.
+    """
     excel_files = list(sheet_root_dir.glob("*.xlsx"))
     if not excel_files:
         logging.critical("No ADAM Excel spreadsheet found.")

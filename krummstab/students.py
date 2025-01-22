@@ -5,9 +5,7 @@ class Student:
         self.email = email
 
     def __eq__(self, other) -> bool:
-        return (self.first_name == other.first_name
-                and self.last_name == other.last_name
-                and self.email == other.email)
+        return self.email == other.email
 
     def to_tuple(self) -> tuple[str, str, str]:
         """
