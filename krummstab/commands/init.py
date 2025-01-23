@@ -1,6 +1,4 @@
-import glob
 import json
-import logging
 import os
 import pathlib
 import shutil
@@ -12,7 +10,7 @@ from zipfile import ZipFile
 
 import openpyxl
 
-from .. import config, sheets, submissions, utils
+from .. import config, errors, sheets, submissions, utils
 from ..teams import *
 
 
@@ -292,68 +290,172 @@ def print_missing_submissions(_the_config: config.Config, sheet: sheets.Sheet) -
             print(f"* {missing_team.last_names_to_string()}")
 
 
-def lookup_teams(_the_config: config.Config,
-                 team_dir: pathlib.Path) -> tuple[str, list[Team]]:
+def set_relevance_for_submission_teams(_the_config: config.Config,
+                                       submission_teams: dict[str, Team]
+                                       ) -> dict[str, bool]:
     """
-    Extracts the team ID from the directory name and searches for teams
-    based on the extracted email address from the subdirectory name.
+    Determines the value of 'relevant' of the submission.json files for the
+    submission teams. Returns a dictionary with the team IDs as keys and a
+    boolean as value indicating if the team is relevant or not.
     """
-    team_id = team_dir.name.split(" ")[1]
-    submission_dir = list(team_dir.iterdir())[0]
-    submission_email = submission_dir.name.split("_")[-2]
-    teams = [
-        team
-        for team in _the_config.teams
-        if any(student.email == submission_email for student in team.members)
+    team_relevance_dict = {}
+    student_email_to_tutor = create_student_email_to_tutor_dict(_the_config)
+    team_to_tutors = create_submission_team_to_tutors_dict(
+        list(submission_teams.values()), student_email_to_tutor, _the_config
+    )
+    for team_id, tutors in team_to_tutors.items():
+        if len(tutors) != 1:
+            if _the_config.tutor_name in tutors:
+                team_relevance_dict[team_id] = True
+                if (_the_config.marking_mode == "static"
+                        and len(_the_config.classes.keys()) > 1):
+                    logging.warning("Team "
+                                    f"{submission_teams[team_id].to_tuples()} "
+                                    f"is now assigned to tutors {tutors}.\n"
+                                    "Please contact the other tutors to decide "
+                                    "who will mark this team. Update the "
+                                    "shared config file and share it with "
+                                    "your fellow tutors and "
+                                    "the teaching assistant.\n"
+                                    "If you will not mark this team, then:\n"
+                                    "* Set the value of relevant to false in "
+                                    "the submission.json file of the team "
+                                    "directory.\n"
+                                    "* Remove the team from the "
+                                    "points.json file.")
+            else:
+                team_relevance_dict[team_id] = False
+        else:
+            if _the_config.tutor_name in tutors:
+                team_relevance_dict[team_id] = True
+            else:
+                team_relevance_dict[team_id] = False
+    return team_relevance_dict
+
+
+def create_submission_team_to_tutors_dict(
+        submission_teams: list[Team],
+        student_email_to_tutor: dict[str, set[str]],
+        _the_config: config.Config
+) -> dict[str, set[str]]:
+    """
+    Create a dictionary that maps submission team IDs to a set of assigned
+    tutors.
+    """
+    team_to_tutors = defaultdict(set)
+    for team in submission_teams:
+        if is_new_team(_the_config, team):
+            team_to_tutors[team.adam_id] = set(_the_config.classes.keys()) if (
+                _the_config.marking_mode == "static") else (
+                set(_the_config.tutor_list))
+        else:
+            for member in team.members:
+                if member.email in student_email_to_tutor:
+                    for tutor in student_email_to_tutor[member.email]:
+                        team_to_tutors[team.adam_id].add(tutor)
+    return team_to_tutors
+
+
+def create_student_email_to_tutor_dict(_the_config: config.Config,
+                                       ) -> dict[str, set[str]]:
+    """
+    Creates a dictionary that maps email addresses of students in the config
+    to a set of assigned tutors.
+    """
+    email_to_tutor_dict = defaultdict(set)
+    if _the_config.marking_mode == "static":
+        for tutor, teams in _the_config.classes.items():
+            for team in teams:
+                for member in team.members:
+                    email_to_tutor_dict[member.email].add(tutor)
+    elif _the_config.marking_mode == "exercise":
+        for team in _the_config.teams:
+            for member in team.members:
+                for tutor in _the_config.tutor_list:
+                    email_to_tutor_dict[member.email].add(tutor)
+    else:
+        errors.unsupported_marking_mode_error(_the_config.marking_mode)
+    return email_to_tutor_dict
+
+
+def is_new_team(_the_config: config.Config, submission_team: Team) -> bool:
+    """
+    Checks if a given submission team is a new team consisting only of new
+    students.
+    """
+    students_in_config_teams = [member for team in _the_config.teams
+                                for member in team.members]
+    return all(member not in students_in_config_teams for member in
+               submission_team.members)
+
+
+def is_restructured_submission_team(_the_config: config.Config,
+                                    submission_team: Team) -> bool:
+    """
+    Checks if the given submission team is structured differently in the config.
+    This ignores new submission teams consisting only of new students.
+    """
+    students_in_config_teams = [member for team in _the_config.teams
+                                for member in team.members]
+    return (submission_team not in _the_config.teams
+            and any(member in students_in_config_teams
+                    for member in submission_team.members))
+
+
+def is_restructured_config_team(submission_teams: list[Team],
+                                config_team: Team) -> bool:
+    """
+    Checks if the given config team is reorganized in the submission teams.
+    This ignores missing teams.
+    """
+    students_in_submission_teams = [member for team in submission_teams
+                                for member in team.members]
+    return (config_team not in submission_teams
+            and any(member in students_in_submission_teams
+                    for member in config_team.members))
+
+
+def validate_teams(_the_config: config.Config,
+                   submission_teams: list[Team]) -> None:
+    """
+    Checks if config teams are organized differently in the submission teams,
+    if submission teams are organized differently in the config,
+    and if there are new teams consisting only of new students.
+    """
+    old_config_teams = [
+        config_team for config_team in _the_config.teams
+        if is_restructured_config_team(submission_teams, config_team)
     ]
-    return team_id, teams
-
-
-def validate_team_dirs(_the_config: config.Config,
-                       sheet_root_dir: pathlib.Path) -> None:
-    """
-    Checks whether all students are assigned to a team and checks for
-    multiple submissions from teams under different IDs.
-    """
-    adam_id_to_team = {}
-    for team_dir in sheet_root_dir.iterdir():
-        if not team_dir.is_dir():
-            continue
-        team_id, teams = lookup_teams(_the_config, team_dir)
-        if len(teams) == 0:
-            submission_email = list(team_dir.iterdir())[0].name.split("_")[-2]
-            logging.critical(
-                f"The student with the email '{submission_email}' is not "
-                "assigned to a team. Your config file is likely out of date."
-                "\n"
-                "Please update the config file such that it reflects the team "
-                "assignments of this week correctly and share the updated "
-                "config file with your fellow tutors and the teaching "
-                "assistant."
-            )
-        # The case that a student is assigned to multiple teams would already be
-        # caught when reading in the config file, so we just assert that this is
-        # not the case here.
-        assert len(teams) == 1
-        # TODO: if team[0] in adam_id_to_team.values(): -> multiple separate
-        # submissions
-        # Catch the case where multiple members of a team independently submit
-        # solutions without forming a team on ADAM and print a warning.
-        for existing_id, existing_team in adam_id_to_team.items():
-            if existing_team == teams[0]:
-                logging.warning(
-                    f"There are multiple submissions for team '"
-                    f"{teams[0].to_tuples()}'"
-                    f" under separate ADAM IDs ({existing_id} and {team_id})!"
-                    " This probably means that multiple members of a team"
-                    " submitted solutions without forming a team on ADAM. You"
-                    " will have to combine the submissions manually."
-                )
-        adam_id_to_team.update({team_id: teams[0]})
+    if old_config_teams:
+        logging.warning("There are teams in the config that have been "
+                        "restructured.\n"
+                        "Original config teams:")
+        for old_config_team in old_config_teams:
+            print(f"* {old_config_team.to_tuples()}")
+    new_submission_teams = [
+        submission_team for submission_team in submission_teams
+        if is_restructured_submission_team(_the_config, submission_team)
+    ]
+    if new_submission_teams:
+        logging.warning("There are submission teams that were "
+                        "originally structured differently in the config.\n"
+                        "New submission teams:")
+        for new_submission_team in new_submission_teams:
+            print(f"* {new_submission_team.to_tuples()}")
+    new_teams = [
+        submission_team for submission_team in submission_teams
+        if is_new_team(_the_config, submission_team)
+    ]
+    if new_teams:
+        logging.warning("There are completely new teams where all members "
+                        "are not listed in the config:")
+        for new_team in new_teams:
+            print(f"* {new_team.to_tuples()}")
 
 
 def create_all_submission_info_files(_the_config: config.Config,
                                      submission_teams: dict[str, Team],
+                                     team_relevance_dict: dict[str, bool],
                                      sheet_root_dir: pathlib.Path) -> None:
     """
     Creates the submission info JSON files in all team directories.
@@ -361,8 +463,9 @@ def create_all_submission_info_files(_the_config: config.Config,
     for team_dir in sheet_root_dir.iterdir():
         if team_dir.is_dir():
             team_id = team_dir.name.split(" ")[1]
+            team = submission_teams[team_id]
             submissions.create_submission_info_file(
-                _the_config, submission_teams[team_id], team_dir
+                _the_config, team, team_relevance_dict[team_id], team_dir
             )
 
 
@@ -448,9 +551,12 @@ def init(_the_config: config.Config, args) -> None:
     # .   └── Muster_Hans_hans.muster@unibas.ch_000000
     # .       └── submission.pdf or submission.zip
     submission_teams = read_teams_from_adam_spreadsheet(sheet_root_dir)
-    validate_team_dirs(_the_config, sheet_root_dir)
+    validate_teams(_the_config, list(submission_teams.values()))
+    team_relevance_dict = set_relevance_for_submission_teams(
+        _the_config, submission_teams
+    )
     create_all_submission_info_files(
-        _the_config, submission_teams, sheet_root_dir
+        _the_config, submission_teams, team_relevance_dict, sheet_root_dir
     )
     sheet = sheets.create_sheet_info_file(
         sheet_root_dir, adam_sheet_name, _the_config, args.exercises
