@@ -174,41 +174,6 @@ def export_xopp_files(sheet: sheets.Sheet) -> None:
     logging.info("Done exporting .xopp files.")
 
 
-def print_marks(_the_config: config.Config, sheet: sheets.Sheet) -> None:
-    """
-    Prints the marks so that they can be easily copy-pasted to the file where
-    marks are collected.
-    """
-    # Read marks file.
-    # Don't check whether the marks file exists because `validate_marks_json()`
-    # would have already complained.
-    with open(sheet.get_marks_file_path(_the_config), "r", encoding="utf-8") as marks_file:
-        marks = json.load(marks_file)
-
-    # Print marks.
-    logging.info("Start of copy-paste marks...")
-    # We want all teams printed, not just the marked ones.
-    for team_to_print in _the_config.teams:
-        for submission in sheet.get_all_team_submission_info():
-            if submission.team == team_to_print:
-                key = submission.team.get_team_key()
-                for student in submission.team.members:
-                    full_name = f"{student.first_name} {student.last_name}"
-                    output_str = f"{full_name:>35};"
-                    if _the_config.points_per == "exercise":
-                        # The value `marks` assigned to the team_dir key is a
-                        # dict with (exercise name, mark) pairs.
-                        team_marks = marks.get(key, {"null": ""})
-                        _, exercise_marks = zip(*team_marks.items())
-                        for mark in exercise_marks:
-                            output_str += f"{mark:>3};"
-                    else:
-                        sheet_mark = marks.get(key, "")
-                        output_str += f"{sheet_mark:>3}"
-                    print(output_str)
-    logging.info("End of copy-paste marks.")
-
-
 def create_individual_marks_file(_the_config: config.Config, sheet: sheets.Sheet) -> None:
     """
     Write a json file to add the marks per student.
@@ -348,5 +313,4 @@ def collect(_the_config: config.Config, args) -> None:
         create_share_archive(overwrite, sheet)
     if _the_config.use_marks_file:
         validate_marks_json(_the_config, sheet)
-        print_marks(_the_config, sheet)
         create_individual_marks_file(_the_config, sheet)
