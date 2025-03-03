@@ -49,12 +49,13 @@ as an example.
 
 ## One-Time Setup
 
-> 📝 I'm assuming a Linux environment in the following. In case you are using
-> macOS, I hope that the following instructions work without major differences.
-> In case you are using Windows, I recommend trying to install a Windows
-> Subsystem for Linux (WSL), which should allow you to follow these instructions
-> exactly. Alternatively you can try to install the necessary software natively,
-> but I don't offer support here.
+> 📝 We're assuming a Linux environment in the following. In case you are using
+> macOS, we hope that the following instructions work without major differences.
+> In case you are using Windows, we recommend using Krummstab on a native Python
+> installation, but we don't provide instructions below. Installing inside a
+> Windows Subsystem for Linux (WSL) allows you to follow the instructions
+> directly, but sending emails through Krummstab will not work, so you need a
+> native installation to use all features of Krummstab.
 
 To get started, create an empty directory where you want to do your marking, in
 this example the directory will be called `ki-fs23-marking`:
