@@ -469,6 +469,20 @@ def create_all_submission_info_files(_the_config: config.Config,
             )
 
 
+def use_names_from_config(config_teams: list[Team],
+                          submission_teams: dict[str, Team]) -> None:
+    """
+    Changes the names of the students in the submission teams to the names
+    defined in the config, if available.
+    """
+    email_to_name_dict = create_email_to_name_dict(config_teams)
+    for team in submission_teams.values():
+        for member in team.members:
+            if member.email in email_to_name_dict:
+                member.first_name = email_to_name_dict[member.email][0]
+                member.last_name = email_to_name_dict[member.email][1]
+
+
 def read_teams_from_adam_spreadsheet(sheet_root_dir: pathlib.Path
                           ) -> dict[str, Team]:
     """
@@ -551,6 +565,7 @@ def init(_the_config: config.Config, args) -> None:
     # .   └── Muster_Hans_hans.muster@unibas.ch_000000
     # .       └── submission.pdf or submission.zip
     submission_teams = read_teams_from_adam_spreadsheet(sheet_root_dir)
+    use_names_from_config(_the_config.teams, submission_teams)
     validate_teams(_the_config, list(submission_teams.values()))
     team_relevance_dict = set_relevance_for_submission_teams(
         _the_config, submission_teams
