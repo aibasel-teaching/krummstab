@@ -26,12 +26,15 @@ def validate_marks_json(_the_config: config.Config, sheet: sheets.Sheet) -> None
     marked_teams = list(marks.keys())
     if sorted(relevant_teams) != sorted(marked_teams):
         logging.critical(
-            "There is no 1-to-1 mapping between team directories "
+            "There is no 1-to-1 mapping between teams "
             "that need to be marked and entries in the "
             f"'{marks_json_file.name}' "
             "file! Make sure that it contains exactly one entry for every team "
-            "directory that needs to be marked, and that directory name and "
-            "key are the same."
+            "that needs to be marked, and that the team keys "
+            "have the correct format. The team key has to match the content of "
+            "the submission.json file in the team directory and consist of the "
+            "ADAM ID and the alphabetically sorted last names of all team "
+            "members in the following format: ID_Last-Name1_Last-Name2"
         )
     if _the_config.points_per == "exercise":
         marks_list = [
