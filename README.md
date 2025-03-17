@@ -304,24 +304,24 @@ following steps are necessary:
      submission
 
      The structure should look similar to the following:
-```json
-{
-    "team": [
-        [
-            "first_name1",
-            "last_name1",
-            "email1@stud.unibas.ch"
-        ],
-        [
-            "first_name2",
-            "last_name2",
-            "email2@stud.unibas.ch"
-        ]
-    ],
-    "adam_id": "11910",
-    "relevant": true
-}
-```
+     ```json
+     {
+         "team": [
+             [
+                 "first_name1",
+                 "last_name1",
+                 "email1@stud.unibas.ch"
+             ],
+             [
+                 "first_name2",
+                 "last_name2",
+                 "email2@stud.unibas.ch"
+             ]
+         ],
+         "adam_id": "11910",
+         "relevant": true
+     }
+     ```
 3. Creating a feedback folder: Create a new subfolder in `late_submission` with
    the name `feedback`. When you have marked the team, you can add your feedback
    files here. You can add the original submitted files to `late_submission`,
@@ -331,6 +331,8 @@ following steps are necessary:
    chose in step 1 and the alphabetically sorted last names of all team members
    in the following format: `ID_Last-Name1_Last-Name2`
 
+After completing these steps, the new submission will be processed as usual by
+future calls to Krummstab, in particular by the `collect` and `send` commands.
 
 # Development
 
