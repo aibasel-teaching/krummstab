@@ -40,8 +40,9 @@ setup(
     packages=find_packages(),
     python_requires=">=3.10",
     install_requires=[
-        'pypdf==3.1.0',
         'jsonschema==4.23.0',
+        'openpyxl==3.1.5',
+        'pypdf==3.1.0',
         'xlsxwriter==3.2.0'
     ],
     entry_points={

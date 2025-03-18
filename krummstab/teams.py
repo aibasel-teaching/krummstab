@@ -10,7 +10,8 @@ class Team:
         self.adam_id = adam_id
 
     def __eq__(self, other) -> bool:
-        return self.members == other.members
+        return (sorted([member.email for member in self.members])
+                == sorted([member.email for member in other.members]))
 
     def get_first_names(self) -> list[str]:
         """
