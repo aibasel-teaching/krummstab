@@ -187,12 +187,9 @@ path to the directory created by the `init` command:
 ```
 krummstab collect sheet01
 ```
-This will create a zip archive in every feedback directory containing the
-feedback for that team. Additionally, a semicolon-separated list of all points
-is printed. This can be useful in case you have to paste the points into a
-shared spreadsheet. The names are there to be able to double-check that the rows
-match up. A json file containing the individual points per student is also
-generated.
+This will create a zip archive in every feedback directory containing the 
+feedback for that team. A json file containing the individual points per 
+student is also generated.
 
 In case you need make changes to the markings and rerun the collection step, use
 the `-r` flag to overwrite existing feedback archives. When using Xournal++
@@ -292,6 +289,12 @@ To access this command
 There may be situations that require manual changes. This section provides
 instructions for handling these special cases.
 
+It is important to note that the teams in the shared config file are only used 
+for the `init` and `summarize` commands. After the `init` command, there is a 
+file with the name `submission.json` in each team folder that contains 
+information about the submission, including the team. The information in these 
+files is used for the other commands.
+
 ### Manually Adding Late Submissions
 If you have already executed the `init` command and have already started to mark
 the sheet, but there is a late submission that needs to be added, the
@@ -339,6 +342,14 @@ following steps are necessary:
 
 After completing these steps, the new submission will be processed as usual by
 future calls to Krummstab, in particular by the `collect` and `send` commands.
+
+### Multiple Submissions from the Same Team
+There can be multiple submissions for the same team in ADAM. This can happen 
+when team members submit separately without forming a team on ADAM or when a new
+version of a submission is uploaded with a different filename. Submissions are 
+only overwritten if the new file has the same name as the previous version, 
+otherwise all zip files remain available. Such cases must be handled manually 
+when marking the submissions.
 
 # Development
 
