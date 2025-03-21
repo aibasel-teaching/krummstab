@@ -162,13 +162,19 @@ contains an empty placeholder PDF file and copies of submitted files that are
 not PDFs (e.g. source files).
 
 The idea is that you can give feedback to non-PDFs by adding your comments to
-these copies directly, and delete the ones you don't need to comment on. For the
-PDF feedback you can use whichever tool you like, and overwrite the `.pdf.todo`
-placeholder with the resulting output. If this tool adds files to the feedback
-directory that you do not want to send to the students, you can add their
-endings to the config file under the `ignore_feedback_suffix` key. Marking with
-Xournal++ is supported by default: Simply set the value of the `xopp` key in 
-the config file to `true` to automatically create the relevant `.xopp` files.
+these copies directly, and delete the ones you don't need to comment on. It 
+is possible to add a `--plain` or `-p` flag to the `init` command that
+prevents non-PDF files from being copied into the feedback directories. When 
+marking by exercise, this is useful for the tutors that do not have to mark the 
+programming exercises.
+
+For the PDF feedback you can use whichever tool you like, and overwrite the 
+`.pdf.todo` placeholder with the resulting output. If this tool adds files to 
+the feedback directory that you do not want to send to the students, you can 
+add their endings to the config file under the `ignore_feedback_suffix` key. 
+Marking with Xournal++ is supported by default: Simply set the value of the 
+`xopp` key in the config file to `true` to automatically create the relevant 
+`.xopp` files.
 
 While writing the feedback, you can keep track of the points the teams get in
 the file `points.json`. In the case of plagiarism, write `Plagiarism` in the
