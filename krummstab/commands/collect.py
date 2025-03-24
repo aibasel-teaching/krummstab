@@ -1,6 +1,7 @@
 import gzip
 import json
 import logging
+import pathlib
 import shutil
 import subprocess
 from typing import Optional
@@ -162,7 +163,7 @@ def create_collected_feedback_directories(sheet: sheets.Sheet) -> None:
         collected_feedback_dir.mkdir(exist_ok=True)
 
 
-def is_gzipped(filename):
+def is_gzipped(filename: pathlib.Path) -> bool:
     """
     Checks if a file is gzipped.
     """

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import gzip
 import os
 import pathlib
 import pytest
@@ -83,6 +84,12 @@ def give_feedback():
         data = data.replace(': ""', ': "1.5"')
         with open(point_file, "w") as file:
             file.write(data)
+    # gzip .xopp files.
+    for xopp_file in pathlib.Path.cwd().glob("**/*.xopp"):
+        with open(xopp_file, "rb") as file_in:
+            content = file_in.read()
+        with gzip.open(xopp_file, "wb") as file_out:
+            file_out.write(content)
 
 
 @pytest.mark.parametrize(
