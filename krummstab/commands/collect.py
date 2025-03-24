@@ -1,5 +1,7 @@
+import gzip
 import json
 import logging
+import pathlib
 import shutil
 import subprocess
 from typing import Optional
@@ -161,6 +163,18 @@ def create_collected_feedback_directories(sheet: sheets.Sheet) -> None:
         collected_feedback_dir.mkdir(exist_ok=True)
 
 
+def is_gzipped(filename: pathlib.Path) -> bool:
+    """
+    Checks if a file is gzipped.
+    """
+    try:
+        with gzip.open(filename, 'rb') as f:
+            f.read(1)
+        return True
+    except OSError:
+        return False
+
+
 def export_xopp_files(sheet: sheets.Sheet) -> None:
     """
     Exports all xopp feedback files.
@@ -172,6 +186,10 @@ def export_xopp_files(sheet: sheets.Sheet) -> None:
             file for file in feedback_dir.rglob("*") if file.suffix == ".xopp"
         ]
         for xopp_file in xopp_files:
+            if not is_gzipped(xopp_file):
+                logging.critical(f"File {xopp_file} has not been altered and "
+                                 f"saved by Xournal++. It does not contain "
+                                 f"any feedback.")
             dest = xopp_file.with_suffix(".pdf")
             subprocess.run(["xournalpp", "-p", dest, xopp_file])
     logging.info("Done exporting .xopp files.")
