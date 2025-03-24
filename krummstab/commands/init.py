@@ -171,7 +171,8 @@ def create_marks_file(_the_config: config.Config, sheet: sheets.Sheet,
         json.dump(marks_dict, marks_json, indent=4, ensure_ascii=False)
 
 
-def create_feedback_directories(_the_config: config.Config, sheet: sheets.Sheet) -> None:
+def create_feedback_directories(_the_config: config.Config,
+                                sheet: sheets.Sheet, plain: bool) -> None:
     """
     Create a directory for every team that should be corrected by the tutor
     specified in the config. A copy of every non-PDF file is prefixed and placed
@@ -191,14 +192,15 @@ def create_feedback_directories(_the_config: config.Config, sheet: sheets.Sheet)
 
         # Copy non-pdf submission files into feedback directory with added
         # prefix.
-        for submission_file in submission.root_dir.glob("*"):
-            if submission_file.is_dir() or submission_file.suffix == ".pdf" \
-                    or submission_file.name == submissions.SUBMISSION_INFO_FILE_NAME:
-                continue
-            this_feedback_file_name = (
-                feedback_file_name + "_" + submission_file.name
-            )
-            shutil.copy(submission_file, feedback_dir / this_feedback_file_name)
+        if not plain:
+            for submission_file in submission.root_dir.glob("*"):
+                if submission_file.is_dir() or submission_file.suffix == ".pdf" \
+                        or submission_file.name == submissions.SUBMISSION_INFO_FILE_NAME:
+                    continue
+                this_feedback_file_name = (
+                    feedback_file_name + "_" + submission_file.name
+                )
+                shutil.copy(submission_file, feedback_dir / this_feedback_file_name)
 
 
 def generate_xopp_files(sheet: sheets.Sheet) -> None:
@@ -445,7 +447,7 @@ def init(_the_config: config.Config, args) -> None:
     if _the_config.use_marks_file:
         create_marks_file(_the_config, sheet, args)
 
-    create_feedback_directories(_the_config, sheet)
+    create_feedback_directories(_the_config, sheet, args.plain)
 
     # Structure at this point:
     # <sheet_root_dir>
