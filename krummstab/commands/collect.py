@@ -76,11 +76,6 @@ def collect_feedback_files(submission: submissions.Submission,
         logging.critical(
             f"Missing feedback directory for team {submission.root_dir.name}!"
         )
-    content = list(feedback_dir.iterdir())
-    if any(".todo" in file_or_dir.name for file_or_dir in content):
-        logging.critical(
-            f"Feedback for {submission.root_dir.name} contains placeholder TODO file!"
-        )
     # The directory for collected feedback should exist and be empty. Either it
     # was created new, or the user chose to overwrite and previously existing
     # directories have been removed and replaced by empty ones.
