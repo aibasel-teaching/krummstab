@@ -73,9 +73,6 @@ def insert_xopp_setting(request):
 
 
 def give_feedback():
-    # Remove '.todo' suffixes.
-    for todo_file in pathlib.Path.cwd().glob("**/*.todo"):
-        shutil.move(todo_file, todo_file.with_suffix(""))
     # Enter points.
     for point_file in pathlib.Path.cwd().glob("**/points*.json"):
         with open(point_file, "r") as file:

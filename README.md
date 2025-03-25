@@ -26,9 +26,9 @@ beginning of the course.
 
 Depending on the general settings of the shared config file, different command
 line options may be mandatory. The `help` option provides information about the
-script, its subcommands (currently `init`, `collect`, `combine`, `send` and
-`summarize`), and their parameters. Once you have completed the one-time setup
-below, you'll be able to access the help via:
+script, its subcommands (currently `init`, `collect`, `combine`, `correct`, 
+`send` and `summarize`), and their parameters. Once you have completed the 
+one-time setup below, you'll be able to access the help via:
 ```
 krummstab -h
 krummstab <subcommand> -h
@@ -146,7 +146,7 @@ like this:
 ├── sheet01
 │   ├── 12345_Muster_Müller
 │   │   ├── feedback
-│   │   │   └── feedback_tutor-name.pdf.todo
+│   │   │   └── feedback_tutor-name.pdf
 │   │   └── Sheet1_MaxMuster_MayaMueller.pdf
 │   .
 │   ├── DO_NOT_MARK_12346_Meier_Meyer
@@ -158,21 +158,31 @@ like this:
 As you may have guessed, the submissions you need to mark are those without the
 `DO_NOT_MARK_` prefix. Those directories contain the files submitted by the
 respective team, as well as a directory called `feedback`, which in turn
-contains an empty placeholder PDF file and copies of submitted files that are
-not PDFs (e.g. source files).
+contains copies of the submitted files.
 
-The idea is that you can give feedback to non-PDFs by adding your comments to
-these copies directly, and delete the ones you don't need to comment on. For the
-PDF feedback you can use whichever tool you like, and overwrite the `.pdf.todo`
-placeholder with the resulting output. If this tool adds files to the feedback
-directory that you do not want to send to the students, you can add their
-endings to the config file under the `ignore_feedback_suffix` key. Marking with
-Xournal++ is supported by default: Simply set the value of the `xopp` key in 
-the config file to `true` to automatically create the relevant `.xopp` files.
+The idea is that you can give feedback by adding your comments to
+these copies directly, and delete the ones you don't need to comment on. 
+For the PDF feedback you can use whichever tool you like. If this tool adds 
+files to the feedback directory that you do not want to send to the students, 
+you can add their endings to the config file under the `ignore_feedback_suffix` 
+key. Marking with Xournal++ is supported by default: Simply set the value of 
+the `xopp` key in the config file to `true` to automatically create the 
+relevant `.xopp` files. If you like, you can use the `correct` command for 
+easier feedback writing, which is explained next.
 
 While writing the feedback, you can keep track of the points the teams get in
 the file `points.json`. In the case of plagiarism, write `Plagiarism` in the
 place for the points.
+
+### correct
+This command allows you to correct all submissions at once with a specific 
+program such as Xournal++. It opens all relevant PDF feedback files or `.xopp` 
+files one after the other with the program that you can specify with the config 
+parameter `command`. To run this command, you also need to provide the path 
+to the directory created by the `init` command, in this example `sheet01`:
+```
+krummstab correct sheet01
+```
 
 ### collect
 Once you have marked all the teams assigned to you and added their points to
@@ -250,6 +260,8 @@ To access this command
 - `ignore_feedback_suffix`: a list of extensions that should be ignored by the
   `collect` sub-command; this is useful if the tools you use for marking create
   files in the feedback folders that you don't want to send to the students
+- `command`: the shell command for the program that the `correct` subcommand 
+  should use, `xournalpp` by default
 
 ### General Settings
 - `lecture_title`: lecture name to be printed in feedback emails
