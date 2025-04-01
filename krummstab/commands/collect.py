@@ -226,7 +226,7 @@ def create_individual_marks_file(_the_config: config.Config, sheet: sheets.Sheet
             student_marks.update({student_key: team_marks.get(team_key)})
     file_content = {
         "tutor_name": _the_config.tutor_name,
-        "adam_sheet_name": sheet.get_adam_sheet_name_string(),
+        "adam_sheet_name": sheet.name,
         "marks": student_marks
     }
     if _the_config.points_per == "exercise" and _the_config.marking_mode == "exercise":
