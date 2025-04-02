@@ -116,7 +116,7 @@ If you forget this step you'll get an error saying that the `krummstab` command
 could not be found.
 
 ### init
-First, download the submissions from ADAM and save the zip file in the marking
+First, download the submissions from ADAM and save the ZIP file in the marking
 directory. (It's important that you only download the submissions after the ADAM
 deadline has passed, so that all tutors have the same, complete pool of
 submissions.) Our example directory `ki-fs23-marking`, with `Sheet 1.zip` being
@@ -135,7 +135,7 @@ krummstab init -n 4 -t sheet01 "Sheet 1.zip"
 This will unzip the submissions and prepare them for marking. The flag `-n`
 expects the number of exercises in the sheet, `-t` is optional and takes the
 name of the directory the submissions should be extracted to. By default it's
-the name of the zip file, but I'm choosing to rename it in order to get rid of
+the name of the ZIP file, but I'm choosing to rename it in order to get rid of
 the whitespace in the directory name. The directory should now look something
 like this:
 ```
@@ -181,9 +181,9 @@ path to the directory created by the `init` command:
 ```
 krummstab collect sheet01
 ```
-This will create a zip archive in every feedback directory containing the 
-feedback for that team. A json file containing the individual points per 
-student is also generated.
+This will create a ZIP archive in every feedback directory containing the
+feedback for that team. A JSON file containing the individual points per student
+is also generated.
 
 In case you need make changes to the markings and rerun the collection step, use
 the `-r` flag to overwrite existing feedback archives. When using Xournal++
@@ -204,7 +204,7 @@ expected.
 
 ### summarize
 This command generates an Excel file that summarizes the students' marks. It
-needs a path to a directory containing the individual marks json files:
+needs a path to a directory containing the individual marks JSON files:
 ```
 krummstab summarize path/to/a/directory/with/individual/marks/files
 ```
@@ -338,12 +338,18 @@ After completing these steps, the new submission will be processed as usual by
 future calls to Krummstab, in particular by the `collect` and `send` commands.
 
 ### Multiple Submissions from the Same Team
-There can be multiple submissions for the same team in ADAM. This can happen 
-when team members submit separately without forming a team on ADAM or when a new
-version of a submission is uploaded with a different filename. Submissions are 
-only overwritten if the new file has the same name as the previous version, 
-otherwise all zip files remain available. Such cases must be handled manually 
-when marking the submissions.
+There can be multiple submissions for the same team in ADAM. This can happen in
+two ways, either
+- team members submit separately without forming a team on ADAM, or
+- two submissions with different file names are uploaded for the same ADAM team.
+In the first case, Krummstab will create a separate submission directory for
+each team member. To resolve this, you can create a new submission directory
+according to the instructions [here](manually-adding-late-submissions). In the
+second case you will have to figure out which submission to mark, but for
+Krummstab it only matters that the files you want to send as feedback are in the
+`feedback` folder of the team's submission directory. To avoid this situation,
+students should use the same file name when uploading an updated submission and
+of course refrain from uploading two separate submissions.
 
 # Development
 
