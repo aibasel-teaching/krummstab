@@ -10,8 +10,7 @@ class Team:
         self.adam_id = adam_id
 
     def __eq__(self, other) -> bool:
-        return (sorted([member.email for member in self.members])
-                == sorted([member.email for member in other.members]))
+        return sorted(self.get_emails()) == sorted(other.get_emails())
 
     def get_first_names(self) -> list[str]:
         """
@@ -51,6 +50,12 @@ class Team:
         Get a tuples of strings representation of a team.
         """
         return [member.to_tuple() for member in self.members]
+
+    def pretty_print(self) -> str:
+        """
+        Get a pretty printed string representation of a team.
+        """
+        return ", ".join(m.pretty_print() for m in self.members)
 
 
 def create_email_to_name_dict(teams: list[Team]) -> dict[str, tuple[str, str]]:

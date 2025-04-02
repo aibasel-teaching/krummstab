@@ -310,7 +310,7 @@ def set_relevance_for_submission_teams(_the_config: config.Config,
                 if (_the_config.marking_mode == "static"
                         and len(_the_config.classes.keys()) > 1):
                     logging.warning("Team "
-                                    f"{submission_teams[team_id].to_tuples()} "
+                                    f"{submission_teams[team_id].pretty_print()} "
                                     f"is now assigned to tutors {tutors}.\n"
                                     "Please contact the other tutors to decide "
                                     "who will mark this team. Update the "
@@ -402,46 +402,76 @@ def is_restructured_submission_team(_the_config: config.Config,
                     for member in submission_team.members))
 
 
-def is_restructured_config_team(submission_teams: list[Team],
-                                config_team: Team) -> bool:
+def get_original_config_teams(_the_config: config.Config,
+                              submission_team: Team) -> list[Team]:
     """
-    Checks if the given config team is reorganized in the submission teams.
-    This ignores missing teams.
+    Finds all the config teams that contain a member of the given
+    submission team.
     """
-    students_in_submission_teams = [member for team in submission_teams
-                                for member in team.members]
-    return (config_team not in submission_teams
-            and any(member in students_in_submission_teams
-                    for member in config_team.members))
+    original_config_teams = []
+    for member in submission_team.members:
+        for config_team in _the_config.teams:
+            if (member in config_team.members
+                    and config_team not in original_config_teams):
+                original_config_teams.append(config_team)
+    return original_config_teams
+
+
+def is_in_config_teams(_the_config: config.Config, student: Student) -> bool:
+    """
+    Checks if a student appears in the config teams.
+    """
+    return student in [member for team in _the_config.teams
+                       for member in team.members]
+
+
+def validate_team_size(max_team_size: int,
+                       submission_teams: list[Team]) -> None:
+    """
+    Checks if the team size of the submission teams does not exceed the
+    maximum allowed team size.
+    """
+    teams = [team for team in submission_teams
+             if len(team.members) > max_team_size]
+    if teams:
+        logging.warning("There are submission teams that have "
+                        "more members than allowed:")
+    for team in teams:
+         print(f"* {team.pretty_print()}")
 
 
 def validate_teams(_the_config: config.Config,
                    submission_teams: list[Team]) -> None:
     """
-    Checks if config teams are organized differently in the submission teams,
-    if submission teams are organized differently in the config,
+    Checks if submission teams are organized differently in the config
     and if there are new teams consisting only of new students.
     """
-    old_config_teams = [
-        config_team for config_team in _the_config.teams
-        if is_restructured_config_team(submission_teams, config_team)
-    ]
-    if old_config_teams:
-        logging.warning("There are teams in the config that have been "
-                        "restructured.\n"
-                        "Original config teams:")
-        for old_config_team in old_config_teams:
-            print(f"* {old_config_team.to_tuples()}")
     new_submission_teams = [
         submission_team for submission_team in submission_teams
         if is_restructured_submission_team(_the_config, submission_team)
     ]
     if new_submission_teams:
         logging.warning("There are submission teams that were "
-                        "originally structured differently in the config.\n"
-                        "New submission teams:")
+                        "originally structured differently in the config.")
         for new_submission_team in new_submission_teams:
-            print(f"* {new_submission_team.to_tuples()}")
+            print("\nNew submission team:")
+            print(f"* {new_submission_team.pretty_print()}")
+            original_teams = get_original_config_teams(
+                _the_config, new_submission_team
+            )
+            if original_teams:
+                print("In config:")
+                for original_team in original_teams:
+                    print(f"* {original_team.pretty_print()}")
+            new_students = [
+                member for member in new_submission_team.members
+                if not is_in_config_teams(_the_config, member)
+            ]
+            if new_students:
+                print("There are members of the new submission "
+                      "team that do not appear in any config team:")
+                for student in new_students:
+                    print(f"{student.pretty_print()}")
     new_teams = [
         submission_team for submission_team in submission_teams
         if is_new_team(_the_config, submission_team)
@@ -450,7 +480,7 @@ def validate_teams(_the_config: config.Config,
         logging.warning("There are completely new teams where all members "
                         "are not listed in the config:")
         for new_team in new_teams:
-            print(f"* {new_team.to_tuples()}")
+            print(f"* {new_team.pretty_print()}")
 
 
 def create_all_submission_info_files(_the_config: config.Config,
@@ -479,8 +509,9 @@ def use_names_from_config(config_teams: list[Team],
     for team in submission_teams.values():
         for member in team.members:
             if member.email in email_to_name_dict:
-                member.first_name = email_to_name_dict[member.email][0]
-                member.last_name = email_to_name_dict[member.email][1]
+                member.first_name, member.last_name = email_to_name_dict[
+                    member.email
+                ]
 
 
 def read_teams_from_adam_spreadsheet(sheet_root_dir: pathlib.Path
@@ -566,7 +597,13 @@ def init(_the_config: config.Config, args) -> None:
     # .       └── submission.pdf or submission.zip
     submission_teams = read_teams_from_adam_spreadsheet(sheet_root_dir)
     use_names_from_config(_the_config.teams, submission_teams)
-    validate_teams(_the_config, list(submission_teams.values()))
+    validate_team_size(
+        _the_config.max_team_size, list(submission_teams.values())
+    )
+    if _the_config.marking_mode == "static":
+        validate_teams(
+            _the_config, list(submission_teams.values())
+        )
     team_relevance_dict = set_relevance_for_submission_teams(
         _the_config, submission_teams
     )

@@ -12,3 +12,10 @@ class Student:
         Get a tuple of strings representation of a student.
         """
         return self.first_name, self.last_name, self.email
+
+    def pretty_print(self) -> str:
+        """
+        Get a pretty printed string representation of a student:
+        first_name last_name (email)
+        """
+        return f"{self.first_name} {self.last_name} ({self.email})"
