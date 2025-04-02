@@ -340,8 +340,10 @@ future calls to Krummstab, in particular by the `collect` and `send` commands.
 ### Multiple Submissions from the Same Team
 There can be multiple submissions for the same team in ADAM. This can happen in
 two ways, either
+
 - team members submit separately without forming a team on ADAM, or
 - two submissions with different file names are uploaded for the same ADAM team.
+
 In the first case, Krummstab will create a separate submission directory for
 each team member. To resolve this, you can create a new submission directory
 according to the instructions [here](manually-adding-late-submissions). In the
