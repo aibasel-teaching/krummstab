@@ -352,7 +352,7 @@ two ways, either
 
 In the first case, Krummstab will create a separate submission directory for
 each team member. To resolve this, you can create a new submission directory
-according to the instructions [here](manually-adding-late-submissions). In the
+according to the instructions [here](#manually-adding-late-submissions). In the
 second case you will have to figure out which submission to mark, but for
 Krummstab it only matters that the files you want to send as feedback are in the
 `feedback` folder of the team's submission directory. To avoid this situation,
