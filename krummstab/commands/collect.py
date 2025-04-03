@@ -19,7 +19,7 @@ def validate_marks_json(_the_config: config.Config, sheet: sheets.Sheet) -> None
             f"Missing points file in directory '{sheet.root_dir}'!"
         )
     with open(marks_json_file, "r", encoding="utf-8") as marks_file:
-        marks = json.load(marks_file)
+        marks = utils.read_json(marks_file)
     relevant_teams = []
     for submission in sheet.get_relevant_submissions():
         relevant_teams.append(submission.team.get_team_key())
