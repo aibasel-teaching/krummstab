@@ -285,7 +285,7 @@ def print_missing_submissions(_the_config: config.Config, sheet: sheets.Sheet) -
     if missing_teams:
         logging.warning("There are no submissions for the following team(s):")
         for missing_team in missing_teams:
-            print(f"* {missing_team.last_names_to_string()}")
+            print(f"* {missing_team.pretty_print()}")
 
 
 def set_relevance_for_submission_teams(_the_config: config.Config,
@@ -449,16 +449,17 @@ def validate_teams(_the_config: config.Config,
         if is_restructured_submission_team(_the_config, submission_team)
     ]
     if new_submission_teams:
-        logging.warning("There are submission teams that were "
-                        "originally structured differently in the config.")
+        logging.warning("There are submission teams that are structured "
+                        "differently in the config.")
+        print(utils.SEPARATOR_LINE)
         for new_submission_team in new_submission_teams:
-            print("\nNew submission team:")
+            print("New submission team:")
             print(f"* {new_submission_team.pretty_print()}")
             original_teams = get_original_config_teams(
                 _the_config, new_submission_team
             )
             if original_teams:
-                print("In config:")
+                print("Related config teams:")
                 for original_team in original_teams:
                     print(f"* {original_team.pretty_print()}")
             new_students = [
@@ -466,10 +467,11 @@ def validate_teams(_the_config: config.Config,
                 if not is_in_config_teams(_the_config, member)
             ]
             if new_students:
-                print("There are members of the new submission "
-                      "team that do not appear in any config team:")
+                print("Members of the new submission team that do not appear "
+                      "in the config:")
                 for student in new_students:
-                    print(f"{student.pretty_print()}")
+                    print(f"* {student.pretty_print()}")
+            print(utils.SEPARATOR_LINE)
     new_teams = [
         submission_team for submission_team in submission_teams
         if is_new_team(_the_config, submission_team)

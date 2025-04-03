@@ -86,9 +86,8 @@ def email_to_text(email: EmailMessage) -> None:
 
 
 def print_emails(emails: list[EmailMessage]) -> None:
-    separator = "\n\033[0;33m" + 80 * "=" + "\033[0m\n"
     email_strings = [email_to_text(email) for email in emails]
-    print(f"{separator}{separator.join(email_strings)}{separator}")
+    print(f"{utils.SEPARATOR_LINE}{utils.SEPARATOR_LINE.join(email_strings)}{utils.SEPARATOR_LINE}")
 
 
 def send_messages(emails: list[EmailMessage], _the_config: config.Config) -> None:
