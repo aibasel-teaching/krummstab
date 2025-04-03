@@ -1,9 +1,13 @@
+import json
 import logging
 import pathlib
 import shutil
 import sys
 import tempfile
+from importlib.resources.abc import Traversable
+from typing import TextIO
 from zipfile import ZipFile
+import jsonschema
 
 
 # Logging ----------------------------------------------------------------------
@@ -73,6 +77,36 @@ def query_yes_no(text: str, default: bool = True) -> bool:
             f"Invalid choice '{choice}'. Please respond with 'yes' or 'no'."
         )
         return query_yes_no(text, default)
+
+
+# JSON parsing -------------------------------------------------------
+
+def validate_json(data: dict, schema: dict, source: str = "file",
+                  schema_version=jsonschema.Draft7Validator) -> None:
+    """
+    Validates a JSON object against a given schema.
+    """
+    try:
+        jsonschema.validate(data, schema, schema_version)
+    except jsonschema.exceptions.ValidationError as error:
+        logging.critical(f"Validation error: {source} does not have "
+                         f"the right format: {error.message}")
+
+
+def read_json(source: pathlib.Path | Traversable | TextIO) -> dict:
+    """
+    Reads a JSON file and returns its contents.
+    """
+    data = {}
+    try:
+        if isinstance(source, (pathlib.Path, Traversable)):
+            data = json.loads(source.read_text(encoding="utf-8"))
+        elif hasattr(source, "read"):
+            data = json.load(source)
+    except json.decoder.JSONDecodeError as error:
+        source_name = getattr(source, "name", str(source))
+        logging.critical(f"Wrong JSON format in {source_name}: {error}")
+    return data
 
 
 # Miscellaneous ----------------------------------------------------------------
