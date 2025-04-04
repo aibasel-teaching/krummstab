@@ -7,6 +7,9 @@ class Student:
     def __eq__(self, other) -> bool:
         return self.email == other.email
 
+    def __lt__(self, other) -> bool:
+        return self.email < other.email
+
     def to_tuple(self) -> tuple[str, str, str]:
         """
         Get a tuple of strings representation of a student.

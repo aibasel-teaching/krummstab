@@ -6,11 +6,11 @@ from .students import *
 
 class Team:
     def __init__(self, members: list[Student], adam_id: Optional[str] = None):
-        self.members = members
+        self.members = sorted(members)
         self.adam_id = adam_id
 
     def __eq__(self, other) -> bool:
-        return sorted(self.get_emails()) == sorted(other.get_emails())
+        return sorted(self.members) == sorted(other.members)
 
     def get_first_names(self) -> list[str]:
         """
