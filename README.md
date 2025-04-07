@@ -219,6 +219,7 @@ immediately. To calculate them, use the Recalculate Hard command in LibreOffice.
 To access this command
 - From the menu bar: Data > Calculate > Recalculate Hard
 - From the keyboard: Ctrl + Shift + F9
+
 To avoid having to do so manually, you can configure LibreOffice to always
 recalculate upon opening a file. You can do so by setting the field "Excel 2007
 and newer" under Tools > Options > LibreOffice Calc > Formula > Recalculation on
