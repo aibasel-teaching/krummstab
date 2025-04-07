@@ -4,8 +4,6 @@ import pathlib
 import shutil
 import sys
 import tempfile
-from importlib.resources.abc import Traversable
-from typing import TextIO
 from zipfile import ZipFile
 import jsonschema
 
@@ -93,18 +91,19 @@ def validate_json(data: dict, schema: dict, source: str = "file",
                          f"the right format: {error.message}")
 
 
-def read_json(source: pathlib.Path | Traversable | TextIO) -> dict:
+def read_json(source: str | pathlib.Path, source_name: str = "file") -> dict:
     """
     Reads a JSON file and returns its contents.
     """
     data = {}
     try:
-        if isinstance(source, (pathlib.Path, Traversable)):
-            data = json.loads(source.read_text(encoding="utf-8"))
-        elif hasattr(source, "read"):
-            data = json.load(source)
+        if isinstance(source, pathlib.Path):
+            source_name = source
+            json_str = source.read_text(encoding="utf-8")
+        else:
+            json_str = source
+        data = json.loads(json_str)
     except json.decoder.JSONDecodeError as error:
-        source_name = getattr(source, "name", str(source))
         logging.critical(f"Wrong JSON format in {source_name}: {error}")
     return data
 

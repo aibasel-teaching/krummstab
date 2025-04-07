@@ -3,7 +3,7 @@ from pathlib import Path
 import logging
 import json
 
-from . import config, submissions, errors
+from . import config, submissions, errors, utils
 
 SHEET_INFO_FILE_NAME = "sheet.json"
 FEEDBACK_FILE_PREFIX = "feedback_"
@@ -23,10 +23,9 @@ class Sheet:
         self._load()
 
     def _load(self):
-        with open(self._sheet_info_path, "r", encoding="utf-8") as sheet_info_file:
-            sheet_info = json.load(sheet_info_file)
-            self.name = sheet_info.get('adam_sheet_name')
-            self.exercises = sheet_info.get('exercises')
+        sheet_info = utils.read_json(self._sheet_info_path)
+        self.name = sheet_info.get('adam_sheet_name')
+        self.exercises = sheet_info.get('exercises')
 
     def get_adam_sheet_name_string(self) -> str:
         """

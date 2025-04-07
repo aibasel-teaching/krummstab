@@ -18,7 +18,9 @@ class Config:
             except FileNotFoundError:
                 logging.warning(f"File '{path}' is missing.")
         config_schema = utils.read_json(
-            resources.files(schemas).joinpath("config-schema.json")
+            resources.read_text(
+                schemas, "config-schema.json", encoding="utf-8"
+            ), "config-schema.json"
         )
         utils.validate_json(data, config_schema, "The config")
 

@@ -74,20 +74,22 @@ class Submission:
         team, the ADAM ID and if it is a relevant team.
         """
         try:
-            with open(
-                    self.root_dir / SUBMISSION_INFO_FILE_NAME, "r", encoding="utf-8"
-            ) as submission_info_file:
-                submission_info = utils.read_json(submission_info_file)
-                submission_info_schema = utils.read_json(
-                    resources.files(schemas).joinpath("submission-info-schema.json"))
-                utils.validate_json(submission_info, submission_info_schema,
-                                    submission_info_file.name)
-                self.team = Team(
-                    [Student(*student) for student
-                     in submission_info.get("team")],
-                    submission_info.get("adam_id")
-                )
-                self.relevant = submission_info.get("relevant")
+            submission_info_file = self.root_dir / SUBMISSION_INFO_FILE_NAME
+            submission_info = utils.read_json(submission_info_file)
+            submission_info_schema = utils.read_json(
+                resources.read_text(
+                    schemas, "submission-info-schema.json",
+                    encoding="utf-8"
+                ),
+                "submission-info-schema.json"
+            )
+            utils.validate_json(submission_info, submission_info_schema,
+                                    str(submission_info_file))
+            self.team = Team(
+                [Student(*student) for student in submission_info.get("team")],
+                submission_info.get("adam_id")
+            )
+            self.relevant = submission_info.get("relevant")
         except FileNotFoundError:
             logging.critical(f"The submission.json file "
                              f"{self.root_dir / SUBMISSION_INFO_FILE_NAME} "

@@ -7,7 +7,7 @@ from xlsxwriter import Workbook
 from xlsxwriter.utility import xl_rowcol_to_cell, xl_range_abs
 from xlsxwriter.worksheet import Worksheet
 
-from .. import config
+from .. import config, utils
 from ..teams import *
 
 BOLD = {'bold': True}
@@ -341,25 +341,24 @@ def load_marks_files(marks_dir: Path, _the_config: config.Config):
         graded_sheet_names = set()
     tutors = defaultdict(set)
     for file in marks_files:
-        with open(file, 'r') as f:
-            data = json.load(f)
-            sheet_name = data["adam_sheet_name"]
-            marks = data["marks"]
-            tutors[sheet_name].add(data["tutor_name"])
-            if _the_config.points_per == 'exercise':
-                for email, exercises in marks.items():
-                    for exercise, mark in exercises.items():
-                        if students_marks[email][sheet_name].get(exercise):
-                            logging.warning(f'{exercise} of sheet {sheet_name} is marked multiple times for {email}!')
-                        students_marks[email][sheet_name][exercise] = mark
-                        if exercise not in graded_sheet_names[sheet_name]:
-                            graded_sheet_names[sheet_name].append(exercise)
-            else:
-                graded_sheet_names.add(sheet_name)
-                for email, mark in marks.items():
-                    if students_marks[email].get(sheet_name):
-                        logging.warning(f'Sheet {sheet_name} is marked multiple times for {email}!')
-                    students_marks[email][sheet_name] = mark
+        data = utils.read_json(file)
+        sheet_name = data["adam_sheet_name"]
+        marks = data["marks"]
+        tutors[sheet_name].add(data["tutor_name"])
+        if _the_config.points_per == 'exercise':
+            for email, exercises in marks.items():
+                for exercise, mark in exercises.items():
+                    if students_marks[email][sheet_name].get(exercise):
+                        logging.warning(f'{exercise} of sheet {sheet_name} is marked multiple times for {email}!')
+                    students_marks[email][sheet_name][exercise] = mark
+                    if exercise not in graded_sheet_names[sheet_name]:
+                        graded_sheet_names[sheet_name].append(exercise)
+        else:
+            graded_sheet_names.add(sheet_name)
+            for email, mark in marks.items():
+                if students_marks[email].get(sheet_name):
+                    logging.warning(f'Sheet {sheet_name} is marked multiple times for {email}!')
+                students_marks[email][sheet_name] = mark
     for sheet_name, tutor_list in tutors.items():
         for tutor in _the_config.classes if _the_config.marking_mode == 'static' else _the_config.tutor_list:
             if tutor not in tutor_list:

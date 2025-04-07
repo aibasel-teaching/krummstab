@@ -18,8 +18,7 @@ def validate_marks_json(_the_config: config.Config, sheet: sheets.Sheet) -> None
         logging.critical(
             f"Missing points file in directory '{sheet.root_dir}'!"
         )
-    with open(marks_json_file, "r", encoding="utf-8") as marks_file:
-        marks = utils.read_json(marks_file)
+    marks = utils.read_json(marks_json_file)
     relevant_teams = []
     for submission in sheet.get_relevant_submissions():
         relevant_teams.append(submission.team.get_team_key())
@@ -216,8 +215,7 @@ def create_individual_marks_file(_the_config: config.Config, sheet: sheets.Sheet
     """
     Write a json file to add the marks per student.
     """
-    with open(sheet.get_marks_file_path(_the_config), "r", encoding="utf-8") as marks_file:
-        team_marks = json.load(marks_file)
+    team_marks = utils.read_json(sheet.get_marks_file_path(_the_config))
     student_marks = {}
     for submission in sheet.get_relevant_submissions():
         team_key = submission.team.get_team_key()
