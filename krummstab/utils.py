@@ -1,9 +1,11 @@
+import json
 import logging
 import pathlib
 import shutil
 import sys
 import tempfile
 from zipfile import ZipFile
+import jsonschema
 
 
 # Logging ----------------------------------------------------------------------
@@ -56,6 +58,8 @@ def configure_logging(level=logging.INFO):
 
 # Printing ---------------------------------------------------------------------
 
+SEPARATOR_LINE = "\n\033[0;33m" + 80 * "=" + "\033[0m\n"
+
 def query_yes_no(text: str, default: bool = True) -> bool:
     """
     Ask the user a yes/no question and return answer.
@@ -73,6 +77,37 @@ def query_yes_no(text: str, default: bool = True) -> bool:
             f"Invalid choice '{choice}'. Please respond with 'yes' or 'no'."
         )
         return query_yes_no(text, default)
+
+
+# JSON parsing -------------------------------------------------------
+
+def validate_json(data: dict, schema: dict, source: str = "file",
+                  schema_version=jsonschema.Draft7Validator) -> None:
+    """
+    Validates a JSON object against a given schema.
+    """
+    try:
+        jsonschema.validate(data, schema, schema_version)
+    except jsonschema.exceptions.ValidationError as error:
+        logging.critical(f"Validation error: {source} does not have "
+                         f"the right format: {error.message}")
+
+
+def read_json(source: str | pathlib.Path, source_name: str = "file") -> dict:
+    """
+    Reads a JSON file and returns its contents.
+    """
+    data = {}
+    try:
+        if isinstance(source, pathlib.Path):
+            source_name = source
+            json_str = source.read_text(encoding="utf-8")
+        else:
+            json_str = source
+        data = json.loads(json_str)
+    except json.decoder.JSONDecodeError as error:
+        logging.critical(f"Wrong JSON format in {source_name}: {error}")
+    return data
 
 
 # Miscellaneous ----------------------------------------------------------------

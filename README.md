@@ -116,7 +116,7 @@ If you forget this step you'll get an error saying that the `krummstab` command
 could not be found.
 
 ### init
-First, download the submissions from ADAM and save the zip file in the marking
+First, download the submissions from ADAM and save the ZIP file in the marking
 directory. (It's important that you only download the submissions after the ADAM
 deadline has passed, so that all tutors have the same, complete pool of
 submissions.) Our example directory `ki-fs23-marking`, with `Sheet 1.zip` being
@@ -135,7 +135,7 @@ krummstab init -n 4 -t sheet01 "Sheet 1.zip"
 This will unzip the submissions and prepare them for marking. The flag `-n`
 expects the number of exercises in the sheet, `-t` is optional and takes the
 name of the directory the submissions should be extracted to. By default it's
-the name of the zip file, but I'm choosing to rename it in order to get rid of
+the name of the ZIP file, but I'm choosing to rename it in order to get rid of
 the whitespace in the directory name. The directory should now look something
 like this:
 ```
@@ -161,9 +161,14 @@ respective team, as well as a directory called `feedback`, which in turn
 contains copies of the submitted files.
 
 The idea is that you can give feedback by adding your comments to
-these copies directly, and delete the ones you don't need to comment on. 
+these copies directly, and delete the ones you don't need to comment on. It 
+is possible to add a `--plain` or `-p` flag to the `init` command that
+prevents non-PDF files from being copied into the feedback directories. When 
+marking by exercise, this is useful for the tutors that do not have to mark the 
+programming exercises.
+
 For the PDF feedback you can use whichever tool you like. If this tool adds 
-files to the feedback directory that you do not want to send to the students, 
+files to the feedback directory that you do not want to send to the students,
 you can add their endings to the config file under the `ignore_feedback_suffix` 
 key. Marking with Xournal++ is supported by default: Simply set the value of 
 the `xopp` key in the config file to `true` to automatically create the 
@@ -195,12 +200,9 @@ path to the directory created by the `init` command:
 ```
 krummstab collect sheet01
 ```
-This will create a zip archive in every feedback directory containing the
-feedback for that team. Additionally, a semicolon-separated list of all points
-is printed. This can be useful in case you have to paste the points into a
-shared spreadsheet. The names are there to be able to double-check that the rows
-match up. A json file containing the individual points per student is also
-generated.
+This will create a ZIP archive in every feedback directory containing the
+feedback for that team. A JSON file containing the individual points per student
+is also generated.
 
 In case you need make changes to the markings and rerun the collection step, use
 the `-r` flag to overwrite existing feedback archives. When using Xournal++
@@ -221,7 +223,7 @@ expected.
 
 ### summarize
 This command generates an Excel file that summarizes the students' marks. It
-needs a path to a directory containing the individual marks json files:
+needs a path to a directory containing the individual marks JSON files:
 ```
 krummstab summarize path/to/a/directory/with/individual/marks/files
 ```
@@ -229,7 +231,12 @@ If you use LibreOffice, it is possible that the formulas are not calculated
 immediately. To calculate them, use the Recalculate Hard command in LibreOffice.
 To access this command
 - From the menu bar: Data > Calculate > Recalculate Hard
-- From the keyboard: Command + Shift + F9
+- From the keyboard: Ctrl + Shift + F9
+
+To avoid having to do so manually, you can configure LibreOffice to always
+recalculate upon opening a file. You can do so by setting the field "Excel 2007
+and newer" under Tools > Options > LibreOffice Calc > Formula > Recalculation on
+File Load to "Always recalculate" (or "Prompt user").
 
 
 ## Config File Details
@@ -305,6 +312,12 @@ To access this command
 There may be situations that require manual changes. This section provides
 instructions for handling these special cases.
 
+It is important to note that the teams in the shared config file are only used 
+for the `init` and `summarize` commands. After the `init` command, there is a 
+file with the name `submission.json` in each team folder that contains 
+information about the submission, including the team. The information in these 
+files is used for the other commands.
+
 ### Manually Adding Late Submissions
 If you have already executed the `init` command and have already started to mark
 the sheet, but there is a late submission that needs to be added, the
@@ -352,6 +365,22 @@ following steps are necessary:
 
 After completing these steps, the new submission will be processed as usual by
 future calls to Krummstab, in particular by the `collect` and `send` commands.
+
+### Multiple Submissions from the Same Team
+There can be multiple submissions for the same team in ADAM. This can happen in
+two ways, either
+
+- team members submit separately without forming a team on ADAM, or
+- two submissions with different file names are uploaded for the same ADAM team.
+
+In the first case, Krummstab will create a separate submission directory for
+each team member. To resolve this, you can create a new submission directory
+according to the instructions [here](#manually-adding-late-submissions). In the
+second case you will have to figure out which submission to mark, but for
+Krummstab it only matters that the files you want to send as feedback are in the
+`feedback` folder of the team's submission directory. To avoid this situation,
+students should use the same file name when uploading an updated submission and
+of course refrain from uploading two separate submissions.
 
 # Development
 

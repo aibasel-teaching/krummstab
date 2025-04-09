@@ -2,9 +2,8 @@ import json
 import logging
 from importlib import resources
 from pathlib import Path
-import jsonschema
 
-from . import config, schemas, sheets
+from . import config, schemas, sheets, utils
 from .students import Student
 from .teams import Team
 
@@ -75,46 +74,45 @@ class Submission:
         team, the ADAM ID and if it is a relevant team.
         """
         try:
-            with open(
-                    self.root_dir / SUBMISSION_INFO_FILE_NAME, "r", encoding="utf-8"
-            ) as submission_info_file:
-                submission_info = json.load(submission_info_file)
-                submission_info_schema = json.loads(
-                    resources.files(schemas).joinpath("submission-info-schema.json").read_text(encoding="utf-8"))
-                jsonschema.validate(submission_info, submission_info_schema, jsonschema.Draft7Validator)
-                self.team = Team(
-                    [Student(*student) for student
-                     in submission_info.get("team")],
-                    submission_info.get("adam_id")
-                )
-                self.relevant = submission_info.get("relevant")
+            submission_info_file = self.root_dir / SUBMISSION_INFO_FILE_NAME
+            submission_info = utils.read_json(submission_info_file)
+            submission_info_schema = utils.read_json(
+                resources.read_text(
+                    schemas, "submission-info-schema.json",
+                    encoding="utf-8"
+                ),
+                "submission-info-schema.json"
+            )
+            utils.validate_json(submission_info, submission_info_schema,
+                                    str(submission_info_file))
+            self.team = Team(
+                [Student(*student) for student in submission_info.get("team")],
+                submission_info.get("adam_id")
+            )
+            self.relevant = submission_info.get("relevant")
         except FileNotFoundError:
-            logging.critical("The submission.json file does not exist.")
+            logging.critical(f"The submission.json file "
+                             f"{self.root_dir / SUBMISSION_INFO_FILE_NAME} "
+                             f"does not exist.")
         except NotADirectoryError:
             logging.critical(f"The path '{self.root_dir}' is not a team directory.")
-        except jsonschema.exceptions.ValidationError as error:
-            logging.critical(f"The submission.json file does not have the right format: {error.message}")
 
     def __lt__(self, other):
         return self.root_dir < other.root_dir
 
 
-def create_submission_info_file(_the_config: config.Config, team: Team,
-                                team_id: str, team_dir: Path) -> None:
+def create_submission_info_file(_the_config: config.Config,
+                                team: Team, is_relevant: bool,
+                                team_dir: Path) -> None:
     """
     Write in each team directory a JSON file which contains the team,
     the ADAM ID of the team which ADAM sets anew with each exercise sheet,
     and if the tutor specified in the config has to mark this team.
     """
-    team = team.to_tuples()
-    relevant_teams = [team.to_tuples() for team in
-                      _the_config.get_relevant_teams()]
-    is_relevant = False
+    team_tuples = team.to_tuples()
     submission_info = {}
-    if team in relevant_teams:
-        is_relevant = True
-    submission_info.update({"team": team})
-    submission_info.update({"adam_id": team_id})
+    submission_info.update({"team": team_tuples})
+    submission_info.update({"adam_id": team.adam_id})
     submission_info.update({"relevant": is_relevant})
     with open(
             team_dir / SUBMISSION_INFO_FILE_NAME, "w", encoding="utf-8"

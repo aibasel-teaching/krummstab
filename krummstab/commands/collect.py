@@ -1,5 +1,7 @@
+import gzip
 import json
 import logging
+import pathlib
 import shutil
 import subprocess
 from typing import Optional
@@ -18,8 +20,7 @@ def validate_marks_json(_the_config: config.Config, sheet: sheets.Sheet) -> None
         logging.critical(
             f"Missing points file in directory '{sheet.root_dir}'!"
         )
-    with open(marks_json_file, "r", encoding="utf-8") as marks_file:
-        marks = json.load(marks_file)
+    marks = utils.read_json(marks_json_file)
     relevant_teams = []
     for submission in sheet.get_relevant_submissions():
         relevant_teams.append(submission.team.get_team_key())
@@ -156,6 +157,18 @@ def create_collected_feedback_directories(sheet: sheets.Sheet) -> None:
         collected_feedback_dir.mkdir(exist_ok=True)
 
 
+def is_gzipped(filename: pathlib.Path) -> bool:
+    """
+    Checks if a file is gzipped.
+    """
+    try:
+        with gzip.open(filename, 'rb') as f:
+            f.read(1)
+        return True
+    except OSError:
+        return False
+
+
 def export_xopp_files(sheet: sheets.Sheet) -> None:
     """
     Exports all xopp feedback files.
@@ -167,52 +180,20 @@ def export_xopp_files(sheet: sheets.Sheet) -> None:
             file for file in feedback_dir.rglob("*") if file.suffix == ".xopp"
         ]
         for xopp_file in xopp_files:
+            if not is_gzipped(xopp_file):
+                logging.critical(f"File {xopp_file} has not been altered and "
+                                 f"saved by Xournal++. It does not contain "
+                                 f"any feedback.")
             dest = xopp_file.with_suffix(".pdf")
             subprocess.run(["xournalpp", "-p", dest, xopp_file])
     logging.info("Done exporting .xopp files.")
-
-
-def print_marks(_the_config: config.Config, sheet: sheets.Sheet) -> None:
-    """
-    Prints the marks so that they can be easily copy-pasted to the file where
-    marks are collected.
-    """
-    # Read marks file.
-    # Don't check whether the marks file exists because `validate_marks_json()`
-    # would have already complained.
-    with open(sheet.get_marks_file_path(_the_config), "r", encoding="utf-8") as marks_file:
-        marks = json.load(marks_file)
-
-    # Print marks.
-    logging.info("Start of copy-paste marks...")
-    # We want all teams printed, not just the marked ones.
-    for team_to_print in _the_config.teams:
-        for submission in sheet.get_all_team_submission_info():
-            if submission.team == team_to_print:
-                key = submission.team.get_team_key()
-                for student in submission.team.members:
-                    full_name = f"{student.first_name} {student.last_name}"
-                    output_str = f"{full_name:>35};"
-                    if _the_config.points_per == "exercise":
-                        # The value `marks` assigned to the team_dir key is a
-                        # dict with (exercise name, mark) pairs.
-                        team_marks = marks.get(key, {"null": ""})
-                        _, exercise_marks = zip(*team_marks.items())
-                        for mark in exercise_marks:
-                            output_str += f"{mark:>3};"
-                    else:
-                        sheet_mark = marks.get(key, "")
-                        output_str += f"{sheet_mark:>3}"
-                    print(output_str)
-    logging.info("End of copy-paste marks.")
 
 
 def create_individual_marks_file(_the_config: config.Config, sheet: sheets.Sheet) -> None:
     """
     Write a json file to add the marks per student.
     """
-    with open(sheet.get_marks_file_path(_the_config), "r", encoding="utf-8") as marks_file:
-        team_marks = json.load(marks_file)
+    team_marks = utils.read_json(sheet.get_marks_file_path(_the_config))
     student_marks = {}
     for submission in sheet.get_relevant_submissions():
         team_key = submission.team.get_team_key()
@@ -221,7 +202,7 @@ def create_individual_marks_file(_the_config: config.Config, sheet: sheets.Sheet
             student_marks.update({student_key: team_marks.get(team_key)})
     file_content = {
         "tutor_name": _the_config.tutor_name,
-        "adam_sheet_name": sheet.get_adam_sheet_name_string(),
+        "adam_sheet_name": sheet.name,
         "marks": student_marks
     }
     if _the_config.points_per == "exercise" and _the_config.marking_mode == "exercise":
@@ -346,5 +327,4 @@ def collect(_the_config: config.Config, args) -> None:
         create_share_archive(overwrite, sheet)
     if _the_config.use_marks_file:
         validate_marks_json(_the_config, sheet)
-        print_marks(_the_config, sheet)
         create_individual_marks_file(_the_config, sheet)

@@ -21,7 +21,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="krummstab",
-    version="0.9",
+    version="0.10",
     description="Efficiently give feedback on ADAM submissions at University of Basel",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -40,8 +40,9 @@ setup(
     packages=find_packages(),
     python_requires=">=3.10",
     install_requires=[
-        'pypdf==3.1.0',
         'jsonschema==4.23.0',
+        'openpyxl==3.1.5',
+        'pypdf==3.1.0',
         'xlsxwriter==3.2.0'
     ],
     entry_points={

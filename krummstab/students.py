@@ -5,12 +5,20 @@ class Student:
         self.email = email
 
     def __eq__(self, other) -> bool:
-        return (self.first_name == other.first_name
-                and self.last_name == other.last_name
-                and self.email == other.email)
+        return self.email == other.email
+
+    def __lt__(self, other) -> bool:
+        return self.email < other.email
 
     def to_tuple(self) -> tuple[str, str, str]:
         """
         Get a tuple of strings representation of a student.
         """
         return self.first_name, self.last_name, self.email
+
+    def pretty_print(self) -> str:
+        """
+        Get a pretty printed string representation of a student:
+        first_name last_name (email)
+        """
+        return f"{self.first_name} {self.last_name} ({self.email})"

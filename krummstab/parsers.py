@@ -97,6 +97,14 @@ def add_init_command_parser(subparsers):
         type=int,
         help="the exercises you have to mark",
     )
+    parser_init.add_argument(
+        "-p",
+        "--plain",
+        action="store_true",
+        help="only copy PDF files into feedback directories, useful if "
+             "tutors mark per exercise and you do not have to mark the "
+             "programming exercises"
+    )
     parser_init.set_defaults(func=init)
 
 
