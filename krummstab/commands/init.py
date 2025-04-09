@@ -177,20 +177,26 @@ def create_feedback_directories(_the_config: config.Config,
                                 sheet: sheets.Sheet, plain: bool) -> None:
     """
     Create a directory for every team that should be corrected by the tutor
-    specified in the config. A copy of every non-PDF file is prefixed and placed
-    in the feedback folder. The idea is that feedback on code files or similar
-    can be added to these copies directly and files without feedback can simply
-    be deleted. PDFs are not copied, instead a placeholder file with the correct
-    name is created so that it can be overwritten by a real PDF file containing
-    the feedback.
+    specified in the config. A copy of every file is prefixed and placed
+    in the feedback folder. If there are multiple PDFs, we keep the file
+    names as submitted. The idea is that feedback can be added to these
+    copies directly and files without feedback can simply be deleted.
     """
     for submission in sheet.get_relevant_submissions():
         feedback_dir = submission.get_feedback_dir()
         feedback_dir.mkdir()
 
         feedback_file_name = sheet.get_feedback_file_name(_the_config)
-        dummy_pdf_name = feedback_file_name + ".pdf.todo"
-        pathlib.Path(feedback_dir / dummy_pdf_name).touch(exist_ok=True)
+        if not _the_config.xopp:
+            feedback_pdf_name = feedback_file_name + ".pdf"
+            pdf_files = list(submission.root_dir.glob("*.pdf"))
+            if len(pdf_files) == 1:
+                shutil.copy(pdf_files[0], feedback_dir / feedback_pdf_name)
+            elif len(pdf_files) > 1:
+                logging.warning(f"There are multiple PDFs in the "
+                                f"submission directory {submission.root_dir}.")
+                for pdf in pdf_files:
+                    shutil.copy(pdf, feedback_dir)
 
         # Copy non-pdf submission files into feedback directory with added
         # prefix.
@@ -205,10 +211,10 @@ def create_feedback_directories(_the_config: config.Config,
                 shutil.copy(submission_file, feedback_dir / this_feedback_file_name)
 
 
-def generate_xopp_files(sheet: sheets.Sheet) -> None:
+def generate_xopp_files(sheet: sheets.Sheet, _the_config: config.Config) -> None:
     """
-    Generate xopp files in the feedback directories that point to the single pdf
-    in the submission directory and skip if multiple PDF files exist.
+    Generate xopp files in the feedback directories that point to the pdfs
+    in the submission directory.
     """
     from pypdf import PdfReader
 
@@ -217,55 +223,50 @@ def generate_xopp_files(sheet: sheets.Sheet) -> None:
 
     logging.info("Generating .xopp files...")
     for submission in sheet.get_relevant_submissions():
-        pdf_paths = list(submission.root_dir.glob("*.pdf"))
-        if len(pdf_paths) != 1:
-            logging.warning(
-                f"Skipping .xopp file generation for {submission.root_dir.name}: No or"
-                " multiple PDF files."
-            )
-            continue
-        pdf_path = pdf_paths[0]
         feedback_dir = submission.get_feedback_dir()
-        todo_paths = list(feedback_dir.glob("*.pdf.todo"))
-        assert len(todo_paths) == 1
-        todo_path = todo_paths[0]
-        pages = PdfReader(pdf_path).pages
-        # Strips the ".todo" and replaces ".pdf" by ".xopp".
-        xopp_path = todo_path.with_suffix("").with_suffix(".xopp")
-        if xopp_path.is_file():
-            logging.warning(
-                f"Skipping .xopp file generation for {submission.root_dir.name}: xopp file"
-                " exists."
-            )
-            continue
-        xopp_file = open(xopp_path, "w", encoding="utf-8")
-        for i, page in enumerate(pages, start=1):
-            width = page.mediabox.width
-            height = page.mediabox.height
-            if i == 1:  # Special entry for first page
-                write_to_file(
-                    xopp_file,
-                    f"""\
-                    <?xml version="1.0" standalone="no"?>
-                    <xournal creator="Xournal++ 1.1.1" fileversion="4">
-                    <title>Xournal++ document - see https://github.com/xournalpp/xournalpp</title>
-                    <page width="{width}" height="{height}">
-                    <background type="pdf" domain="absolute" filename="{pdf_path.resolve()}" pageno="{i}"/>
-                    <layer/>
-                    </page>""",  # noqa
+        pdf_paths = list(submission.root_dir.glob("*.pdf"))
+        if len(pdf_paths) > 1:
+            logging.warning(f"There are multiple PDFs in the "
+                            f"submission directory {submission.root_dir}.")
+        for pdf_path in pdf_paths:
+            file_name = pdf_path.name
+            if len(pdf_paths) == 1:
+                file_name = sheet.get_feedback_file_name(_the_config) + ".pdf"
+            pages = PdfReader(pdf_path).pages
+            xopp_path = (feedback_dir / file_name).with_suffix(".xopp")
+            if xopp_path.is_file():
+                logging.warning(
+                    f"Skipping .xopp file generation for {submission.root_dir.name}: xopp file"
+                    " exists."
                 )
-            else:
-                write_to_file(
-                    xopp_file,
-                    f"""\
-                    <page width="{width}" height="{height}">
-                    <background type="pdf" pageno="{i}"/>
-                    <layer/>
-                    </page>""",
-                )
-        write_to_file(xopp_file, "</xournal>")
-        xopp_file.close()
-        todo_path.unlink()  # Delete placeholder todo file.
+                continue
+            xopp_file = open(xopp_path, "w", encoding="utf-8")
+            for i, page in enumerate(pages, start=1):
+                width = page.mediabox.width
+                height = page.mediabox.height
+                if i == 1:  # Special entry for first page
+                    write_to_file(
+                        xopp_file,
+                        f"""\
+                        <?xml version="1.0" standalone="no"?>
+                        <xournal creator="Xournal++ 1.1.1" fileversion="4">
+                        <title>Xournal++ document - see https://github.com/xournalpp/xournalpp</title>
+                        <page width="{width}" height="{height}">
+                        <background type="pdf" domain="absolute" filename="{pdf_path.resolve()}" pageno="{i}"/>
+                        <layer/>
+                        </page>""",  # noqa
+                    )
+                else:
+                    write_to_file(
+                        xopp_file,
+                        f"""\
+                        <page width="{width}" height="{height}">
+                        <background type="pdf" pageno="{i}"/>
+                        <layer/>
+                        </page>""",
+                    )
+            write_to_file(xopp_file, "</xournal>")
+            xopp_file.close()
     logging.info("Done generating .xopp files.")
 
 
@@ -655,11 +656,11 @@ def init(_the_config: config.Config, args) -> None:
     # <sheet_root_dir>
     # ├── 12345_Muster-Meier-Mueller
     # .   ├── feedback
-    # .   │   ├── feedback.pdf.todo
+    # .   │   ├── feedback.pdf
     # .   │   └── feedback_copy-of-submitted-file.cc
     # .   ├── submission.pdf or submission files
     # .   └── submission.json
     # ├── sheet.json
     # └── points.json
     if _the_config.xopp:
-        generate_xopp_files(sheet)
+        generate_xopp_files(sheet, _the_config)

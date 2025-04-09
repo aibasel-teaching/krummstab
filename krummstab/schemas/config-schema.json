@@ -138,6 +138,12 @@
           "pattern": "^\\.",
           "minLength": 2
         }
+      },
+      "marking_command": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
       }
     },
     "required": [
@@ -157,7 +163,8 @@
         "smtp_port",
         "smtp_user",
         "xopp",
-        "ignore_feedback_suffix"
+        "ignore_feedback_suffix",
+        "marking_command"
       ],
     "if": {
       "properties": {
