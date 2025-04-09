@@ -1,9 +1,7 @@
-import json
 from importlib import resources
 from pathlib import Path
-import jsonschema
 
-from . import schemas
+from . import schemas, utils
 from .teams import *
 
 
@@ -15,9 +13,16 @@ class Config:
         data = {}
         for path in config_paths:
             logging.info(f"Reading config file '{path}'")
-            data.update(json.loads(path.read_text(encoding="utf-8")))
-        config_schema = json.loads(resources.files(schemas).joinpath("config-schema.json").read_text(encoding="utf-8"))
-        jsonschema.validate(data, config_schema, jsonschema.Draft7Validator)
+            try:
+                data.update(utils.read_json(path))
+            except FileNotFoundError:
+                logging.warning(f"File '{path}' is missing.")
+        config_schema = utils.read_json(
+            resources.read_text(
+                schemas, "config-schema.json", encoding="utf-8"
+            ), "config-schema.json"
+        )
+        utils.validate_json(data, config_schema, "The config")
 
         for key, value in data.items():
             setattr(self, key, value)
