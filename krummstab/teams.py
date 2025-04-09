@@ -6,11 +6,11 @@ from .students import *
 
 class Team:
     def __init__(self, members: list[Student], adam_id: Optional[str] = None):
-        self.members = members
+        self.members = sorted(members)
         self.adam_id = adam_id
 
     def __eq__(self, other) -> bool:
-        return self.members == other.members
+        return sorted(self.members) == sorted(other.members)
 
     def get_first_names(self) -> list[str]:
         """
@@ -50,6 +50,12 @@ class Team:
         Get a tuples of strings representation of a team.
         """
         return [member.to_tuple() for member in self.members]
+
+    def pretty_print(self) -> str:
+        """
+        Get a pretty printed string representation of a team.
+        """
+        return ", ".join(m.pretty_print() for m in self.members)
 
 
 def create_email_to_name_dict(teams: list[Team]) -> dict[str, tuple[str, str]]:

@@ -1,7 +1,7 @@
 from importlib import resources
 from pathlib import Path
 
-from . import errors, schemas, utils
+from . import schemas, utils
 from .teams import *
 
 
@@ -58,20 +58,6 @@ class Config:
                       for team in self.teams]
         _validate_teams(self.teams, self.max_team_size)
         logging.info("Processed config successfully.")
-
-    def get_relevant_teams(self) -> list[Team]:
-        """
-        Get a list of teams that the tutor specified in the config has to mark.
-        We rename the directories using the `DO_NOT_MARK_PREFIX` and thereafter only
-        access relevant teams via `get_relevant_submissions()`.
-        """
-        if self.marking_mode == "static":
-            return self.classes[self.tutor_name]
-        elif self.marking_mode == "exercise":
-            return self.teams
-        else:
-            errors.unsupported_marking_mode_error(self.marking_mode)
-            return []
 
 
 def _validate_teams(teams: list[Team], max_team_size) -> None:
