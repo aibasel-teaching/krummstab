@@ -8,5 +8,5 @@
     "smtp_user": "",
     "xopp": PLACEHOLDER_XOPP_SETTING,
     "ignore_feedback_suffix": [ ".xopp" ],
-    "command": "xournalpp"
+    "marking_command": ["xournalpp", "{xopp_file}"]
 }

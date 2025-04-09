@@ -139,8 +139,11 @@
           "minLength": 2
         }
       },
-      "command": {
-        "type": "string"
+      "marking_command": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
       }
     },
     "required": [
@@ -161,7 +164,7 @@
         "smtp_user",
         "xopp",
         "ignore_feedback_suffix",
-        "command"
+        "marking_command"
       ],
     "if": {
       "properties": {

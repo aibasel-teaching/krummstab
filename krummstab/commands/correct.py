@@ -5,23 +5,25 @@ import subprocess
 from .. import config, sheets
 
 
-def run_command_and_wait(command: str) -> None:
+def run_command_and_wait(command: list[str]) -> None:
     """
-    Executes a shell command and waits for it to finish.
+    Executes a command and waits for it to finish.
     """
     logging.info(f"Running: {command}")
-    process = subprocess.Popen(command, shell=True)
-    process.wait()
+    subprocess.run(command)
 
 
-def get_command_with_file(command: str, file: pathlib.Path) -> str:
+def get_command_with_file(command: list[str], file: pathlib.Path) -> list[str]:
     """
-    Creates the complete shell command with the given program and file.
+    Creates the complete command with the given program and file.
     """
-    return f"{command} '{file}'"
+    xopp_file = file
+    pdf_file = file
+    command = [arg.format(**locals()) for arg in command]
+    return command
 
 
-def correct_xopp_files(command: str, sheet: sheets.Sheet) -> None:
+def correct_xopp_files(command: list[str], sheet: sheets.Sheet) -> None:
     """
     Finds all .xopp files and opens them with Xournal++.
     """
@@ -38,10 +40,10 @@ def correct_xopp_files(command: str, sheet: sheets.Sheet) -> None:
                 run_command_and_wait(command_with_file)
 
 
-def correct_pdf_files(command: str, sheet: sheets.Sheet):
+def correct_pdf_files(command: list[str], sheet: sheets.Sheet) -> None:
     """
     Finds all feedback PDFs and opens them with the program specified in the
-    config parameter 'command'.
+    config parameter 'marking_command'.
     """
     for submission in sheet.get_relevant_submissions():
         feedback_dir = submission.get_feedback_dir()
@@ -58,14 +60,21 @@ def correct_pdf_files(command: str, sheet: sheets.Sheet):
 
 def correct(_the_config: config.Config, args) -> None:
     """
-    Correct all submissions at once with a specific program such as
-    Xournal++. Runs the program specified in the config parameter 'command'.
+    Correct all submissions at once with a specific program such as Xournal++.
+    Runs the program specified in the config parameter 'marking_command'.
     """
     sheet = sheets.Sheet(args.sheet_root_dir)
-    if len(_the_config.command) == 0:
+    cmd = _the_config.marking_command
+    if not cmd:
         # default
-        correct_xopp_files("xournalpp", sheet)
-    elif "xournalpp" in _the_config.command:
-        correct_xopp_files(_the_config.command, sheet)
+        correct_xopp_files(["xournalpp", "{xopp_file}"], sheet)
     else:
-        correct_pdf_files(_the_config.command, sheet)
+        has_xopp = "{xopp_file}" in cmd
+        has_pdf = "{pdf_file}" in cmd
+        if has_xopp == has_pdf:
+            logging.critical("The config must contain either '{xopp_file}' or "
+                             "'{pdf_file}' in 'marking_command', but not both.")
+        elif has_xopp:
+            correct_xopp_files(cmd, sheet)
+        else:
+            correct_pdf_files(cmd, sheet)

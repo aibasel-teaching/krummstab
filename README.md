@@ -178,8 +178,12 @@ place for the points.
 This command allows you to correct all submissions at once with a specific 
 program such as Xournal++. It opens all relevant PDF feedback files or `.xopp` 
 files one after the other with the program that you can specify with the config 
-parameter `command`. To run this command, you also need to provide the path 
-to the directory created by the `init` command, in this example `sheet01`:
+parameter `marking_command`. This parameter is a list of strings, starting 
+with the program command, with the following elements being arguments. One 
+argument has to be either `"{xopp_file}"` or `"{pdf_file}"`, which will be 
+automatically replaced with file paths later. To run this command, you also 
+need to provide the path to the directory created by the `init` command, in 
+this example `sheet01`:
 ```
 krummstab correct sheet01
 ```
@@ -256,12 +260,15 @@ To access this command
 - `xopp`: if you use Xournal++ for marking, set the value to `true`; the 
   relevant `xopp` files are then automatically created with the `init` 
   subcommand and exported with the `collect` subcommand before the feedback 
-  is collected.
+  is collected
 - `ignore_feedback_suffix`: a list of extensions that should be ignored by the
   `collect` sub-command; this is useful if the tools you use for marking create
   files in the feedback folders that you don't want to send to the students
-- `command`: the shell command for the program that the `correct` subcommand 
-  should use, `xournalpp` by default
+- `marking_command`: a list of strings that the `correct` subcommand should 
+  use, starting with program command, with the following elements being 
+  arguments; one argument has to be either `"{xopp_file}"` or `"{pdf_file}"`, 
+  which will be automatically replaced with file paths later; contains 
+  `"xournalpp"` with `"{xopp_file}"` by default
 
 ### General Settings
 - `lecture_title`: lecture name to be printed in feedback emails
