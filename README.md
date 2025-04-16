@@ -312,10 +312,10 @@ File Load to "Always recalculate" (or "Prompt user").
 There may be situations that require manual changes. This section provides
 instructions for handling these special cases.
 
-It is important to note that the teams in the shared config file are only used 
-for the `init` and `summarize` commands. After the `init` command, there is a 
-file with the name `submission.json` in each team folder that contains 
-information about the submission, including the team. The information in these 
+It is important to note that the teams in the shared config file are only used
+for the `init` and `summarize` commands. After the `init` command, there is a
+file with the name `submission.json` in each team folder that contains
+information about the submission, including the team. The information in these
 files is used for the other commands.
 
 ### Manually Adding Late Submissions
@@ -381,6 +381,18 @@ Krummstab it only matters that the files you want to send as feedback are in the
 `feedback` folder of the team's submission directory. To avoid this situation,
 students should use the same file name when uploading an updated submission and
 of course refrain from uploading two separate submissions.
+
+### Only Sending Feedback to Some Teams
+The `send` command only sends feedback to teams that are marked as being
+`relevant` in the their respective `submission.json` file. To avoid sending
+feedback to team Hans and Hanna Muster, manually edit the file
+`00000_Muster_Muster/submission.json` and change `"relevant": true` to
+`"relevant": false`. The marks for the team you entered in the points file the
+will be sent to the assistant anyway, so you may want to remove the
+corresponding entry in `points_tutor_sheet_name.json` or give 0 marks
+explicitly. You can still later send the feedback through Krummstab by reverting
+the changes above and marking the teams you already sent feedback to earlier as
+"not relevant".
 
 # Development
 
