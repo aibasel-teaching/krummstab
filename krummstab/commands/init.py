@@ -270,23 +270,28 @@ def generate_xopp_files(sheet: sheets.Sheet, _the_config: config.Config) -> None
     logging.info("Done generating .xopp files.")
 
 
-def print_missing_submissions(_the_config: config.Config, sheet: sheets.Sheet) -> None:
+def print_missing_submissions(
+    _the_config: config.Config, sheet: sheets.Sheet
+) -> None:
     """
     Print all teams that are listed in the config file, but whose submission is
     not present in the zip downloaded from ADAM.
     """
-    teams_who_submitted = [submission.team for submission in
-                           sheet.get_all_team_submission_info()]
-    students_who_submitted = [member for team in teams_who_submitted
-                             for member in team.members]
+    teams_who_submitted = [
+        submission.team for submission in sheet.get_all_team_submission_info()
+    ]
+    students_who_submitted = [
+        member for team in teams_who_submitted for member in team.members
+    ]
     # Also checks if the team has been restructured
     missing_teams = [
-        team for team in _the_config.teams
-        if team not in teams_who_submitted and not any(
-            member in students_who_submitted for member in team.members)
+        team
+        for team in _the_config.teams
+        if team not in teams_who_submitted
+        and not any(member in students_who_submitted for member in team.members)
     ]
     if missing_teams:
-        logging.warning("There are no submissions for the following team(s):")
+        logging.info("There are no submissions for the following team(s):")
         for missing_team in missing_teams:
             print(f"* {missing_team.pretty_print()}")
 
