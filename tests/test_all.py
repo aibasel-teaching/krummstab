@@ -104,6 +104,7 @@ def test(
     config_shared: pathlib.Path,
     insert_tutor_name,
     insert_xopp_setting,
+    skip_mark_test,
     args: list[str],
 ):
     # Call 'init'.
@@ -126,19 +127,20 @@ def test(
     out, err = capfd.readouterr()
     assert "Command 'init' terminated successfully." in out
 
-    # Call 'mark'.
-    subprocess.check_call(
-        [
-            "krummstab",
-            "-i",
-            str(CONFIG_INDIVIDUAL),
-            "-s",
-            str(config_shared),
-            "mark",
-            "--dry-run",
-            str(SAMPLE_SHEET_DIR),
-        ]
-    )
+    if not skip_mark_test:
+        # Call 'mark'.
+        subprocess.check_call(
+            [
+                "krummstab",
+                "-i",
+                str(CONFIG_INDIVIDUAL),
+                "-s",
+                str(config_shared),
+                "mark",
+                "--dry-run",
+                str(SAMPLE_SHEET_DIR),
+            ]
+        )
 
     # Prepare for 'collect'.
     give_feedback()
