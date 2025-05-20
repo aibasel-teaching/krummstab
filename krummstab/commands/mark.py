@@ -1,17 +1,30 @@
 import logging
 import pathlib
 import subprocess
+import sys
 
 from .. import config, sheets, submissions, utils
 
 
-def run_command_and_wait(command: list[str]) -> None:
+def run_command_and_wait(command: list[str], dry_run: bool) -> None:
     """
-    Executes a command and waits for it to finish.
+    Executes a command and waits for it to finish. The dry_run flag is only
+    useful for automated tests and is not meant to be set by users.
     """
     logging.info(f"Running {command}")
     try:
-        subprocess.run(command, check=True, capture_output=True)
+        timeout = 1.0 if dry_run else None
+        subprocess.run(
+            command, check=True, capture_output=True, timeout=timeout
+        )
+    except subprocess.TimeoutExpired:
+        if dry_run:
+            sys.exit(0)
+        else:
+            # The intention here is to pass the error on to be caught be the
+            # handler below. I'm not sure whether that would actually happen,
+            # but the subprocess should not really time out without 'dry_run'.
+            raise
     except subprocess.SubprocessError as error:
         if error.stderr:
             logging.error(
@@ -29,7 +42,6 @@ def run_command_and_wait(command: list[str]) -> None:
             )
         logging.critical("Aborting 'mark'.")
 
-
 def get_command_with_file(command: list[str], file: pathlib.Path) -> list[str]:
     """
     Creates the complete command with the given program and file.
@@ -41,7 +53,10 @@ def get_command_with_file(command: list[str], file: pathlib.Path) -> list[str]:
 
 
 def mark_submission(
-    submission: submissions.Submission, command: list[str], suffix_to_mark: str
+    submission: submissions.Submission,
+    command: list[str],
+    suffix_to_mark: str,
+    dry_run: bool,
 ) -> None:
     feedback_dir = submission.get_feedback_dir()
     files_to_mark = [
@@ -55,7 +70,9 @@ def mark_submission(
         )
         return
     for file_to_mark in files_to_mark:
-        run_command_and_wait(get_command_with_file(command, file_to_mark))
+        run_command_and_wait(
+            get_command_with_file(command, file_to_mark), dry_run
+        )
 
 
 def mark(_the_config: config.Config, args) -> None:
@@ -77,4 +94,4 @@ def mark(_the_config: config.Config, args) -> None:
         )
     suffix_to_mark = ".xopp" if has_xopp else ".pdf"
     for submission in sheet.get_relevant_submissions():
-        mark_submission(submission, command, suffix_to_mark)
+        mark_submission(submission, command, suffix_to_mark, args.dry_run)

@@ -81,7 +81,9 @@ def give_feedback():
         data = data.replace(': ""', ': "1.5"')
         with open(point_file, "w") as file:
             file.write(data)
-    # gzip .xopp files.
+    # gzip .xopp files to pretend that we opened and saved the xopp files with
+    # Xournal++. If we don't do this 'collect' will complain that we did not
+    # actually give any feedback.
     for xopp_file in pathlib.Path.cwd().glob("**/*.xopp"):
         with open(xopp_file, "rb") as file_in:
             content = file_in.read()
@@ -123,6 +125,20 @@ def test(
     # Verify 'init' ran successfully.
     out, err = capfd.readouterr()
     assert "Command 'init' terminated successfully." in out
+
+    # Call 'mark'.
+    subprocess.check_call(
+        [
+            "krummstab",
+            "-i",
+            str(CONFIG_INDIVIDUAL),
+            "-s",
+            str(config_shared),
+            "mark",
+            "--dry-run",
+            str(SAMPLE_SHEET_DIR),
+        ]
+    )
 
     # Prepare for 'collect'.
     give_feedback()
@@ -171,7 +187,7 @@ def test(
             "-s",
             str(config_shared),
             "send",
-            "--dry_run",
+            "--dry-run",
             str(SAMPLE_SHEET_DIR),
         ]
     )

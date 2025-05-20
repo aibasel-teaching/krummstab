@@ -117,6 +117,14 @@ def add_mark_command_parser(subparsers):
             "the config parameter 'command'"
         ),
     )
+    # This flag is only meant to be used in automated tests and should not be
+    # set by users.
+    parser_mark.add_argument(
+        "-d",
+        "--dry-run",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
     parser_mark.add_argument(
         "sheet_root_dir",
         type=pathlib.Path,
@@ -166,7 +174,7 @@ def add_send_command_parser(subparsers):
     )
     parser_send.add_argument(
         "-d",
-        "--dry_run",
+        "--dry-run",
         action="store_true",
         help="only print emails instead of sending them",
     )
