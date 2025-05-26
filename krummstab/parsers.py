@@ -126,6 +126,12 @@ def add_mark_command_parser(subparsers):
         help=argparse.SUPPRESS,
     )
     parser_mark.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        help="do not skip submissions with marks in the points file",
+    )
+    parser_mark.add_argument(
         "sheet_root_dir",
         type=pathlib.Path,
         help="path to the sheet's directory",

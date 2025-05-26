@@ -328,7 +328,7 @@ def set_relevance_for_submission_teams(_the_config: config.Config,
                                     "the submission.json file of the team "
                                     "directory.\n"
                                     "* Remove the team from the "
-                                    "points.json file.")
+                                    "points_*.json file.")
             else:
                 team_relevance_dict[team_id] = False
         else:
@@ -557,7 +557,7 @@ def init(_the_config: config.Config, args) -> None:
     Prepares the directory structure holding the submissions.
     """
     # Catch wrong combinations of marking_mode/points_per/-n/-e.
-    # Not possible eariler because marking_mode and points_per are given by the
+    # Not possible earlier because marking_mode and points_per are given by the
     # config file.
     if _the_config.points_per == "exercise":
         if _the_config.marking_mode == "exercise" and not args.exercises:

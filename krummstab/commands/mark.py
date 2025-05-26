@@ -11,7 +11,6 @@ def run_command_and_wait(command: list[str], dry_run: bool) -> None:
     Executes a command and waits for it to finish. The dry_run flag is only
     useful for automated tests and is not meant to be set by users.
     """
-    logging.info(f"Running {command}")
     try:
         timeout = 1.0 if dry_run else None
         subprocess.run(
@@ -42,6 +41,7 @@ def run_command_and_wait(command: list[str], dry_run: bool) -> None:
             )
         logging.critical("Aborting 'mark'.")
 
+
 def get_command_with_file(command: list[str], file: pathlib.Path) -> list[str]:
     """
     Creates the complete command with the given program and file.
@@ -56,6 +56,8 @@ def mark_submission(
     submission: submissions.Submission,
     command: list[str],
     suffix_to_mark: str,
+    submission_num: int,
+    submissions_total: int,
     dry_run: bool,
 ) -> None:
     feedback_dir = submission.get_feedback_dir()
@@ -70,9 +72,12 @@ def mark_submission(
         )
         return
     for file_to_mark in files_to_mark:
-        run_command_and_wait(
-            get_command_with_file(command, file_to_mark), dry_run
+        command_with_file = get_command_with_file(command, file_to_mark)
+        logging.info(
+            f"({submission_num:{len(str(submissions_total))}d}/{submissions_total}) "
+            f"Running {command_with_file}"
         )
+        run_command_and_wait(command_with_file, dry_run)
 
 
 def mark(_the_config: config.Config, args) -> None:
@@ -93,5 +98,40 @@ def mark(_the_config: config.Config, args) -> None:
             "'{xopp_file}' or '{pdf_file}', but not both."
         )
     suffix_to_mark = ".xopp" if has_xopp else ".pdf"
-    for submission in sheet.get_relevant_submissions():
-        mark_submission(submission, command, suffix_to_mark, args.dry_run)
+
+    submissions_to_mark = list(sheet.get_relevant_submissions())
+    # By default, only open teams who do not already have marks entered in the
+    # marks file. The idea of this is that the tutor does not need to look at
+    # submissions again if she/he has already entered all marks. The '--force'
+    # flag exists to circumvent this default behavior.
+    # TODO: Generalize this to marking_mode == "exercise" and points_per ==
+    #       "exercise".
+    if (
+        _the_config.use_marks_file
+        and _the_config.marking_mode == "static"
+        and _the_config.points_per == "sheet"
+        and not args.force
+    ):
+        marks_data = utils.read_json(sheet.get_marks_file_path(_the_config))
+        submissions_to_mark = [
+            submission
+            for submission in submissions_to_mark
+            if marks_data[submission.team.get_team_key()] == ""
+        ]
+
+    submissions_total = len(submissions_to_mark)
+    logging.info(
+        f"{submissions_total} out of "
+        f"{len(list(sheet.get_relevant_submissions()))} "
+        f"submission{'s'[:submissions_total^1]} to mark."
+    )
+
+    for submission_num, submission in enumerate(submissions_to_mark, start=1):
+        mark_submission(
+            submission,
+            command,
+            suffix_to_mark,
+            submission_num,
+            submissions_total,
+            args.dry_run,
+        )
