@@ -68,7 +68,7 @@ def mark_submission(
     ]
     if not files_to_mark:
         logging.warning(
-            f"No files to mark for team {submission.team.pretty_print()}."
+            f"No files to mark for team {submission.team}."
         )
         return
     for file_to_mark in files_to_mark:

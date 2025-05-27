@@ -293,7 +293,7 @@ def print_missing_submissions(
     if missing_teams:
         logging.info("There are no submissions for the following team(s):")
         for missing_team in missing_teams:
-            print(f"* {missing_team.pretty_print()}")
+            print(f"* {missing_team}")
 
 
 def set_relevance_for_submission_teams(_the_config: config.Config,
@@ -316,7 +316,7 @@ def set_relevance_for_submission_teams(_the_config: config.Config,
                 if (_the_config.marking_mode == "static"
                         and len(_the_config.classes.keys()) > 1):
                     logging.warning("Team "
-                                    f"{submission_teams[team_id].pretty_print()} "
+                                    f"{submission_teams[team_id]} "
                                     f"is now assigned to tutors {tutors}.\n"
                                     "Please contact the other tutors to decide "
                                     "who will mark this team. Update the "
@@ -443,7 +443,7 @@ def validate_team_size(max_team_size: int,
         logging.warning("There are submission teams that have "
                         "more members than allowed:")
     for team in teams:
-         print(f"* {team.pretty_print()}")
+         print(f"* {team}")
 
 
 def validate_teams(_the_config: config.Config,
@@ -462,14 +462,14 @@ def validate_teams(_the_config: config.Config,
         print(utils.SEPARATOR_LINE)
         for new_submission_team in new_submission_teams:
             print("New submission team:")
-            print(f"* {new_submission_team.pretty_print()}")
+            print(f"* {new_submission_team}")
             original_teams = get_original_config_teams(
                 _the_config, new_submission_team
             )
             if original_teams:
                 print("Related config teams:")
                 for original_team in original_teams:
-                    print(f"* {original_team.pretty_print()}")
+                    print(f"* {original_team}")
             new_students = [
                 member for member in new_submission_team.members
                 if not is_in_config_teams(_the_config, member)
@@ -478,7 +478,7 @@ def validate_teams(_the_config: config.Config,
                 print("Members of the new submission team that do not appear "
                       "in the config:")
                 for student in new_students:
-                    print(f"* {student.pretty_print()}")
+                    print(f"* {student}")
             print(utils.SEPARATOR_LINE)
     new_teams = [
         submission_team for submission_team in submission_teams
@@ -488,7 +488,7 @@ def validate_teams(_the_config: config.Config,
         logging.warning("There are completely new teams where all members "
                         "are not listed in the config:")
         for new_team in new_teams:
-            print(f"* {new_team.pretty_print()}")
+            print(f"* {new_team}")
 
 
 def create_all_submission_info_files(_the_config: config.Config,
