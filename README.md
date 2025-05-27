@@ -152,7 +152,7 @@ like this:
 │   ├── DO_NOT_MARK_12346_Meier_Meyer
 │   │   └── submission_exercise_sheet1.pdf
 │   .
-│   └── points.json
+│   └── points_*.json
 └── Sheet 1.zip
 ```
 As you may have guessed, the submissions you need to mark are those without the
@@ -175,7 +175,7 @@ key. Marking with Xournal++ is supported by default: Simply set the value of the
 writing, which is explained next.
 
 While writing the feedback, you can keep track of the points the teams get in
-the file `points.json`. In the case of plagiarism, write `Plagiarism` in the
+the file `points_*.json`. In the case of plagiarism, write `Plagiarism` in the
 place for the points.
 
 ### mark
@@ -185,7 +185,7 @@ program such as Xournal++. It opens all relevant PDF feedback files or `.xopp`
 files one after the other with the program that you can specify with the config
 parameter `marking_command`. This parameter is a list of strings, starting with
 the program command, with the following elements being arguments. One argument
-has to be either `"{xopp_file}"` or `"{pdf_file}"`, which will be automatically
+has to be either `{xopp_file}` or `{pdf_file}`, which will be automatically
 replaced with file paths later. The default Xournal++ command would for example
 look as follows in the config:
 ```json
@@ -199,7 +199,7 @@ krummstab mark sheet01
 
 ### collect
 Once you have marked all the teams assigned to you and added their points to
-the `points.json` file, you can run the next command, where `sheet01` is the
+the `points_*.json` file, you can run the next command, where `sheet01` is the
 path to the directory created by the `init` command:
 ```
 krummstab collect sheet01
@@ -277,9 +277,9 @@ File Load to "Always recalculate" (or "Prompt user").
   files in the feedback folders that you don't want to send to the students
 - `marking_command`: a list of strings that the `mark` subcommand should use,
   starting with program command, with the following elements being arguments;
-  one argument has to be either `"{xopp_file}"` or `"{pdf_file}"`, which will be
-  automatically replaced with file paths later; contains `"xournalpp"` with
-  `"{xopp_file}"` by default
+  one argument has to be either `{xopp_file}` or `{pdf_file}`, which will be
+  automatically replaced with file paths later; contains `xournalpp` with
+  `{xopp_file}` by default
 
 ### General Settings
 - `lecture_title`: lecture name to be printed in feedback emails
@@ -362,10 +362,10 @@ following steps are necessary:
    the name `feedback`. When you have marked the team, you can add your feedback
    files here. You can add the original submitted files to `late_submission`,
    but this is not mandatory.
-4. Modifying the `points.json` file: Add the team key with the points that the
-   team gets to the `points.json` file. The team key consists of the ADAM ID you
-   chose in step 1 and the alphabetically sorted last names of all team members
-   in the following format: `ID_Last-Name1_Last-Name2`
+4. Modifying the `points_*.json` file: Add the team key with the points that the
+   team gets to the `points_*.json` file. The team key consists of the ADAM ID
+   you chose in step 1 and the alphabetically sorted last names of all team
+   members in the following format: `ID_Last-Name1_Last-Name2`
 
 After completing these steps, the new submission will be processed as usual by
 future calls to Krummstab, in particular by the `collect` and `send` commands.
@@ -393,7 +393,7 @@ feedback to team Hans and Hanna Muster, manually edit the file
 `00000_Muster_Muster/submission.json` and change `"relevant": true` to
 `"relevant": false`. The marks for the team you entered in the points file the
 will be sent to the assistant anyway, so you may want to remove the
-corresponding entry in `points_tutor_sheet_name.json` or give 0 marks
+corresponding entry in `points_*.json` or give 0 marks
 explicitly. You can still later send the feedback through Krummstab by reverting
 the changes above and marking the teams you already sent feedback to earlier as
 "not relevant".
