@@ -10,15 +10,16 @@ class Student:
     def __lt__(self, other) -> bool:
         return self.email < other.email
 
+    def __format__(self, spec) -> str:
+        """
+        Get a pretty printed string representation of a student:
+        first_name last_name (email)
+        """
+        return f"{self.first_name} {self.last_name} ({self.email})"
+
     def to_tuple(self) -> tuple[str, str, str]:
         """
         Get a tuple of strings representation of a student.
         """
         return self.first_name, self.last_name, self.email
 
-    def pretty_print(self) -> str:
-        """
-        Get a pretty printed string representation of a student:
-        first_name last_name (email)
-        """
-        return f"{self.first_name} {self.last_name} ({self.email})"
