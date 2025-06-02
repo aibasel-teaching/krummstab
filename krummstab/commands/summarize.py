@@ -5,6 +5,9 @@ import xlsxwriter
 from xlsxwriter import Workbook
 from xlsxwriter.utility import xl_rowcol_to_cell, xl_range, xl_range_abs
 from xlsxwriter.worksheet import Worksheet
+import openpyxl
+from openpyxl.workbook.defined_name import DefinedName
+from openpyxl.utils import quote_sheetname, absolute_coordinate
 
 from .. import config, utils
 from ..teams import *
@@ -354,8 +357,12 @@ class PointsSummarySheetBuilder:
         else:
             return xl_range(row, col, row, col + len(values) - 1)
 
-    def define_name(self, var, value):
-        self.workbook.define_name(var, value)
+    def define_name(self, var, range):
+        ref =  f"{absolute_coordinate(range)}"
+        self.workbook.define_name(var, ref)
+#        ref =  f"{quote_sheetname(self.worksheet.title)}!{absolute_coordinate(range)}"
+#        defined_name = DefinedName(var, attr_text=ref)
+#        self.workbook.defined_names.add(defined_name)
 
     def add_conditional_format(self, range, formula, format):
         self.worksheet.conditional_format(range, {
@@ -565,6 +572,8 @@ def create_marks_summary_excel_file(_the_config: config.Config, marks_dir: Path)
     students_marks, graded_sheet_names = load_marks_files(marks_dir, _the_config)
 
     builder = PointsSummarySheetBuilder(_the_config, sheets, email_to_name, students_marks, graded_sheet_names)
+
+#    workbook = openpyxl.Workbook()
     workbook = xlsxwriter.Workbook("Points_Summary_Report.xlsx")
     builder.add_summary_table_to_workbook(workbook)
 
@@ -573,6 +582,17 @@ def create_marks_summary_excel_file(_the_config: config.Config, marks_dir: Path)
 #            workbook, email_to_name, students_marks, all_sheet_names, graded_sheet_names
 #        )
     workbook.close()
+
+#    workbook.save("Points_Summary_Report.xlsx")
+
+#    pyxl_worksheet = pyxl_workbook.active
+    # make sure sheetnames and cell references are quoted correctly
+#    pyxl_worksheet["A1"] = 1
+#    pyxl_worksheet["A2"] = 12
+#    pyxl_worksheet["A3"] = 14
+#    pyxl_worksheet["A5"] = 16
+#    pyxl_worksheet["B2"] = "=SUM(global_range)"
+
 
 
 def summarize(_the_config: config.Config, args) -> None:
