@@ -3,22 +3,22 @@
     "adam_sheet_name": "Sample Sheet",
     "marks": {
         "salome.schmid@stud.unibas.ch": {
-            "exercise_2": 2
+            "exercise_3": 2
         },
         "samira.studer@stud.unibas.ch": {
-            "exercise_2": 2
+            "exercise_3": 2
         },
         "silvan.stucki@stud.unibas.ch": {
-            "exercise_2": 2
+            "exercise_3": 2
         },
         "sabine.sommer@stud.unibas.ch": {
-            "exercise_2": 2
+            "exercise_3": 2
         },
         "sandro.schenk@stud.unibas.ch": {
-            "exercise_2": 0
+            "exercise_3": 0
         },
         "samuel.seiler@stud.unibas.ch": {
-            "exercise_2": 0
+            "exercise_3": 0
         }
     },
     "exercises": [ 3 ]
