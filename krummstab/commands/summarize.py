@@ -1,10 +1,8 @@
 import logging
 from collections import defaultdict
+import itertools
 from pathlib import Path
 
-
-from xlsxwriter.utility import xl_rowcol_to_cell, xl_range_abs
-from xlsxwriter.worksheet import Worksheet
 from openpyxl.formatting.rule import Rule
 from openpyxl.styles import Alignment, Border, Font, Side, PatternFill
 from openpyxl.styles.differential import DifferentialStyle
@@ -17,139 +15,28 @@ from openpyxl.worksheet.formula import ArrayFormula
 from .. import config, utils
 from ..teams import *
 
-BOLD = {'bold': True}
-BORDER = {'border': 1}
-BORDER_LEFT = {'left': 1}
-BORDER_RIGHT = {'right': 1}
-BORDER_LEFT_RIGHT = {'left': 1, 'right': 1}
-BORDER_TOP = {'top': 1}
-BORDER_BOTTOM = {'bottom': 1}
-BORDER_TOP_BOTTOM = {'top': 1, 'bottom': 1}
-BORDER_FULL = {'top': 1, 'bottom': 1, 'left': 1, 'right': 1}
-GRAY = {'bg_color': '#E2E2E2'}
-GREEN = {'bg_color': '#9BE189'}
-YELLOW = {'bg_color': '#FFE699'}
-RED = {'bg_color': '#EE7868'}
-PLAGIARISM_RED = {'bg_color': 'red'}
-PERCENT = {'num_format': '0%'}
-TEXT_WRAP = {'text_wrap': True}
-CENTERED = {'align': 'center'}
-RIGHT_ALIGNED = {'align': 'right'}
-TWO_DIGIT_FLOAT = {'num_format': '0.00'}
-
-PERCENTAGE_TO_PASS_CELL = '$B$4'
-IMPROVE_AVG_RED_CELL = '$E$3'
-IMPROVE_AVG_GREEN_CELL = '$E$1'
-
-PLAGIARISM = "Plagiarism"
-
-def write_mark(worksheet, row, col, mark) -> None:
-    """
-    Writes a mark in the cell specified by row and column.
-    """
-    if mark is None:
-        worksheet.write_blank(row, col, None)
-    elif isinstance(mark, str) and not mark.replace(".", "", 1).isdigit():
-        worksheet.write(row, col, mark)
-    else:
-        worksheet.write_number(row, col, float(mark))
-
-
-def add_student_marks_worksheet_points_per_sheet(workbook: Workbook, worksheet: Worksheet,
-                                                 _the_config: config.Config, row, email,
-                                                 students_marks, all_sheet_names, graded_sheet_names,
-                                                 points_per_sheet_cell_addresses):
-    """
-    Writes the points per sheet of a student in the worksheet for the sheets and calculates
-    the sum to get the total points of the student.
-    If points are given per exercise: Uses cell addresses from the points per
-    exercise worksheet that contain the calculated points per sheet.
-    """
-    if _the_config.points_per == 'exercise':
-        for col, cell_address in enumerate(points_per_sheet_cell_addresses[email], start=5):
-            worksheet.write(row, col, f"={cell_address}")
-    else:
-        for col, sheet_name in enumerate(list(all_sheet_names)[:len(graded_sheet_names)], start=5):
-            mark = students_marks[email].get(sheet_name)
-            write_mark(worksheet, row, col, mark)
-    student_marks_range = xl_range_abs(row, 5, row, 5 + len(all_sheet_names) - 1)
-    worksheet.write_formula(row, 2, f"=SUM({student_marks_range})", workbook.add_format(BORDER))
-
-
-def add_student_marks_worksheet_points_per_exercise(workbook: Workbook, worksheet: Worksheet,
-                                                    row, email, students_marks, all_sheet_names,
-                                                    graded_sheet_names) -> list[str]:
-    """
-    Writes the points per exercise of a student in the worksheet for the exercises, calculates
-    the sum to get the points per sheet and handles plagiarism. Returns a list of
-    cell addresses containing the calculated points per sheet.
-    """
-    col = 2
-    points_per_sheet_cell_addresses = []
-    for sheet_name in list(all_sheet_names)[:len(graded_sheet_names)]:
-        student_marks_range = xl_range_abs(row, col + 1, row, col + len(graded_sheet_names[sheet_name]))
-        worksheet.write_dynamic_array_formula(
-            row, col, row, col,
-            f'=IF(COUNTIF({student_marks_range},"{PLAGIARISM}") > 0,"{PLAGIARISM}",'
-            f'IF(AND(NOT(ISNUMBER({student_marks_range}))),"",SUM({student_marks_range})))',
-            workbook.add_format(BORDER_LEFT)
-        )
-        cell_address = xl_rowcol_to_cell(row, col)
-        points_per_sheet_cell_addresses.append(f"'Points Per Exercise'!{cell_address}")
-        col += 1
-        for exercise in sorted(graded_sheet_names[sheet_name]):
-            mark = students_marks[email][sheet_name].get(exercise)
-            write_mark(worksheet, row, col, mark)
-            col += 1
-    return points_per_sheet_cell_addresses
-
-
-def create_worksheet_points_per_exercise(workbook: Workbook, email_to_name, students_marks, all_sheet_names,
-                                         graded_sheet_names) -> defaultdict[str, list[str]]:
-    """
-    Creates an Excel worksheet that contains the points per exercise. Returns a dict with the
-    students' email addresses and the cell addresses that contain the calculated points per sheet.
-    """
-    worksheet = workbook.add_worksheet("Points Per Exercise")
-    worksheet.write(0, 0, "First Name", workbook.add_format(BOLD))
-    worksheet.write(0, 1, "Last Name", workbook.add_format(BOLD))
-    col = 2
-    for sheet_name in all_sheet_names:
-        worksheet.write(0, col, sheet_name, workbook.add_format(BOLD | BORDER_LEFT))
-        if sheet_name in graded_sheet_names:
-            col += 1
-            for exercise in sorted(graded_sheet_names[sheet_name]):
-                worksheet.write(0, col, exercise.replace("exercise", "task"), workbook.add_format(BOLD))
-                col += 1
-        else:
-            col += 1
-    all_points_per_sheet_cell_addresses = defaultdict(list)
-    student_start_row = 1
-    sorted_emails = sorted(email_to_name.keys(), key=lambda e: (email_to_name[e][0], email_to_name[e][1]))
-    for row, email in enumerate(sorted_emails, start=student_start_row):
-        add_student_name(workbook, worksheet, row, email_to_name[email])
-        points_per_sheet_cell_addresses = add_student_marks_worksheet_points_per_exercise(
-            workbook, worksheet, row, email, students_marks, all_sheet_names, graded_sheet_names
-        )
-        all_points_per_sheet_cell_addresses[email] = points_per_sheet_cell_addresses
-    worksheet.autofit()
-    return all_points_per_sheet_cell_addresses
-
-# ---------------------
 def convert_to_float_if_possible(value):
     try:
         return float(value)
     except ValueError:
         return value
 
-def sum_numbers(values):
+def total_score(values):
     total = 0
     for v in values:
-        try:
-            total += float(v)
-        except ValueError:
-            pass
+        # Marks are either per sheet (one value per sheet) or per exercise (one dictionary per sheet).
+        if isinstance(v, dict):
+            total += total_score(v.values())
+        else:
+            try:
+                total += float(v)
+            except ValueError:
+                pass
     return total
+
+def sort_items_by_score(email_scores_pair):
+    scores = email_scores_pair[1].values()
+    return total_score(scores)
 
 def first_not_none(*values):
     """Returns the first value different from None."""
@@ -277,32 +164,35 @@ TEXT_WRAP = OpenpyxlStyle(alignment=Alignment(wrap_text=True))
 CENTERED = OpenpyxlStyle(alignment=Alignment(horizontal="center"))
 RIGHT_ALIGNED = OpenpyxlStyle(alignment=Alignment(horizontal="right"))
 
-# COMMON STYLES
+# Common styles
 HEADING = BOLD | GRAY | CENTERED
 
-def sort_items_by_score(email_scores_pair):
-    scores = email_scores_pair[1].values()
-    return sum_numbers(scores)
-
-VAR_MIN_GOOD_IMPROVEMENT = "min_good_improvement"
-VAR_MIN_BAD_IMPROVEMENT = "min_bad_improvement"
-VAR_MARKS_BY_SHEET = "marks_by_sheet"
-VAR_SHEET_WAS_MARKED = "was_marked"
-VAR_MARKS_ALL_SHEETS = "marks_available_all_sheet"
-VAR_MARKS_PAST_SHEETS = "marks_available_past_sheet"
-VAR_MARKS_FUTURE_SHEETS = "marks_available_future_sheet"
-VAR_MARKS_TO_PASS = "marks_to_pass"
+# TODO: this should move to some more general part of the code.
+PLAGIARISM = "Plagiarism"
 
 class PointsSummarySheetBuilder:
-    def __init__(self, max_points_per_sheet, email_to_name, students_marks, graded_sheet_names):
+    SHEET_NAME_SUMMARY = "Summary"
+    SHEET_NAME_INDIVIDUAL = "Points per exercise"
+
+    VAR_MIN_GOOD_IMPROVEMENT = "min_good_improvement"
+    VAR_MIN_BAD_IMPROVEMENT = "min_bad_improvement"
+    VAR_MARKS_BY_SHEET = "marks_by_sheet"
+    VAR_SHEET_WAS_MARKED = "was_marked"
+    VAR_MARKS_ALL_SHEETS = "marks_available_all_sheet"
+    VAR_MARKS_PAST_SHEETS = "marks_available_past_sheet"
+    VAR_MARKS_FUTURE_SHEETS = "marks_available_future_sheet"
+    VAR_MARKS_TO_PASS = "marks_to_pass"
+
+    def __init__(self, workbook, points_per, max_points_per_sheet, email_to_name, students_marks, graded_sheet_names):
         # fix an order of the sheets and make sure available_marks is consistent with it
+        self.points_per = points_per
         self.sheets = max_points_per_sheet.keys()
         self.available_marks = [max_points_per_sheet.get(sheet) for sheet in self.sheets]
         self.was_marked = [int(sheet in graded_sheet_names) for sheet in self.sheets]
         self.email_to_name = email_to_name
         self.students_marks = students_marks
         self.graded_sheet_names = graded_sheet_names
-        self.workbook = None
+        self.workbook = workbook
         self.worksheet = None
 
     def write(self, row, col, value, format=None):
@@ -346,31 +236,31 @@ class PointsSummarySheetBuilder:
     def write_was_marked_row(self, row, col):
         self.merge_range(row, col, row, col + 1, "Was marked", BOLD | RIGHT_ALIGNED)
         ref = self.write_row(row, col + 2, self.was_marked)
-        self.define_name(VAR_SHEET_WAS_MARKED, ref)
+        self.define_name(self.VAR_SHEET_WAS_MARKED, ref)
 
     def write_available_marks_by_sheet(self, row, col):
         self.merge_range(row, col, row, col + 1, "Available marks", BOLD | RIGHT_ALIGNED)
         ref = self.write_row(row, col + 2, self.available_marks)
-        self.define_name(VAR_MARKS_BY_SHEET, ref)
+        self.define_name(self.VAR_MARKS_BY_SHEET, ref)
 
     def write_available_marks_all_sheets(self, row, col):
         self.write(row, col, "All Sheets", HEADING | BORDER_TOP | BORDER_BOTTOM)
         ref = self.write_formula(
-            row + 1, col, f"=SUM({VAR_MARKS_BY_SHEET})", HEADING | BORDER_BOTTOM)
-        self.define_name(VAR_MARKS_ALL_SHEETS, ref)
+            row + 1, col, f"=SUM({self.VAR_MARKS_BY_SHEET})", HEADING | BORDER_BOTTOM)
+        self.define_name(self.VAR_MARKS_ALL_SHEETS, ref)
 
     def write_available_marks_past_sheets(self, row, col):
         self.write(row, col, "Past Sheets", HEADING | BORDER_TOP | BORDER_BOTTOM)
         ref = self.write_formula(
-            row + 1, col, f"=SUMPRODUCT({VAR_MARKS_BY_SHEET},{VAR_SHEET_WAS_MARKED})", HEADING | BORDER_BOTTOM)
-        self.define_name(VAR_MARKS_PAST_SHEETS, ref)
+            row + 1, col, f"=SUMPRODUCT({self.VAR_MARKS_BY_SHEET},{self.VAR_SHEET_WAS_MARKED})", HEADING | BORDER_BOTTOM)
+        self.define_name(self.VAR_MARKS_PAST_SHEETS, ref)
 
     def write_available_marks_future_sheets(self, row, col):
         self.write(row, col, "Future Sheets", HEADING | BORDER_TOP | BORDER_BOTTOM | BORDER_RIGHT)
         ref = self.write_formula(
-            row + 1, col, f"={VAR_MARKS_ALL_SHEETS}-{VAR_MARKS_PAST_SHEETS}",
+            row + 1, col, f"={self.VAR_MARKS_ALL_SHEETS}-{self.VAR_MARKS_PAST_SHEETS}",
             HEADING | BORDER_BOTTOM | BORDER_RIGHT)
-        self.define_name(VAR_MARKS_FUTURE_SHEETS, ref)
+        self.define_name(self.VAR_MARKS_FUTURE_SHEETS, ref)
 
     def write_available_marks_table(self, row, col):
         self.merge_range(row, col, row, col + 2, "Available Marks", HEADING | BORDER_ALL)
@@ -382,40 +272,50 @@ class PointsSummarySheetBuilder:
         self.write(row, col, "Marks required", HEADING | BORDER_LEFT | BORDER_RIGHT | TEXT_WRAP)
         self.write(row + 1, col, "to pass", HEADING | BORDER_LEFT | BORDER_RIGHT | BORDER_BOTTOM  | TEXT_WRAP)
         ref = self.write_formula(
-           row + 2, col, f"={VAR_MARKS_ALL_SHEETS}*0.5",  # TODO turn 0.5 into a config value
+           row + 2, col, f"={self.VAR_MARKS_ALL_SHEETS}*0.5",  # TODO turn 0.5 into a config value
            HEADING | BORDER_ALL)
-        self.define_name(VAR_MARKS_TO_PASS, ref)
+        self.define_name(self.VAR_MARKS_TO_PASS, ref)
 
-    def write_student_score_row(self, row, col, student_marks):
-        student_score_values = [
-            convert_to_float_if_possible(student_marks.get(sheet, ""))
-            for sheet in self.sheets
-        ]
-        return self.write_row(row, col, student_score_values)
+    def write_student_score_row(self, row, col, student_marks, email):
+        for c, sheet in enumerate(self.sheets, start=col):
+            if self.points_per == "exercise":
+                # Marking by exercise, we take the sheet scores from the other worksheet
+                # We assume emails are in column A and sheetnames in row 1, and that everything
+                # fits in A1:ZZ1000.
+                formula = (
+                    f"=INDEX({quote_sheetname(self.SHEET_NAME_INDIVIDUAL)}!B2:ZZ1000,"
+                    + f"MATCH(\"{email}\", {quote_sheetname(self.SHEET_NAME_INDIVIDUAL)}!A2:A1000, 0),"
+                    + f"MATCH(\"{sheet}\", {quote_sheetname(self.SHEET_NAME_INDIVIDUAL)}!B1:ZZ1, 0))"
+                )
+                self.write_formula(row, c, formula)
+            else:
+                marks = student_marks.get(sheet, "")
+                self.write(row, c, convert_to_float_if_possible(marks))
+        return OpenpyxlRangeRef(row, col, row, col + len(self.sheets) - 1)
 
     def write_student_total_marks(self, row, col, ref_individual_marks):
         ref_individual_marks.row_absolute = False
-        formula = f"=SUMPRODUCT({ref_individual_marks},{VAR_SHEET_WAS_MARKED})"
+        formula = f"=SUMPRODUCT({ref_individual_marks},{self.VAR_SHEET_WAS_MARKED})"
         return self.write_formula(row, col, formula, BORDER_ALL)
 
     def write_student_missing_marks(self, row, col, ref_total_marks):
         ref_total_marks.row_absolute = False
-        formula = f"=MAX(0,{VAR_MARKS_TO_PASS} - {ref_total_marks})"
+        formula = f"=MAX(0,{self.VAR_MARKS_TO_PASS} - {ref_total_marks})"
         return self.write_formula(row, col, formula, BORDER_ALL)
 
     def write_student_average_marks(self, row, col, ref_individual_marks):
         ref_individual_marks.row_absolute = False
         formula = (
-            f"=AVERAGE(IF(ISNUMBER({ref_individual_marks}) * SIGN({VAR_MARKS_BY_SHEET}) * {VAR_SHEET_WAS_MARKED}, "
-            + f"{ref_individual_marks} / {VAR_MARKS_BY_SHEET}, "
+            f"=AVERAGE(IF(ISNUMBER({ref_individual_marks}) * SIGN({self.VAR_MARKS_BY_SHEET}) * {self.VAR_SHEET_WAS_MARKED}, "
+            + f"{ref_individual_marks} / {self.VAR_MARKS_BY_SHEET}, "
             + f"\"Ignoring plagiarism, bonus sheets, and sheets not submitted for the average\"))")
         return self.write_array_formula(row, col, formula, PERCENT | BORDER_ALL)
 
     def write_student_required_average_marks(self, row, col, ref_missing_marks):
         ref_missing_marks.row_absolute = False
         formula = (
-            f"=IF({VAR_MARKS_FUTURE_SHEETS} > 0,"
-            + f"{ref_missing_marks}/{VAR_MARKS_FUTURE_SHEETS}, 10*SIGN({ref_missing_marks}))")
+            f"=IF({self.VAR_MARKS_FUTURE_SHEETS} > 0,"
+            + f"{ref_missing_marks}/{self.VAR_MARKS_FUTURE_SHEETS}, 10*SIGN({ref_missing_marks}))")
         return self.write_formula(row, col, formula, PERCENT | BORDER_ALL)
 
     def write_student_required_improvement(self, row, col, ref_average_marks, ref_required_average):
@@ -435,48 +335,6 @@ class PointsSummarySheetBuilder:
         self.write_student_required_improvement(row, col + 6, ref_average_marks, ref_required_average)
         return OpenpyxlRangeRef(row, col, row, col + 7)
 
-    def write_color_key(self, row, col):
-        self.write(row, col, "Color Key", BOLD)
-        self.merge_range(row + 1, col, row + 1, col + 1, "Passed", GREEN)
-        self.merge_range(row + 2, col, row + 2, col + 1, "Failed", RED)
-        self.merge_range(row + 3, col, row + 3, col + 1, "2x Plagiarism", PLAGIARISM_RED)
-
-        self.merge_range(row + 1, col + 4, row + 1, col + 5,
-                         "Does not need to improve\naverage if percentage is\nlower than:", GREEN | TEXT_WRAP)
-        self.merge_range(row + 2, col + 4, row + 2, col + 5,
-                         "Should improve average if\npercentage is between:", YELLOW | TEXT_WRAP)
-        self.merge_range(row + 3, col + 4, row + 3, col + 5,
-                         "Has to improve average by\nat least the following\npercentage:", RED | TEXT_WRAP)
-
-        cellref_min_good_improvement = self.write(row + 1, col + 6, -0.05, GREEN | PERCENT)
-        self.define_name(VAR_MIN_GOOD_IMPROVEMENT, cellref_min_good_improvement)
-        cellref_min_bad_improvement = self.write(row + 3, col + 6, 0.1, RED | PERCENT)
-        self.define_name(VAR_MIN_BAD_IMPROVEMENT, cellref_min_bad_improvement)
-        self.write(row + 2, col + 6, 
-                   f"=TEXT({VAR_MIN_GOOD_IMPROVEMENT},\"0%\")& \" to \" & TEXT({VAR_MIN_BAD_IMPROVEMENT},\"0%\")", YELLOW)
-
-    def add_conditional_formatting_for_pass_fail(self, range, ref_individual_marks, ref_total_marks):
-        ref_individual_marks.row_absolute = False
-        ref_individual_marks.column_absolute = True
-        ref_total_marks.row_absolute = False
-        ref_total_marks.column_absolute = True
-        plagiarism_fail = f"=COUNTIF({ref_individual_marks},\"Plagiarism\") >= 2"
-        self.add_conditional_format(range, plagiarism_fail, PLAGIARISM_RED)
-        impossible_pass = f"={ref_total_marks} + {VAR_MARKS_FUTURE_SHEETS} < {VAR_MARKS_TO_PASS}"
-        self.add_conditional_format(range, impossible_pass, RED)
-        already_passed = f"={ref_total_marks} >= {VAR_MARKS_TO_PASS}"
-        self.add_conditional_format(range, already_passed, GREEN)
-
-    def add_conditional_formatting_for_warnings(self, range, ref_improvement):
-        ref_improvement.row_absolute = False
-        ref_improvement.column_absolute = True
-        self.add_conditional_format(range, f"={ref_improvement} <= {VAR_MIN_GOOD_IMPROVEMENT}", GREEN)
-        self.add_conditional_format(range, f"={ref_improvement} <= {VAR_MIN_BAD_IMPROVEMENT}", YELLOW)
-        self.add_conditional_format(range, f"={ref_improvement} > {VAR_MIN_BAD_IMPROVEMENT}", RED)
-
-    def add_conditional_formatting_for_zebra_stripes(self, range):
-        self.add_conditional_format(range, f"=ISEVEN(ROW())", GRAY)
-
     def write_student_marks_table(self, row, col):
         # Headers
         headers = ["First Name", "Last Name", "Total Marks", "Missing Marks",
@@ -487,7 +345,7 @@ class PointsSummarySheetBuilder:
         sorted_marks = sorted(self.students_marks.items(), key=sort_items_by_score)
         for r, (email, marks) in enumerate(sorted_marks, start=row + 1):
             first_name, last_name = self.email_to_name.get(email, ("Unknown", "Unknown"))
-            ref_individual_marks = self.write_student_score_row(r, col + len(headers), marks)
+            ref_individual_marks = self.write_student_score_row(r, col + len(headers), marks, email)
             self.write_student_summary_row(r, col, first_name, last_name, ref_individual_marks)
 
         marks_min_row = row + 1
@@ -502,6 +360,48 @@ class PointsSummarySheetBuilder:
             ref = OpenpyxlRangeRef(ref_marks.min_row, c, ref_marks.max_row, c)
             formula = f"=IFERROR(AVERAGE({ref}),\"\")"
             self.write_formula(row, c, formula, TWO_DIGIT_FLOAT)
+
+    def write_color_key(self, row, col):
+        self.write(row, col, "Color Key", BOLD)
+        self.merge_range(row + 1, col, row + 1, col + 1, "Passed", GREEN)
+        self.merge_range(row + 2, col, row + 2, col + 1, "Failed", RED)
+        self.merge_range(row + 3, col, row + 3, col + 1, "2x Plagiarism", PLAGIARISM_RED)
+
+        self.merge_range(row + 1, col + 4, row + 1, col + 5,
+                         "Does not need to improve\naverage if percentage is\nlower than:", GREEN | TEXT_WRAP)
+        self.merge_range(row + 2, col + 4, row + 2, col + 5,
+                         "Should improve average if\npercentage is between:", YELLOW | TEXT_WRAP)
+        self.merge_range(row + 3, col + 4, row + 3, col + 5,
+                         "Has to improve average by\nat least the following\npercentage:", RED | TEXT_WRAP)
+
+        cellref_min_good_improvement = self.write(row + 1, col + 6, -0.05, GREEN | PERCENT)
+        self.define_name(self.VAR_MIN_GOOD_IMPROVEMENT, cellref_min_good_improvement)
+        cellref_min_bad_improvement = self.write(row + 3, col + 6, 0.1, RED | PERCENT)
+        self.define_name(self.VAR_MIN_BAD_IMPROVEMENT, cellref_min_bad_improvement)
+        self.write(row + 2, col + 6, 
+                   f"=TEXT({self.VAR_MIN_GOOD_IMPROVEMENT},\"0%\")& \" to \" & TEXT({self.VAR_MIN_BAD_IMPROVEMENT},\"0%\")", YELLOW)
+
+    def add_conditional_formatting_for_pass_fail(self, range, ref_individual_marks, ref_total_marks):
+        ref_individual_marks.row_absolute = False
+        ref_individual_marks.column_absolute = True
+        ref_total_marks.row_absolute = False
+        ref_total_marks.column_absolute = True
+        plagiarism_fail = f"=COUNTIF({ref_individual_marks},\"{PLAGIARISM}\") >= 2"
+        self.add_conditional_format(range, plagiarism_fail, PLAGIARISM_RED)
+        impossible_pass = f"={ref_total_marks} + {self.VAR_MARKS_FUTURE_SHEETS} < {self.VAR_MARKS_TO_PASS}"
+        self.add_conditional_format(range, impossible_pass, RED)
+        already_passed = f"={ref_total_marks} >= {self.VAR_MARKS_TO_PASS}"
+        self.add_conditional_format(range, already_passed, GREEN)
+
+    def add_conditional_formatting_for_warnings(self, range, ref_improvement):
+        ref_improvement.row_absolute = False
+        ref_improvement.column_absolute = True
+        self.add_conditional_format(range, f"={ref_improvement} <= {self.VAR_MIN_GOOD_IMPROVEMENT}", GREEN)
+        self.add_conditional_format(range, f"={ref_improvement} <= {self.VAR_MIN_BAD_IMPROVEMENT}", YELLOW)
+        self.add_conditional_format(range, f"={ref_improvement} > {self.VAR_MIN_BAD_IMPROVEMENT}", RED)
+
+    def add_conditional_formatting_for_zebra_stripes(self, range):
+        self.add_conditional_format(range, f"=ISEVEN(ROW())", GRAY)
 
     def write_summary_sheet(self):
         self.write_sheet_name_row(1, 8)
@@ -539,6 +439,63 @@ class PointsSummarySheetBuilder:
         ref_full_table = get_student_columns_ref(1, ref_marks.max_column)
         self.add_conditional_formatting_for_zebra_stripes(ref_full_table)
 
+    def write_per_exercise_marks_sheet(self):
+        sorted_marks = sorted(self.students_marks.items(), key=sort_items_by_score)
+        tasks_on_sheet = defaultdict(set)
+        for _, marks in sorted_marks:
+            for sheet in self.sheets:
+                exercise_marks = marks.get(sheet, {})
+                for task in exercise_marks:
+                    tasks_on_sheet[sheet].add(task)
+
+        sheet_column = {}
+        task_column = {}
+        free_column = itertools.count(start=4)
+        spacer_columns = [next(free_column)]
+        for sheet in self.sheets:
+            sheet_column[sheet] = next(free_column)
+            for task in sorted(tasks_on_sheet[sheet]):
+                task_column[sheet, task] = next(free_column)
+            # Leave one column empty as a spacer
+            spacer_columns.append(next(free_column))
+        last_column = spacer_columns[-1]
+
+        self.write(1, 1, "Email", BOLD | CENTERED | BORDER_BOTTOM)
+        self.write(1, 2, "First Name", BOLD | CENTERED | BORDER_BOTTOM)
+        self.write(1, 3, "Last Name", BOLD | CENTERED | BORDER_BOTTOM)
+        for sheet in self.sheets:
+            self.write(1, sheet_column[sheet], sheet, BOLD | CENTERED | BORDER_BOTTOM)
+            for task in tasks_on_sheet[sheet]:
+                self.write(1, task_column[sheet, task], task, BOLD | CENTERED | BORDER_BOTTOM)
+        for c in spacer_columns:
+            self.write(1, c, "", GRAY | BORDER_BOTTOM | BORDER_RIGHT)
+            for r in range(2, len(sorted_marks) + 2):
+                self.write(r, c, "", GRAY | BORDER_RIGHT)
+
+
+        for r, (email, marks) in enumerate(sorted_marks, start=2):
+            first_name, last_name = self.email_to_name.get(email, ("Unknown", "Unknown"))
+            self.write(r, 1, email)
+            self.write(r, 2, first_name)
+            self.write(r, 3, last_name)
+            for sheet in self.sheets:
+                sheet_marks = marks.get(sheet, {})
+                for task, task_marks in sheet_marks.items():
+                    self.write(r, task_column[sheet, task], convert_to_float_if_possible(task_marks))
+        
+                col_sheet = sheet_column[sheet]
+                min_col = col_sheet + 1
+                max_col = min_col + max(1, len(tasks_on_sheet[sheet])) - 1
+                ref_marks = OpenpyxlRangeRef(r, min_col, r, max_col, row_absolute=False)
+                formula = (
+                    f"=IF(COUNTIF({ref_marks},\"{PLAGIARISM}\") > 0,\"{PLAGIARISM}\","
+                    + f"IF(COUNT({ref_marks})=0,\"\",SUM({ref_marks}))")
+                self.write_formula(r, col_sheet, formula, BORDER_RIGHT)
+        ref = OpenpyxlRangeRef(1, 1, r, last_column)
+        self.add_conditional_formatting_for_zebra_stripes(ref)
+
+
+
     def autofit_columns(self, min_width=5, max_width=50):
         def cell_as_str(cell):
             if cell.value is None:
@@ -559,10 +516,14 @@ class PointsSummarySheetBuilder:
             column_letter = get_column_letter(col[0].column)
             self.worksheet.column_dimensions[column_letter].width = adjusted_width
 
-    def add_summary_table_to_workbook(self, workbook: Workbook):
-        self.workbook = workbook
-        self.worksheet = self.workbook.create_sheet("Points Summary")
+    def add_summary_sheet(self):
+        self.worksheet = self.workbook.create_sheet(self.SHEET_NAME_SUMMARY, 0)
         self.write_summary_sheet()
+        self.autofit_columns()
+
+    def add_marks_per_exercise_sheet(self):
+        self.worksheet = self.workbook.create_sheet(self.SHEET_NAME_INDIVIDUAL)
+        self.write_per_exercise_marks_sheet()
         self.autofit_columns()
 
 
@@ -612,15 +573,15 @@ def create_marks_summary_excel_file(_the_config: config.Config, marks_dir: Path)
     email_to_name = create_email_to_name_dict(_the_config.teams)
     students_marks, graded_sheet_names = load_marks_files(marks_dir, _the_config)
 
-    builder = PointsSummarySheetBuilder(_the_config.max_points_per_sheet, email_to_name, students_marks, graded_sheet_names)
     workbook = Workbook()
     # Openpyxl creates an empty sheet in the workbook that we don't use and will delete later
     dummy_sheet = workbook.active
-    builder.add_summary_table_to_workbook(workbook)
-#    if _the_config.points_per == 'exercise':
-#        points_per_sheet_cell_addresses = create_worksheet_points_per_exercise(
-#            workbook, email_to_name, students_marks, all_sheet_names, graded_sheet_names
-#        )
+
+    builder = PointsSummarySheetBuilder(workbook, _the_config.points_per, _the_config.max_points_per_sheet, email_to_name, students_marks, graded_sheet_names)
+    if _the_config.points_per == 'exercise':
+        builder.add_marks_per_exercise_sheet()
+    builder.add_summary_sheet()
+
     workbook.remove(dummy_sheet)
     workbook.save("Points_Summary_Report.xlsx")
 
