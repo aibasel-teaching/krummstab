@@ -188,13 +188,11 @@ def merge_alignment(a1: Alignment|None, a2: Alignment|None):
     )
 
 class OpenpyxlRangeRef:
-    def __init__(self, sheet, min_row, min_column, max_row=None, max_column=None, sheet_explicit=False, row_absolute=True, column_absolute=True):
-        self.sheet = sheet
+    def __init__(self, min_row, min_column, max_row=None, max_column=None, row_absolute=True, column_absolute=True):
         self.min_row = min_row
         self.min_column = min_column
         self.max_row = max_row or min_row
         self.max_column = max_column or min_column
-        self.sheet_explicit = sheet_explicit
         self.row_absolute = row_absolute
         self.column_absolute = column_absolute
 
@@ -205,14 +203,12 @@ class OpenpyxlRangeRef:
             column_letter = get_column_letter(column)
             return f"{column_prefix}{column_letter}{row_prefix}{row}"
 
-        title_prefix = f"{quote_sheetname(self.sheet.title)}!" if self.sheet_explicit else ""
         start_cell = cell_ref(self.min_row, self.row_absolute, self.min_column, self.column_absolute)
-        start = f"{title_prefix}{start_cell}"
         if self.max_row == self.min_row and self.max_column == self.min_column:
-            return start
+            return start_cell
         else:
             end_cell = cell_ref(self.max_row, self.row_absolute, self.max_column, self.column_absolute)
-            return f"{start}:{end_cell}"
+            return f"{start_cell}:{end_cell}"
 
 
 class OpenpyxlStyle:
@@ -281,6 +277,9 @@ TEXT_WRAP = OpenpyxlStyle(alignment=Alignment(wrap_text=True))
 CENTERED = OpenpyxlStyle(alignment=Alignment(horizontal="center"))
 RIGHT_ALIGNED = OpenpyxlStyle(alignment=Alignment(horizontal="right"))
 
+# COMMON STYLES
+HEADING = BOLD | GRAY | CENTERED
+
 def sort_items_by_score(email_scores_pair):
     scores = email_scores_pair[1].values()
     return sum_numbers(scores)
@@ -299,7 +298,7 @@ class PointsSummarySheetBuilder:
         # fix an order of the sheets and make sure available_marks is consistent with it
         self.sheets = max_points_per_sheet.keys()
         self.available_marks = [max_points_per_sheet.get(sheet) for sheet in self.sheets]
-        self.was_marked = [int(sheet in self.graded_sheet_names) for sheet in self.sheets]
+        self.was_marked = [int(sheet in graded_sheet_names) for sheet in self.sheets]
         self.email_to_name = email_to_name
         self.students_marks = students_marks
         self.graded_sheet_names = graded_sheet_names
@@ -311,13 +310,13 @@ class PointsSummarySheetBuilder:
         cell.value = value
         if format:
             format.apply_to(cell)
-        return OpenpyxlRangeRef(self.worksheet, row, col)
+        return OpenpyxlRangeRef(row, col)
 
     def write_formula(self, row, col, formula, format=None):
         return self.write(row, col, formula, format)
 
     def write_array_formula(self, row, col, formula, format=None):
-        cellref_target = OpenpyxlRangeRef(self.worksheet, row, col, row_absolute=False, column_absolute=False)
+        cellref_target = OpenpyxlRangeRef(row, col, row_absolute=False, column_absolute=False)
         return self.write(row, col, ArrayFormula(str(cellref_target), formula), format)
 
     def merge_range(self, start_row, start_column, end_row, end_column, value, format=None):
@@ -329,13 +328,12 @@ class PointsSummarySheetBuilder:
     def write_row(self, row, col, values, format=None):
         for current_col, value in enumerate(values, start=col):
             self.write(row, current_col, value, format)
-        return OpenpyxlRangeRef(self.worksheet, row, col, row, col + len(values) - 1)
+        return OpenpyxlRangeRef(row, col, row, col + len(values) - 1)
 
     def define_name(self, var, range: OpenpyxlRangeRef):
         range.row_absolute = True
         range.column_absolute = True
-        range.sheet_explicit = True
-        defined_name = DefinedName(var, attr_text=str(range))
+        defined_name = DefinedName(var, attr_text=f"{quote_sheetname(self.worksheet.title)}!{range}")
         self.worksheet.defined_names.add(defined_name)
 
     def add_conditional_format(self, range, formula, format: OpenpyxlStyle):
@@ -345,15 +343,97 @@ class PointsSummarySheetBuilder:
     def write_sheet_name_row(self, row, col):
         self.write_row(row, col, self.sheets, BOLD | BORDER_TOP | BORDER_BOTTOM)
 
-    def write_available_marks_row(self, row, col):
-        self.merge_range(row, col, row, col + 1, "Available marks", BOLD | RIGHT_ALIGNED)
-        ref = self.write_row(row, col + 2, self.available_marks)
-        self.define_name(VAR_MARKS_BY_SHEET, ref)
-
     def write_was_marked_row(self, row, col):
         self.merge_range(row, col, row, col + 1, "Was marked", BOLD | RIGHT_ALIGNED)
         ref = self.write_row(row, col + 2, self.was_marked)
         self.define_name(VAR_SHEET_WAS_MARKED, ref)
+
+    def write_available_marks_by_sheet(self, row, col):
+        self.merge_range(row, col, row, col + 1, "Available marks", BOLD | RIGHT_ALIGNED)
+        ref = self.write_row(row, col + 2, self.available_marks)
+        self.define_name(VAR_MARKS_BY_SHEET, ref)
+
+    def write_available_marks_all_sheets(self, row, col):
+        self.write(row, col, "All Sheets", HEADING | BORDER_TOP | BORDER_BOTTOM)
+        ref = self.write_formula(
+            row + 1, col, f"=SUM({VAR_MARKS_BY_SHEET})", HEADING | BORDER_BOTTOM)
+        self.define_name(VAR_MARKS_ALL_SHEETS, ref)
+
+    def write_available_marks_past_sheets(self, row, col):
+        self.write(row, col, "Past Sheets", HEADING | BORDER_TOP | BORDER_BOTTOM)
+        ref = self.write_formula(
+            row + 1, col, f"=SUMPRODUCT({VAR_MARKS_BY_SHEET},{VAR_SHEET_WAS_MARKED})", HEADING | BORDER_BOTTOM)
+        self.define_name(VAR_MARKS_PAST_SHEETS, ref)
+
+    def write_available_marks_future_sheets(self, row, col):
+        self.write(row, col, "Future Sheets", HEADING | BORDER_TOP | BORDER_BOTTOM | BORDER_RIGHT)
+        ref = self.write_formula(
+            row + 1, col, f"={VAR_MARKS_ALL_SHEETS}-{VAR_MARKS_PAST_SHEETS}",
+            HEADING | BORDER_BOTTOM | BORDER_RIGHT)
+        self.define_name(VAR_MARKS_FUTURE_SHEETS, ref)
+
+    def write_available_marks_table(self, row, col):
+        self.merge_range(row, col, row, col + 2, "Available Marks", HEADING | BORDER_ALL)
+        self.write_available_marks_all_sheets(row + 1, col)
+        self.write_available_marks_past_sheets(row + 1, col + 1)
+        self.write_available_marks_future_sheets(row + 1, col + 2)
+
+    def write_required_marks_table(self, row, col):
+        self.write(row, col, "Marks required", HEADING | BORDER_LEFT | BORDER_RIGHT | TEXT_WRAP)
+        self.write(row + 1, col, "to pass", HEADING | BORDER_LEFT | BORDER_RIGHT | BORDER_BOTTOM  | TEXT_WRAP)
+        ref = self.write_formula(
+           row + 2, col, f"={VAR_MARKS_ALL_SHEETS}*0.5",  # TODO turn 0.5 into a config value
+           HEADING | BORDER_ALL)
+        self.define_name(VAR_MARKS_TO_PASS, ref)
+
+    def write_student_score_row(self, row, col, student_marks):
+        student_score_values = [
+            convert_to_float_if_possible(student_marks.get(sheet, ""))
+            for sheet in self.sheets
+        ]
+        return self.write_row(row, col, student_score_values)
+
+    def write_student_total_marks(self, row, col, ref_individual_marks):
+        ref_individual_marks.row_absolute = False
+        formula = f"=SUMPRODUCT({ref_individual_marks},{VAR_SHEET_WAS_MARKED})"
+        return self.write_formula(row, col, formula, BORDER_ALL)
+
+    def write_student_missing_marks(self, row, col, ref_total_marks):
+        ref_total_marks.row_absolute = False
+        formula = f"=MAX(0,{VAR_MARKS_TO_PASS} - {ref_total_marks})"
+        return self.write_formula(row, col, formula, BORDER_ALL)
+
+    def write_student_average_marks(self, row, col, ref_individual_marks):
+        ref_individual_marks.row_absolute = False
+        formula = (
+            f"=AVERAGE(IF(ISNUMBER({ref_individual_marks}) * SIGN({VAR_MARKS_BY_SHEET}) * {VAR_SHEET_WAS_MARKED}, "
+            + f"{ref_individual_marks} / {VAR_MARKS_BY_SHEET}, "
+            + f"\"Ignoring plagiarism, bonus sheets, and sheets not submitted for the average\"))")
+        return self.write_array_formula(row, col, formula, PERCENT | BORDER_ALL)
+
+    def write_student_required_average_marks(self, row, col, ref_missing_marks):
+        ref_missing_marks.row_absolute = False
+        formula = (
+            f"=IF({VAR_MARKS_FUTURE_SHEETS} > 0,"
+            + f"{ref_missing_marks}/{VAR_MARKS_FUTURE_SHEETS}, 10*SIGN({ref_missing_marks}))")
+        return self.write_formula(row, col, formula, PERCENT | BORDER_ALL)
+
+    def write_student_required_improvement(self, row, col, ref_average_marks, ref_required_average):
+        ref_average_marks.row_absolute = False
+        ref_required_average.row_absolute = False
+        formula = f"={ref_required_average} - {ref_average_marks}"
+        return self.write_formula(row, col, formula, PERCENT | BORDER_ALL)
+
+    def write_student_summary_row(self, row, col, first_name, last_name, ref_individual_marks):
+        ref_individual_marks.row_absolute = False
+        self.write(row, col, first_name, BORDER_TOP | BORDER_BOTTOM | BORDER_LEFT)
+        self.write(row, col + 1, last_name, BORDER_TOP | BORDER_BOTTOM | BORDER_RIGHT)
+        ref_total_marks = self.write_student_total_marks(row, col + 2, ref_individual_marks)
+        ref_missing_marks = self.write_student_missing_marks(row, col + 3, ref_total_marks)
+        ref_average_marks = self.write_student_average_marks(row, col + 4, ref_individual_marks)
+        ref_required_average = self.write_student_required_average_marks(row, col + 5, ref_missing_marks)
+        self.write_student_required_improvement(row, col + 6, ref_average_marks, ref_required_average)
+        return OpenpyxlRangeRef(row, col, row, col + 7)
 
     def write_color_key(self, row, col):
         self.write(row, col, "Color Key", BOLD)
@@ -375,125 +455,89 @@ class PointsSummarySheetBuilder:
         self.write(row + 2, col + 6, 
                    f"=TEXT({VAR_MIN_GOOD_IMPROVEMENT},\"0%\")& \" to \" & TEXT({VAR_MIN_BAD_IMPROVEMENT},\"0%\")", YELLOW)
 
-    def add_conditional_formatting_for_warnings(self, range, representative_student_improvement):
-        self.add_conditional_format(range, f"={representative_student_improvement} <= {VAR_MIN_GOOD_IMPROVEMENT}", GREEN)
-        self.add_conditional_format(range, f"={representative_student_improvement} <= {VAR_MIN_BAD_IMPROVEMENT}", YELLOW)
-        self.add_conditional_format(range, f"={representative_student_improvement} > {VAR_MIN_BAD_IMPROVEMENT}", RED)
+    def add_conditional_formatting_for_pass_fail(self, range, ref_individual_marks, ref_total_marks):
+        ref_individual_marks.row_absolute = False
+        ref_individual_marks.column_absolute = True
+        ref_total_marks.row_absolute = False
+        ref_total_marks.column_absolute = True
+        plagiarism_fail = f"=COUNTIF({ref_individual_marks},\"Plagiarism\") >= 2"
+        self.add_conditional_format(range, plagiarism_fail, PLAGIARISM_RED)
+        impossible_pass = f"={ref_total_marks} + {VAR_MARKS_FUTURE_SHEETS} < {VAR_MARKS_TO_PASS}"
+        self.add_conditional_format(range, impossible_pass, RED)
+        already_passed = f"={ref_total_marks} >= {VAR_MARKS_TO_PASS}"
+        self.add_conditional_format(range, already_passed, GREEN)
+
+    def add_conditional_formatting_for_warnings(self, range, ref_improvement):
+        ref_improvement.row_absolute = False
+        ref_improvement.column_absolute = True
+        self.add_conditional_format(range, f"={ref_improvement} <= {VAR_MIN_GOOD_IMPROVEMENT}", GREEN)
+        self.add_conditional_format(range, f"={ref_improvement} <= {VAR_MIN_BAD_IMPROVEMENT}", YELLOW)
+        self.add_conditional_format(range, f"={ref_improvement} > {VAR_MIN_BAD_IMPROVEMENT}", RED)
 
     def add_conditional_formatting_for_zebra_stripes(self, range):
         self.add_conditional_format(range, f"=ISEVEN(ROW())", GRAY)
 
-    def write_student_marks_table(self):
-        self.write_sheet_name_row(1, 8)
-        self.write_available_marks_row(2, 6)
-        self.write_was_marked_row(3, 6)
-
-        summed_marks_format = BOLD | GRAY | CENTERED
-        self.merge_range(1, 2, 1, 4, "Available Marks", summed_marks_format | BORDER_ALL)
-
-        self.write(2, 2, "All Sheets", summed_marks_format | BORDER_TOP | BORDER_BOTTOM)
-        cellref_available_all_sheets = self.write_formula(
-            3, 2, f"=SUM({VAR_MARKS_BY_SHEET})", summed_marks_format | BORDER_TOP | BORDER_BOTTOM)
-        self.define_name(VAR_MARKS_ALL_SHEETS, cellref_available_all_sheets)
-
-        self.write(2, 3, "Past Sheets", summed_marks_format | BORDER_TOP | BORDER_BOTTOM)
-        cellref_available_past_sheets = self.write_formula(
-            3, 3, f"=SUMPRODUCT({VAR_MARKS_BY_SHEET},{VAR_SHEET_WAS_MARKED})", summed_marks_format | BORDER_TOP | BORDER_BOTTOM)
-        self.define_name(VAR_MARKS_PAST_SHEETS, cellref_available_past_sheets)
-
-        self.write(2, 4, "Future Sheets", summed_marks_format | BORDER_TOP | BORDER_BOTTOM | BORDER_RIGHT)
-        cellref_available_future_sheets = self.write_formula(
-            3, 4, f"={VAR_MARKS_ALL_SHEETS}-{VAR_MARKS_PAST_SHEETS}", summed_marks_format | BORDER_TOP | BORDER_BOTTOM | BORDER_RIGHT)
-        self.define_name(VAR_MARKS_FUTURE_SHEETS, cellref_available_future_sheets)
-
-        self.write(1, 1, "Marks required", summed_marks_format | BORDER_LEFT | BORDER_RIGHT | TEXT_WRAP)
-        self.write(2, 1, "to pass", summed_marks_format | BORDER_LEFT | BORDER_RIGHT | BORDER_BOTTOM  | TEXT_WRAP)
-        cellref_marks_to_pass = self.write_formula(
-            3, 1, f"={VAR_MARKS_ALL_SHEETS}*0.5", summed_marks_format | BORDER_ALL) # TODO turn 0.5 into a config value
-        self.define_name(VAR_MARKS_TO_PASS, cellref_marks_to_pass)
-
-        headers = ["First Name", "Last Name", "Total Marks", "Missing Marks", "Avg Marks", "Required Avg", "Improve"]
-        self.write_row(5, 1, headers, BOLD | BORDER_TOP | BORDER_BOTTOM)
-        first_score_column =  len(headers) + 1
-        last_score_column = first_score_column + len(self.sheets) - 1
-        self.write_sheet_name_row(5, first_score_column)
+    def write_student_marks_table(self, row, col):
+        # Headers
+        headers = ["First Name", "Last Name", "Total Marks", "Missing Marks",
+                   "Avg Marks", "Required Avg", "Improve"]
+        self.write_row(row, col, headers, BOLD | BORDER_TOP | BORDER_BOTTOM)
+        self.write_sheet_name_row(row, col + len(headers))
+        # Content
         sorted_marks = sorted(self.students_marks.items(), key=sort_items_by_score)
-        first_student_row = 6
-        last_student_row = first_student_row + len(sorted_marks) - 1
-        for row, (email, student_marks) in enumerate(sorted_marks, start=first_student_row):
-            student_score_values = [convert_to_float_if_possible(student_marks.get(sheet, "")) for sheet in self.sheets]
-            rangeref_student_marks = self.write_row(row, first_score_column, student_score_values)
-            rangeref_student_marks.row_absolute = False
-            # Name
+        for r, (email, marks) in enumerate(sorted_marks, start=row + 1):
             first_name, last_name = self.email_to_name.get(email, ("Unknown", "Unknown"))
-            self.write(row, 1, first_name, BORDER_TOP | BORDER_BOTTOM | BORDER_LEFT)
-            self.write(row, 2, last_name, BORDER_TOP | BORDER_BOTTOM | BORDER_RIGHT)
-            # Total Marks
-            cellref_student_marks_total = self.write_formula(
-                row, 3, f"=SUMPRODUCT({rangeref_student_marks},{VAR_SHEET_WAS_MARKED})",
-                BORDER_ALL)
-            cellref_student_marks_total.column_absolute = True
-            cellref_student_marks_total.row_absolute = False
-            # Missing Marks
-            cellref_student_marks_missing = self.write_formula(
-                row, 4, f"=MAX(0,{VAR_MARKS_TO_PASS} - {cellref_student_marks_total})",
-                BORDER_ALL)
-            cellref_student_marks_missing.column_absolute = True
-            cellref_student_marks_missing.row_absolute = False
-            # Avg Marks
-            current_avg_formula = (
-                f"=AVERAGE(IF(ISNUMBER({rangeref_student_marks}) * SIGN({VAR_MARKS_BY_SHEET}) * {VAR_SHEET_WAS_MARKED}, "
-                + f"{rangeref_student_marks} / {VAR_MARKS_BY_SHEET}, "
-                + f"\"Ignoring plagiarism, bonus sheets, and sheets not submitted for the average\"))")
-            cellref_student_current_average = self.write_array_formula(
-                row, 5, current_avg_formula, format=PERCENT | BORDER_ALL)
-            cellref_student_current_average.column_absolute = True
-            cellref_student_current_average.row_absolute = False
+            ref_individual_marks = self.write_student_score_row(r, col + len(headers), marks)
+            self.write_student_summary_row(r, col, first_name, last_name, ref_individual_marks)
 
-            # Required Avg
-            cellref_student_required_average = self.write_formula(
-                row, 6, f"=IF({VAR_MARKS_FUTURE_SHEETS} > 0,"
-                + f"{cellref_student_marks_missing}/{VAR_MARKS_FUTURE_SHEETS}, 10*SIGN({cellref_student_marks_missing}))",
-                format=PERCENT | BORDER_ALL)
-            cellref_student_required_average.row_absolute = False
-            cellref_student_required_average.col_absolute = True
-            # Improve
-            self.write_formula(
-                row, 7, f"={cellref_student_required_average} - {cellref_student_current_average}",
-                format=PERCENT | BORDER_ALL)
+        marks_min_row = row + 1
+        marks_min_col = col + len(headers)
+        marks_max_row = marks_min_row + len(sorted_marks) - 1
+        marks_max_col = marks_min_col + len(sorted_marks) - 1
+        return OpenpyxlRangeRef(marks_min_row, marks_min_col, marks_max_row, marks_max_col)
 
-        self.merge_range(4, 6, 4, 7, "Average achieved", BOLD | RIGHT_ALIGNED)
-        for col in range(first_score_column, last_score_column + 1):
-            rangeref_score_column = OpenpyxlRangeRef(self.worksheet, first_student_row, col, last_student_row, col)
-            self.write_formula(4, col, f"=IFERROR(AVERAGE({rangeref_score_column}),\"\")", TWO_DIGIT_FLOAT)
+    def write_average_marks_by_sheet(self, row, col, ref_marks):
+        self.merge_range(row, col, row, col + 1, "Average achieved", BOLD | RIGHT_ALIGNED)
+        for c in range(ref_marks.min_column, ref_marks.max_column + 1):
+            ref = OpenpyxlRangeRef(ref_marks.min_row, c, ref_marks.max_row, c)
+            formula = f"=IFERROR(AVERAGE({ref}),\"\")"
+            self.write_formula(row, c, formula, TWO_DIGIT_FLOAT)
+
+    def write_summary_sheet(self):
+        self.write_sheet_name_row(1, 8)
+        self.write_available_marks_by_sheet(2, 6)
+        self.write_was_marked_row(3, 6)
+        self.write_available_marks_table(1, 2)
+        self.write_required_marks_table(1, 1)
+        ref_marks = self.write_student_marks_table(5, 1)
+        self.write_average_marks_by_sheet(4, 6, ref_marks)
+        self.write_color_key(ref_marks.max_row + 3, 1)
+
+        # TODO: the following code makes a lot of assumptions about the position
+        # of certain columns and is thus hard to untangle. Figure out a better
+        # way to pass along this information.
 
         # Conditional Formatting
-        representative_student_range = OpenpyxlRangeRef(
-            self.worksheet, first_student_row, first_score_column,
-              first_student_row, last_score_column, row_absolute=False, column_absolute=True)
-        rangeref_students_name_columns = OpenpyxlRangeRef(
-            self.worksheet, first_student_row, 1, last_student_row, 2)
-        self.add_conditional_format(
-            rangeref_students_name_columns,  f"=COUNTIF({representative_student_range},\"Plagiarism\") >= 2", PLAGIARISM_RED)
-        representative_student_total_marks = OpenpyxlRangeRef(
-            self.worksheet, first_student_row, 3, row_absolute=False, column_absolute=True)
-        self.add_conditional_format(
-            rangeref_students_name_columns, f"={representative_student_total_marks} + {VAR_MARKS_FUTURE_SHEETS} < {VAR_MARKS_TO_PASS}", RED)
-        self.add_conditional_format(
-            rangeref_students_name_columns, f"={representative_student_total_marks} >= {VAR_MARKS_TO_PASS}", GREEN)
+        def get_representative_student_ref(min_col, max_col=None):
+            row = ref_marks.min_row
+            return OpenpyxlRangeRef(row, min_col, row, max_col)
 
-        self.write_color_key(last_student_row + 3, 1)
+        def get_student_columns_ref(min_col, max_col=None):
+            return OpenpyxlRangeRef(ref_marks.min_row, min_col, ref_marks.max_row, max_col)
 
-        rangeref_students_averge_columns = OpenpyxlRangeRef(
-            self.worksheet, first_student_row, 5, last_student_row, 7)
-        representative_student_improvement = OpenpyxlRangeRef(
-            self.worksheet, first_student_row, 7, row_absolute=False, column_absolute=True)
+        ref_student_name_columns = get_student_columns_ref(1, 2)
+        ref_rep_individual_marks = get_representative_student_ref(ref_marks.min_column, ref_marks.max_column)
+        ref_rep_total_marks = get_representative_student_ref(3)
+        self.add_conditional_formatting_for_pass_fail(
+            ref_student_name_columns, ref_rep_individual_marks, ref_rep_total_marks)
+
+        ref_student_average_columns = get_student_columns_ref(5, 7)
+        ref_rep_improvement = get_representative_student_ref(7)
         self.add_conditional_formatting_for_warnings(
-            rangeref_students_averge_columns, representative_student_improvement)
+            ref_student_average_columns, ref_rep_improvement)
 
-        rangeref_all_students = OpenpyxlRangeRef(
-            self.worksheet, first_student_row, 1, last_student_row, last_score_column)
-        self.add_conditional_formatting_for_zebra_stripes(rangeref_all_students)
+        ref_full_table = get_student_columns_ref(1, ref_marks.max_column)
+        self.add_conditional_formatting_for_zebra_stripes(ref_full_table)
 
     def autofit_columns(self, min_width=5, max_width=50):
         def cell_as_str(cell):
@@ -518,7 +562,7 @@ class PointsSummarySheetBuilder:
     def add_summary_table_to_workbook(self, workbook: Workbook):
         self.workbook = workbook
         self.worksheet = self.workbook.create_sheet("Points Summary")
-        self.write_student_marks_table()
+        self.write_summary_sheet()
         self.autofit_columns()
 
 
