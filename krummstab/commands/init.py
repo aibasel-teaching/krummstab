@@ -484,7 +484,7 @@ def validate_teams(_the_config: config.Config,
                 print("Members of the new submission team that do not appear "
                       "in the config:")
                 for student in new_students:
-                    print(f"* {student.pretty_print()}")
+                    print(f"* {student}")
             print(strings.SEPARATOR_LINE)
     new_teams = [
         submission_team for submission_team in submission_teams
