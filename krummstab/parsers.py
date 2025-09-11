@@ -13,7 +13,7 @@ def add_parsers():
     add_init_command_parser(subparsers)
     add_collect_command_parser(subparsers)
     add_combine_command_parser(subparsers)
-    add_correct_command_parser(subparsers)
+    add_mark_command_parser(subparsers)
     add_send_command_parser(subparsers)
     add_summarize_command_parser(subparsers)
     return parser
@@ -105,6 +105,36 @@ def add_init_command_parser(subparsers):
     parser_init.set_defaults(func=init)
 
 
+def add_mark_command_parser(subparsers):
+    parser_mark = subparsers.add_parser(
+        "mark",
+        help=(
+            "mark all submissions at once with a program such as "
+            "Xournal++, the command for the program has to be specified with "
+            "the config parameter 'command'"
+        ),
+    )
+    # This flag is only meant to be used in automated tests and should not be
+    # set by users.
+    parser_mark.add_argument(
+        "-d",
+        "--dry-run",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
+    parser_mark.add_argument(
+        "-f",
+        "--force",
+        action="store_true",
+        help="do not skip submissions with marks in the points file",
+    )
+    parser_mark.add_argument(
+        "sheet_root_dir",
+        type=pathlib.Path,
+        help="path to the sheet's directory",
+    )
+    parser_mark.set_defaults(func=mark)
+
 def add_collect_command_parser(subparsers):
     parser_collect = subparsers.add_parser(
         "collect",
@@ -135,21 +165,6 @@ def add_combine_command_parser(subparsers):
     parser_combine.set_defaults(func=combine)
 
 
-def add_correct_command_parser(subparsers):
-    parser_correct = subparsers.add_parser(
-        "correct",
-        help="correct all submissions at once with a program such as "
-             "Xournal++, the command for the program has to be specified with "
-             "the config parameter 'command'",
-    )
-    parser_correct.add_argument(
-        "sheet_root_dir",
-        type=pathlib.Path,
-        help="path to the sheet's directory",
-    )
-    parser_correct.set_defaults(func=correct)
-
-
 def add_send_command_parser(subparsers):
     parser_send = subparsers.add_parser(
         "send",
@@ -162,7 +177,7 @@ def add_send_command_parser(subparsers):
     )
     parser_send.add_argument(
         "-d",
-        "--dry_run",
+        "--dry-run",
         action="store_true",
         help="only print emails instead of sending them",
     )

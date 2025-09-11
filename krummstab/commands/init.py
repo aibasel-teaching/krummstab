@@ -281,25 +281,30 @@ def generate_xopp_files(sheet: sheets.Sheet, _the_config: config.Config) -> None
     logging.info("Done generating .xopp files.")
 
 
-def print_missing_submissions(_the_config: config.Config, sheet: sheets.Sheet) -> None:
+def print_missing_submissions(
+    _the_config: config.Config, sheet: sheets.Sheet
+) -> None:
     """
     Print all teams that are listed in the config file, but whose submission is
     not present in the zip downloaded from ADAM.
     """
-    teams_who_submitted = [submission.team for submission in
-                           sheet.get_all_team_submission_info()]
-    students_who_submitted = [member for team in teams_who_submitted
-                             for member in team.members]
+    teams_who_submitted = [
+        submission.team for submission in sheet.get_all_team_submission_info()
+    ]
+    students_who_submitted = [
+        member for team in teams_who_submitted for member in team.members
+    ]
     # Also checks if the team has been restructured
     missing_teams = [
-        team for team in _the_config.teams
-        if team not in teams_who_submitted and not any(
-            member in students_who_submitted for member in team.members)
+        team
+        for team in _the_config.teams
+        if team not in teams_who_submitted
+        and not any(member in students_who_submitted for member in team.members)
     ]
     if missing_teams:
-        logging.warning("There are no submissions for the following team(s):")
+        logging.info("There are no submissions for the following team(s):")
         for missing_team in missing_teams:
-            print(f"* {missing_team.pretty_print()}")
+            print(f"* {missing_team}")
 
 
 def set_relevance_for_submission_teams(_the_config: config.Config,
@@ -322,7 +327,7 @@ def set_relevance_for_submission_teams(_the_config: config.Config,
                 if (_the_config.marking_mode == "static"
                         and len(_the_config.classes.keys()) > 1):
                     logging.warning("Team "
-                                    f"{submission_teams[team_id].pretty_print()} "
+                                    f"{submission_teams[team_id]} "
                                     f"is now assigned to tutors {tutors}.\n"
                                     "Please contact the other tutors to decide "
                                     "who will mark this team. Update the "
@@ -334,7 +339,7 @@ def set_relevance_for_submission_teams(_the_config: config.Config,
                                     "the submission.json file of the team "
                                     "directory.\n"
                                     "* Remove the team from the "
-                                    "points.json file.")
+                                    "points_*.json file.")
             else:
                 team_relevance_dict[team_id] = False
         else:
@@ -449,7 +454,7 @@ def validate_team_size(max_team_size: int,
         logging.warning("There are submission teams that have "
                         "more members than allowed:")
     for team in teams:
-         print(f"* {team.pretty_print()}")
+         print(f"* {team}")
 
 
 def validate_teams(_the_config: config.Config,
@@ -468,14 +473,14 @@ def validate_teams(_the_config: config.Config,
         print(strings.SEPARATOR_LINE)
         for new_submission_team in new_submission_teams:
             print("New submission team:")
-            print(f"* {new_submission_team.pretty_print()}")
+            print(f"* {new_submission_team}")
             original_teams = get_original_config_teams(
                 _the_config, new_submission_team
             )
             if original_teams:
                 print("Related config teams:")
                 for original_team in original_teams:
-                    print(f"* {original_team.pretty_print()}")
+                    print(f"* {original_team}")
             new_students = [
                 member for member in new_submission_team.members
                 if not is_in_config_teams(_the_config, member)
@@ -494,7 +499,7 @@ def validate_teams(_the_config: config.Config,
         logging.warning("There are completely new teams where all members "
                         "are not listed in the config:")
         for new_team in new_teams:
-            print(f"* {new_team.pretty_print()}")
+            print(f"* {new_team}")
 
 
 def create_all_submission_info_files(_the_config: config.Config,
@@ -563,7 +568,7 @@ def init(_the_config: config.Config, args) -> None:
     Prepares the directory structure holding the submissions.
     """
     # Catch wrong combinations of marking_mode/points_per/-n/-e.
-    # Not possible eariler because marking_mode and points_per are given by the
+    # Not possible earlier because marking_mode and points_per are given by the
     # config file.
     if _the_config.points_per == "exercise":
         if _the_config.marking_mode == "exercise" and not args.exercises:

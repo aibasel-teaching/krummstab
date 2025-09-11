@@ -1,0 +1,25 @@
+{
+    "tutor_name": "tatiana",
+    "adam_sheet_name": "Sample Sheet",
+    "marks": {
+        "salome.schmid@stud.unibas.ch": {
+            "exercise_2": 5
+        },
+        "samira.studer@stud.unibas.ch": {
+            "exercise_2": 5
+        },
+        "silvan.stucki@stud.unibas.ch": {
+            "exercise_2": 5
+        },
+        "sabine.sommer@stud.unibas.ch": {
+            "exercise_2": 1.5
+        },
+        "sandro.schenk@stud.unibas.ch": {
+            "exercise_2": 1
+        },
+        "samuel.seiler@stud.unibas.ch": {
+            "exercise_2": 1
+        }
+    },
+    "exercises": [ 2 ]
+}

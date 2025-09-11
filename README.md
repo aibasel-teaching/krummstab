@@ -26,9 +26,9 @@ beginning of the course.
 
 Depending on the general settings of the shared config file, different command
 line options may be mandatory. The `help` option provides information about the
-script, its subcommands (currently `init`, `collect`, `combine`, `correct`, 
-`send` and `summarize`), and their parameters. Once you have completed the 
-one-time setup below, you'll be able to access the help via:
+script, its subcommands (currently `init`, `collect`, `combine`, `mark`, `send`
+and `summarize`), and their parameters. Once you have completed the one-time
+setup below, you'll be able to access the help via:
 ```
 krummstab -h
 krummstab <subcommand> -h
@@ -152,7 +152,7 @@ like this:
 │   ├── DO_NOT_MARK_12346_Meier_Meyer
 │   │   └── submission_exercise_sheet1.pdf
 │   .
-│   └── points.json
+│   └── points_*.json
 └── Sheet 1.zip
 ```
 As you may have guessed, the submissions you need to mark are those without the
@@ -160,42 +160,46 @@ As you may have guessed, the submissions you need to mark are those without the
 respective team, as well as a directory called `feedback`, which in turn
 contains copies of the submitted files.
 
-The idea is that you can give feedback by adding your comments to
-these copies directly, and delete the ones you don't need to comment on. It 
-is possible to add a `--plain` or `-p` flag to the `init` command that
-prevents non-PDF files from being copied into the feedback directories. When 
-marking by exercise, this is useful for the tutors that do not have to mark the 
-programming exercises.
+The idea is that you can give feedback by adding your comments to these copies
+directly, and delete the ones you don't need to comment on. It is possible to
+add a `--plain` or `-p` flag to the `init` command that prevents non-PDF files
+from being copied into the feedback directories. When marking by exercise, this
+is useful for the tutors that do not have to mark the programming exercises.
 
-For the PDF feedback you can use whichever tool you like. If this tool adds 
+For the PDF feedback you can use whichever tool you like. If this tool adds
 files to the feedback directory that you do not want to send to the students,
-you can add their endings to the config file under the `ignore_feedback_suffix` 
-key. Marking with Xournal++ is supported by default: Simply set the value of 
-the `xopp` key in the config file to `true` to automatically create the 
-relevant `.xopp` files. If you like, you can use the `correct` command for 
-easier feedback writing, which is explained next.
+you can add their endings to the config file under the `ignore_feedback_suffix`
+key. Marking with Xournal++ is supported by default: Simply set the value of the
+`xopp` key in the config file to `true` to automatically create the relevant
+`.xopp` files. If you like, you can use the `mark` command for easier feedback
+writing, which is explained next.
 
 While writing the feedback, you can keep track of the points the teams get in
-the file `points.json`. In the case of plagiarism, write `Plagiarism` in the
+the file `points_*.json`. In the case of plagiarism, write `Plagiarism` in the
 place for the points.
 
-### correct
-This command allows you to correct all submissions at once with a specific 
-program such as Xournal++. It opens all relevant PDF feedback files or `.xopp` 
-files one after the other with the program that you can specify with the config 
-parameter `marking_command`. This parameter is a list of strings, starting 
-with the program command, with the following elements being arguments. One 
-argument has to be either `"{xopp_file}"` or `"{pdf_file}"`, which will be 
-automatically replaced with file paths later. To run this command, you also 
-need to provide the path to the directory created by the `init` command, in 
-this example `sheet01`:
+### mark
+
+This command allows you to mark all submissions at once with a specific
+program such as Xournal++. It opens all relevant PDF feedback files or `.xopp`
+files one after the other with the program that you can specify with the config
+parameter `marking_command`. This parameter is a list of strings, starting with
+the program command, with the following elements being arguments. One argument
+has to be either `{xopp_file}` or `{pdf_file}`, which will be automatically
+replaced with file paths later. The default Xournal++ command would for example
+look as follows in the config:
+```json
+"marking_command": ["xournalpp", "{xopp_file}"],
 ```
-krummstab correct sheet01
+To run `mark` you need to provide the path to the directory created by the
+`init` command which is `sheet01` in our running example:
+```
+krummstab mark sheet01
 ```
 
 ### collect
 Once you have marked all the teams assigned to you and added their points to
-the `points.json` file, you can run the next command, where `sheet01` is the
+the `points_*.json` file, you can run the next command, where `sheet01` is the
 path to the directory created by the `init` command:
 ```
 krummstab collect sheet01
@@ -217,7 +221,7 @@ This command is only relevant for the `exercise` marking mode.
 For the `static` marking mode, it is possible to directly send the feedback to
 the students via e-mail. For this to work you have to be in the university
 network, which likely means you'll have to connect to the university VPN. You
-may find the `--dry_run` option useful, instead of sending the e-mails directly,
+may find the `--dry-run` option useful, instead of sending the e-mails directly,
 it only prints them so that you can double-check that everything looks as
 expected.
 
@@ -264,18 +268,18 @@ File Load to "Always recalculate" (or "Prompt user").
   `smtp-ext` setup)
 - `smtp_user`: SMTP user, empty by default (use your short unibas account name
   for an `smtp-ext` setup)
-- `xopp`: if you use Xournal++ for marking, set the value to `true`; the 
-  relevant `xopp` files are then automatically created with the `init` 
-  subcommand and exported with the `collect` subcommand before the feedback 
-  is collected
+- `xopp`: if you use Xournal++ for marking, set the value to `true`; the
+  relevant `xopp` files are then automatically created with the `init`
+  subcommand and exported with the `collect` subcommand before the feedback is
+  collected
 - `ignore_feedback_suffix`: a list of extensions that should be ignored by the
   `collect` sub-command; this is useful if the tools you use for marking create
   files in the feedback folders that you don't want to send to the students
-- `marking_command`: a list of strings that the `correct` subcommand should 
-  use, starting with program command, with the following elements being 
-  arguments; one argument has to be either `"{xopp_file}"` or `"{pdf_file}"`, 
-  which will be automatically replaced with file paths later; contains 
-  `"xournalpp"` with `"{xopp_file}"` by default
+- `marking_command`: a list of strings that the `mark` subcommand should use,
+  starting with program command, with the following elements being arguments;
+  one argument has to be either `{xopp_file}` or `{pdf_file}`, which will be
+  automatically replaced with file paths later; contains `xournalpp` with
+  `{xopp_file}` by default
 
 ### General Settings
 - `lecture_title`: lecture name to be printed in feedback emails
@@ -283,14 +287,14 @@ File Load to "Always recalculate" (or "Prompt user").
     - `static`: student teams are assigned to a tutor who will mark all their
       submissions
     - `exercise`: with every sheet, tutors distribute the exercises and only
-      correct those, but for all submissions
+      mark those, but for all submissions
 - `points_per`
     - `exercise`: tutors keep track how many points teams got for every exercise
     - `sheet`: tutors only keep track of the total number of points per sheet
 - `min_point_unit`: a float denoting the smallest allowed point fraction, for
   example `0.5`, or `1`
 - `tutor_list`: list to identify tutors, for example a list of first names
-- `max_points_per_sheet`: a dictionary with all exercise sheet names as keys 
+- `max_points_per_sheet`: a dictionary with all exercise sheet names as keys
   and their maximum possible points as values
 - `max_team_size`: integer denoting the maximum number of members a team may
   have
@@ -358,10 +362,10 @@ following steps are necessary:
    the name `feedback`. When you have marked the team, you can add your feedback
    files here. You can add the original submitted files to `late_submission`,
    but this is not mandatory.
-4. Modifying the `points.json` file: Add the team key with the points that the
-   team gets to the `points.json` file. The team key consists of the ADAM ID you
-   chose in step 1 and the alphabetically sorted last names of all team members
-   in the following format: `ID_Last-Name1_Last-Name2`
+4. Modifying the `points_*.json` file: Add the team key with the points that the
+   team gets to the `points_*.json` file. The team key consists of the ADAM ID
+   you chose in step 1 and the alphabetically sorted last names of all team
+   members in the following format: `ID_Last-Name1_Last-Name2`
 
 After completing these steps, the new submission will be processed as usual by
 future calls to Krummstab, in particular by the `collect` and `send` commands.
@@ -389,7 +393,7 @@ feedback to team Hans and Hanna Muster, manually edit the file
 `00000_Muster_Muster/submission.json` and change `"relevant": true` to
 `"relevant": false`. The marks for the team you entered in the points file the
 will be sent to the assistant anyway, so you may want to remove the
-corresponding entry in `points_tutor_sheet_name.json` or give 0 marks
+corresponding entry in `points_*.json` or give 0 marks
 explicitly. You can still later send the feedback through Krummstab by reverting
 the changes above and marking the teams you already sent feedback to earlier as
 "not relevant".

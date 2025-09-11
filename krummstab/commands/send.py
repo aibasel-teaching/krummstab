@@ -199,7 +199,7 @@ def get_assistant_email_content(_the_config: config.Config, sheet: sheets.Sheet)
     """
     return textwrap.dedent(
         f"""
-    Dear assistant for {_the_config.lecture_title}
+    Dear assistant for {_the_config.lecture_title},
 
     Please find my marks for {sheet.name} in the attachment.
 
