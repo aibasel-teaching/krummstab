@@ -3,18 +3,11 @@ from pathlib import Path
 import logging
 import json
 
-from . import config, submissions, errors, utils
-
-SHEET_INFO_FILE_NAME = "sheet.json"
-FEEDBACK_FILE_PREFIX = "feedback_"
-COMBINED_DIR_NAME = "feedback_combined"
-DO_NOT_MARK_PREFIX = "DO_NOT_MARK_"
-SHARE_ARCHIVE_PREFIX = "share_archive"
-
+from . import config, errors, submissions, strings, utils
 
 class Sheet:
     def __init__(self, sheet_root_dir: Path):
-        self._sheet_info_path = sheet_root_dir / SHEET_INFO_FILE_NAME
+        self._sheet_info_path = sheet_root_dir / strings.SHEET_INFO_FILE_NAME
         if not sheet_root_dir.is_dir() or not self._sheet_info_path.exists():
             logging.critical("Could not find a directory with marking "
                              f"information at '{sheet_root_dir}'. Use the command "
@@ -34,7 +27,7 @@ class Sheet:
         return self.name.replace(" ", "_").lower()
 
     def get_feedback_file_name(self, _the_config: config.Config) -> str:
-        file_name = FEEDBACK_FILE_PREFIX + self.get_adam_sheet_name_string() + "_"
+        file_name = strings.FEEDBACK_FILE_PREFIX + self.get_adam_sheet_name_string() + "_"
         if _the_config.marking_mode == "exercise":
             file_name += _the_config.tutor_name + "_"
             file_name += "_".join([f"ex{exercise}" for exercise in self.exercises])
@@ -46,21 +39,21 @@ class Sheet:
         return file_name
 
     def get_combined_feedback_file_name(self) -> str:
-        return FEEDBACK_FILE_PREFIX + self.get_adam_sheet_name_string()
+        return strings.FEEDBACK_FILE_PREFIX + self.get_adam_sheet_name_string()
 
     def get_combined_feedback_path(self) -> Path:
-        return self.root_dir / COMBINED_DIR_NAME
+        return self.root_dir / strings.COMBINED_DIR_NAME
 
     def get_marks_file_path(self, _the_config: config.Config) -> Path:
         return (
                 self.root_dir
-                / f"points_{_the_config.tutor_name.lower()}_{self.get_adam_sheet_name_string()}.json"
+                / f"{strings.MARKS_FILE_PREFIX}{_the_config.tutor_name.lower()}_{self.get_adam_sheet_name_string()}.json"
         )
 
     def get_individual_marks_file_path(self, _the_config: config.Config) -> Path:
         marks_file_path = self.get_marks_file_path(_the_config)
         individual_marks_file_path = marks_file_path.with_name(
-            marks_file_path.stem + "_individual" + marks_file_path.suffix
+            marks_file_path.stem + strings.INDIVIDUAL_MARKS_FILE_POSTFIX + marks_file_path.suffix
         )
         return individual_marks_file_path
 
@@ -84,7 +77,7 @@ class Sheet:
 
     def get_share_archive_file_path(self) -> Path:
         return self.root_dir / (
-                SHARE_ARCHIVE_PREFIX
+                strings.SHARE_ARCHIVE_PREFIX
                 + f"_{self.get_adam_sheet_name_string()}_"
                 + "_".join([f"ex{num}" for num in self.exercises])
                 + ".zip"
@@ -95,7 +88,7 @@ class Sheet:
         Return all share archive files under the current sheet root dir.
         """
         for share_archive_file in self.root_dir.glob(
-                SHARE_ARCHIVE_PREFIX + "*.zip"
+                strings.SHARE_ARCHIVE_PREFIX + "*.zip"
         ):
             yield share_archive_file
 
@@ -115,7 +108,7 @@ def create_sheet_info_file(sheet_root_dir: Path, adam_sheet_name: str,
     if _the_config.marking_mode == "exercise":
         info_dict["exercises"] = exercises
     with open(
-            sheet_root_dir / SHEET_INFO_FILE_NAME, "w", encoding="utf-8"
+            sheet_root_dir / strings.SHEET_INFO_FILE_NAME, "w", encoding="utf-8"
     ) as sheet_info_file:
         json.dump(
             info_dict,

@@ -7,10 +7,11 @@ import subprocess
 from typing import Optional
 from zipfile import ZipFile
 
-from .. import config, sheets, submissions, utils
-from .summarize import PLAGIARISM
+from .. import config, sheets, submissions, strings, utils
 
-def validate_marks_json(_the_config: config.Config, sheet: sheets.Sheet) -> None:
+def validate_marks_json(
+    _the_config: config.Config, sheet: sheets.Sheet
+) -> None:
     """
     Verify that all necessary marks are present in the MARK_FILE_NAME file and
     adhere to the granularity defined in the config file.
@@ -51,7 +52,8 @@ def validate_marks_json(_the_config: config.Config, sheet: sheets.Sheet) -> None
         )
     if not all(
         (float(mark) / _the_config.min_point_unit).is_integer()
-        for mark in marks_list if mark != PLAGIARISM
+        for mark in marks_list
+        if mark != strings.PLAGIARISM
     ):
         logging.critical(
             f"'{marks_json_file.name}' contains marks that are more"
@@ -189,7 +191,9 @@ def export_xopp_files(sheet: sheets.Sheet) -> None:
     logging.info("Done exporting .xopp files.")
 
 
-def create_individual_marks_file(_the_config: config.Config, sheet: sheets.Sheet) -> None:
+def create_individual_marks_file(
+    _the_config: config.Config, sheet: sheets.Sheet
+) -> None:
     """
     Write a json file to add the marks per student.
     """
@@ -203,11 +207,18 @@ def create_individual_marks_file(_the_config: config.Config, sheet: sheets.Sheet
     file_content = {
         "tutor_name": _the_config.tutor_name,
         "adam_sheet_name": sheet.name,
-        "marks": student_marks
+        "marks": student_marks,
     }
-    if _the_config.points_per == "exercise" and _the_config.marking_mode == "exercise":
+    if (
+        _the_config.points_per == "exercise"
+        and _the_config.marking_mode == "exercise"
+    ):
         file_content["exercises"] = sheet.exercises
-    with open(sheet.get_individual_marks_file_path(_the_config), "w", encoding="utf-8") as file:
+    with open(
+        sheet.get_individual_marks_file_path(_the_config),
+        "w",
+        encoding="utf-8",
+    ) as file:
         json.dump(file_content, file, indent=4, ensure_ascii=False)
 
 

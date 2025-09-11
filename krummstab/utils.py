@@ -7,6 +7,7 @@ import tempfile
 from zipfile import ZipFile
 import jsonschema
 
+from . import strings
 
 # Logging ----------------------------------------------------------------------
 
@@ -57,8 +58,6 @@ def configure_logging(level=logging.INFO):
 
 
 # Printing ---------------------------------------------------------------------
-
-SEPARATOR_LINE = "\n\033[0;33m" + 80 * "=" + "\033[0m\n"
 
 def query_yes_no(text: str, default: bool = True) -> bool:
     """
