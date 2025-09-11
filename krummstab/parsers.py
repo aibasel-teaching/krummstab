@@ -1,11 +1,8 @@
 import argparse
 import pathlib
 
+from . import strings
 from .commands import *
-
-
-DEFAULT_SHARED_CONFIG_FILE = "config-shared.json"
-DEFAULT_INDIVIDUAL_CONFIG_FILE = "config-individual.json"
 
 
 def add_parsers():
@@ -26,7 +23,7 @@ def add_main_command_parser(parser):
     parser.add_argument(
         "-s",
         "--config-shared",
-        default=DEFAULT_SHARED_CONFIG_FILE,
+        default=strings.DEFAULT_SHARED_CONFIG_FILE,
         type=pathlib.Path,
         help=(
             "path to the json config file containing shared settings such as "
@@ -36,7 +33,7 @@ def add_main_command_parser(parser):
     parser.add_argument(
         "-i",
         "--config-individual",
-        default=DEFAULT_INDIVIDUAL_CONFIG_FILE,
+        default=strings.DEFAULT_INDIVIDUAL_CONFIG_FILE,
         type=pathlib.Path,
         help=(
             "path to the json config file containing individual settings such "

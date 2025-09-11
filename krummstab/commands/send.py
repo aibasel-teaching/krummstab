@@ -8,7 +8,7 @@ import textwrap
 from email.message import EmailMessage
 from getpass import getpass
 
-from .. import config, errors, sheets, utils
+from .. import config, errors, sheets, strings, utils
 
 
 def add_attachment(mail: EmailMessage, path: pathlib.Path) -> None:
@@ -87,7 +87,11 @@ def email_to_text(email: EmailMessage) -> None:
 
 def print_emails(emails: list[EmailMessage]) -> None:
     email_strings = [email_to_text(email) for email in emails]
-    print(f"{utils.SEPARATOR_LINE}{utils.SEPARATOR_LINE.join(email_strings)}{utils.SEPARATOR_LINE}")
+    print(
+        f"{strings.SEPARATOR_LINE}"
+        f"{strings.SEPARATOR_LINE.join(email_strings)}"
+        f"{strings.SEPARATOR_LINE}"
+    )
 
 
 def send_messages(emails: list[EmailMessage], _the_config: config.Config) -> None:
@@ -206,12 +210,14 @@ def get_assistant_email_content(_the_config: config.Config, sheet: sheets.Sheet)
     ]  # Removes the leading newline.
 
 
-def get_assistant_email_attachment_path(_the_config: config.Config, sheet: sheets.Sheet) -> pathlib.Path:
+def get_assistant_email_attachment_path(
+    _the_config: config.Config, sheet: sheets.Sheet
+) -> pathlib.Path:
     """
-    Sending the marks file to the assistant as is has the disadvantage that
-    points are only listed per team. This makes it difficult for the assistant
-    to figure out how many points each individual student has. So we use the
-    individual marks file where points are listed per student.
+    Instead of sending the regular marks file where points are listed per team
+    to the assistant, we send the individual marks file that lists points per
+    student. The idea is that the assistent can collect these files and use the
+    `summarize` command to generate an overview.
     """
     return sheet.get_individual_marks_file_path(_the_config)
 

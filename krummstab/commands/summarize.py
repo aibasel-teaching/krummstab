@@ -12,7 +12,7 @@ from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.worksheet.formula import ArrayFormula
 
 
-from .. import config, utils
+from .. import config, sheets, strings, utils
 from ..teams import *
 
 def convert_to_float_if_possible(value):
@@ -39,7 +39,9 @@ def sort_items_by_score(email_scores_pair):
     return total_score(scores)
 
 def first_not_none(*values):
-    """Returns the first value different from None."""
+    """
+    Returns the first value different from None.
+    """
     for v in values:
         if v is not None:
             return v
@@ -166,9 +168,6 @@ RIGHT_ALIGNED = OpenpyxlStyle(alignment=Alignment(horizontal="right"))
 
 # Common styles
 HEADING = BOLD | GRAY | CENTERED
-
-# TODO: this should move to some more general part of the code.
-PLAGIARISM = "Plagiarism"
 
 class PointsSummarySheetBuilder:
     SHEET_NAME_SUMMARY = "Summary"
@@ -386,7 +385,7 @@ class PointsSummarySheetBuilder:
         ref_individual_marks.column_absolute = True
         ref_total_marks.row_absolute = False
         ref_total_marks.column_absolute = True
-        plagiarism_fail = f"=COUNTIF({ref_individual_marks},\"{PLAGIARISM}\") >= 2"
+        plagiarism_fail = f"=COUNTIF({ref_individual_marks},\"{strings.PLAGIARISM}\") >= 2"
         self.add_conditional_format(range, plagiarism_fail, PLAGIARISM_RED)
         impossible_pass = f"={ref_total_marks} + {self.VAR_MARKS_FUTURE_SHEETS} < {self.VAR_MARKS_TO_PASS}"
         self.add_conditional_format(range, impossible_pass, RED)
@@ -488,7 +487,7 @@ class PointsSummarySheetBuilder:
                 max_col = min_col + max(1, len(tasks_on_sheet[sheet])) - 1
                 ref_marks = OpenpyxlRangeRef(r, min_col, r, max_col, row_absolute=False)
                 formula = (
-                    f"=IF(COUNTIF({ref_marks},\"{PLAGIARISM}\") > 0,\"{PLAGIARISM}\","
+                    f"=IF(COUNTIF({ref_marks},\"{strings.PLAGIARISM}\") > 0,\"{strings.PLAGIARISM}\","
                     + f"IF(COUNT({ref_marks})=0,\"\",SUM({ref_marks}))")
                 self.write_formula(r, col_sheet, formula, BORDER_RIGHT)
         ref = OpenpyxlRangeRef(1, 1, r, last_column)
@@ -531,7 +530,11 @@ def load_marks_files(marks_dir: Path, _the_config: config.Config):
     """
     Loads the data of the individual marks files in the specified directory.
     """
-    marks_files = marks_dir.glob("points_*_individual.json")
+    marks_files = marks_dir.glob(
+        f"{strings.MARKS_FILE_PREFIX}"
+        "*"
+        f"{strings.INDIVIDUAL_MARKS_FILE_POSTFIX}.json"
+    )
     if _the_config.points_per == 'exercise':
         students_marks = defaultdict(lambda: defaultdict(dict))
         graded_sheet_names = defaultdict(list)
@@ -567,8 +570,8 @@ def load_marks_files(marks_dir: Path, _the_config: config.Config):
 
 def create_marks_summary_excel_file(_the_config: config.Config, marks_dir: Path) -> None:
     """
-    Generates an Excel file that summarizes the students' marks. Uses a path
-    to a directory containing the individual marks files.
+    Generates an Excel file that summarizes the students' marks. Uses a path to
+    a directory containing the individual marks files.
     """
     email_to_name = create_email_to_name_dict(_the_config.teams)
     students_marks, graded_sheet_names = load_marks_files(marks_dir, _the_config)
@@ -583,7 +586,7 @@ def create_marks_summary_excel_file(_the_config: config.Config, marks_dir: Path)
     builder.add_summary_sheet()
 
     workbook.remove(dummy_sheet)
-    workbook.save("Points_Summary_Report.xlsx")
+    workbook.save("points_summary_report.xlsx")
 
 
 

@@ -10,7 +10,7 @@ from zipfile import ZipFile
 
 import openpyxl
 
-from .. import config, errors, sheets, submissions, utils
+from .. import config, errors, sheets, strings, submissions, utils
 from ..teams import *
 
 
@@ -79,7 +79,7 @@ def mark_irrelevant_team_dirs(_the_config: config.Config, sheet: sheets.Sheet) -
         if not submission.relevant:
             shutil.move(
                 submission.root_dir,
-                submission.root_dir.with_name(sheets.DO_NOT_MARK_PREFIX +
+                submission.root_dir.with_name(strings.DO_NOT_MARK_PREFIX +
                                               submission.root_dir.name)
             )
 
@@ -113,7 +113,7 @@ def flatten_team_dirs(sheet: sheets.Sheet) -> None:
         # generator may include subdirectories of team submission directories
         # that have already been flattened.
         team_submission_dirs = [path for path in submission.root_dir.iterdir()
-                                if not path.name == submissions.SUBMISSION_INFO_FILE_NAME]
+                                if not path.name == strings.SUBMISSION_INFO_FILE_NAME]
         if len(team_submission_dirs) > 1:
             logging.warning(
                 f"There are multiple submissions for group '{submission.root_dir.name}'!"
@@ -141,15 +141,16 @@ def unzip_internal_zips(sheet: sheets.Sheet) -> None:
                 utils.filtered_extract(zf, zip_file.parent)
             os.remove(zip_file)
         sub_dirs = [path for path in submission.root_dir.iterdir()
-                    if not path.name == submissions.SUBMISSION_INFO_FILE_NAME]
+                    if not path.name == strings.SUBMISSION_INFO_FILE_NAME]
         while len(sub_dirs) == 1 and sub_dirs[0].is_dir():
             utils.move_content_and_delete(sub_dirs[0], submission.root_dir)
             sub_dirs = [path for path in submission.root_dir.iterdir()
-                        if not path.name == submissions.SUBMISSION_INFO_FILE_NAME]
+                        if not path.name == strings.SUBMISSION_INFO_FILE_NAME]
 
 
-def create_marks_file(_the_config: config.Config, sheet: sheets.Sheet,
-                      args) -> None:
+def create_marks_file(
+    _the_config: config.Config, sheet: sheets.Sheet, args
+) -> None:
     """
     Write a json file to add the marks for all relevant teams and exercises.
     """
@@ -169,12 +170,15 @@ def create_marks_file(_the_config: config.Config, sheet: sheets.Sheet,
         team_key = submission.team.get_team_key()
         marks_dict.update({team_key: exercise_dict})
 
-    with open(sheet.get_marks_file_path(_the_config), "w", encoding="utf-8") as marks_json:
+    with open(
+        sheet.get_marks_file_path(_the_config), "w", encoding="utf-8"
+    ) as marks_json:
         json.dump(marks_dict, marks_json, indent=4, ensure_ascii=False)
 
 
-def create_feedback_directories(_the_config: config.Config,
-                                sheet: sheets.Sheet, plain: bool) -> None:
+def create_feedback_directories(
+    _the_config: config.Config, sheet: sheets.Sheet, plain: bool
+) -> None:
     """
     Create a directory for every team that should be corrected by the tutor
     specified in the config. A copy of every file is prefixed and placed
@@ -193,8 +197,10 @@ def create_feedback_directories(_the_config: config.Config,
             if len(pdf_files) == 1:
                 shutil.copy(pdf_files[0], feedback_dir / feedback_pdf_name)
             elif len(pdf_files) > 1:
-                logging.warning(f"There are multiple PDFs in the "
-                                f"submission directory {submission.root_dir}.")
+                logging.warning(
+                    f"There are multiple PDFs in the "
+                    f"submission directory {submission.root_dir}."
+                )
                 for pdf in pdf_files:
                     shutil.copy(pdf, feedback_dir)
 
@@ -202,13 +208,18 @@ def create_feedback_directories(_the_config: config.Config,
         # prefix.
         if not plain:
             for submission_file in submission.root_dir.glob("*"):
-                if submission_file.is_dir() or submission_file.suffix == ".pdf" \
-                        or submission_file.name == submissions.SUBMISSION_INFO_FILE_NAME:
+                if (
+                    submission_file.is_dir()
+                    or submission_file.suffix == ".pdf"
+                    or submission_file.name == strings.SUBMISSION_INFO_FILE_NAME
+                ):
                     continue
                 this_feedback_file_name = (
                     feedback_file_name + "_" + submission_file.name
                 )
-                shutil.copy(submission_file, feedback_dir / this_feedback_file_name)
+                shutil.copy(
+                    submission_file, feedback_dir / this_feedback_file_name
+                )
 
 
 def generate_xopp_files(sheet: sheets.Sheet, _the_config: config.Config) -> None:
@@ -454,7 +465,7 @@ def validate_teams(_the_config: config.Config,
     if new_submission_teams:
         logging.warning("There are submission teams that are structured "
                         "differently in the config.")
-        print(utils.SEPARATOR_LINE)
+        print(strings.SEPARATOR_LINE)
         for new_submission_team in new_submission_teams:
             print("New submission team:")
             print(f"* {new_submission_team.pretty_print()}")
@@ -474,7 +485,7 @@ def validate_teams(_the_config: config.Config,
                       "in the config:")
                 for student in new_students:
                     print(f"* {student.pretty_print()}")
-            print(utils.SEPARATOR_LINE)
+            print(strings.SEPARATOR_LINE)
     new_teams = [
         submission_team for submission_team in submission_teams
         if is_new_team(_the_config, submission_team)
