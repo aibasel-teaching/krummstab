@@ -53,7 +53,7 @@ def extract_adam_zip(args) -> tuple[pathlib.Path, str]:
         sheet_root_dir = shutil.move(sheet_root_dir, destination)
     # Flatten intermediate directory.
     sub_dirs = list(sheet_root_dir.glob("*"))
-    sub_dirs = [item for item in sub_dirs if item.suffix != '.xlsx']
+    sub_dirs = [item for item in sub_dirs if item.suffix != ".xlsx"]
     if len(sub_dirs) != 1:
         logging.critical(
             "The ADAM zip file contains an unexpected number of"
@@ -70,7 +70,9 @@ def extract_adam_zip(args) -> tuple[pathlib.Path, str]:
     return sheet_root_dir, adam_sheet_name
 
 
-def mark_irrelevant_team_dirs(_the_config: config.Config, sheet: sheets.Sheet) -> None:
+def mark_irrelevant_team_dirs(
+    _the_config: config.Config, sheet: sheets.Sheet
+) -> None:
     """
     Indicate which team directories do not have to be marked by adding the
     `DO_NOT_MARK_PREFIX` to their directory name.
@@ -79,8 +81,9 @@ def mark_irrelevant_team_dirs(_the_config: config.Config, sheet: sheets.Sheet) -
         if not submission.relevant:
             shutil.move(
                 submission.root_dir,
-                submission.root_dir.with_name(strings.DO_NOT_MARK_PREFIX +
-                                              submission.root_dir.name)
+                submission.root_dir.with_name(
+                    strings.DO_NOT_MARK_PREFIX + submission.root_dir.name
+                ),
             )
 
 
@@ -92,7 +95,9 @@ def rename_team_dirs(sheet: sheets.Sheet) -> None:
     for submission in sheet.get_all_team_submission_info():
         team_key = submission.team.get_team_key()
         team_dir = pathlib.Path(
-            shutil.move(submission.root_dir, submission.root_dir.with_name(team_key))
+            shutil.move(
+                submission.root_dir, submission.root_dir.with_name(team_key)
+            )
         )
 
 
@@ -107,13 +112,19 @@ def flatten_team_dirs(sheet: sheets.Sheet) -> None:
     for submission in sheet.get_all_team_submission_info():
         # Remove empty subdirectories.
         for team_submission_dir in submission.root_dir.iterdir():
-            if team_submission_dir.is_dir() and len(list(team_submission_dir.iterdir())) == 0:
+            if (
+                team_submission_dir.is_dir()
+                and len(list(team_submission_dir.iterdir())) == 0
+            ):
                 team_submission_dir.rmdir()
         # Store the list of team submission directories in variable, because the
         # generator may include subdirectories of team submission directories
         # that have already been flattened.
-        team_submission_dirs = [path for path in submission.root_dir.iterdir()
-                                if not path.name == strings.SUBMISSION_INFO_FILE_NAME]
+        team_submission_dirs = [
+            path
+            for path in submission.root_dir.iterdir()
+            if not path.name == strings.SUBMISSION_INFO_FILE_NAME
+        ]
         if len(team_submission_dirs) > 1:
             logging.warning(
                 f"There are multiple submissions for group '{submission.root_dir.name}'!"
@@ -124,8 +135,9 @@ def flatten_team_dirs(sheet: sheets.Sheet) -> None:
             )
         for team_submission_dir in team_submission_dirs:
             if team_submission_dir.is_dir():
-                utils.move_content_and_delete(team_submission_dir,
-                                              submission.root_dir)
+                utils.move_content_and_delete(
+                    team_submission_dir, submission.root_dir
+                )
 
 
 def unzip_internal_zips(sheet: sheets.Sheet) -> None:
@@ -140,12 +152,18 @@ def unzip_internal_zips(sheet: sheets.Sheet) -> None:
             with ZipFile(zip_file, mode="r") as zf:
                 utils.filtered_extract(zf, zip_file.parent)
             os.remove(zip_file)
-        sub_dirs = [path for path in submission.root_dir.iterdir()
-                    if not path.name == strings.SUBMISSION_INFO_FILE_NAME]
+        sub_dirs = [
+            path
+            for path in submission.root_dir.iterdir()
+            if not path.name == strings.SUBMISSION_INFO_FILE_NAME
+        ]
         while len(sub_dirs) == 1 and sub_dirs[0].is_dir():
             utils.move_content_and_delete(sub_dirs[0], submission.root_dir)
-            sub_dirs = [path for path in submission.root_dir.iterdir()
-                        if not path.name == strings.SUBMISSION_INFO_FILE_NAME]
+            sub_dirs = [
+                path
+                for path in submission.root_dir.iterdir()
+                if not path.name == strings.SUBMISSION_INFO_FILE_NAME
+            ]
 
 
 def create_marks_file(
@@ -222,7 +240,9 @@ def create_feedback_directories(
                 )
 
 
-def generate_xopp_files(sheet: sheets.Sheet, _the_config: config.Config) -> None:
+def generate_xopp_files(
+    sheet: sheets.Sheet, _the_config: config.Config
+) -> None:
     """
     Generate xopp files in the feedback directories that point to the pdfs
     in the submission directory.
@@ -237,8 +257,10 @@ def generate_xopp_files(sheet: sheets.Sheet, _the_config: config.Config) -> None
         feedback_dir = submission.get_feedback_dir()
         pdf_paths = list(submission.root_dir.glob("*.pdf"))
         if len(pdf_paths) > 1:
-            logging.warning(f"There are multiple PDFs in the "
-                            f"submission directory {submission.root_dir}.")
+            logging.warning(
+                "There are multiple PDFs in the submission directory "
+                f"{submission.root_dir}."
+            )
         for pdf_path in pdf_paths:
             file_name = pdf_path.name
             if len(pdf_paths) == 1:
@@ -247,8 +269,8 @@ def generate_xopp_files(sheet: sheets.Sheet, _the_config: config.Config) -> None
             xopp_path = (feedback_dir / file_name).with_suffix(".xopp")
             if xopp_path.is_file():
                 logging.warning(
-                    f"Skipping .xopp file generation for {submission.root_dir.name}: xopp file"
-                    " exists."
+                    "Skipping .xopp file generation for "
+                    f"{submission.root_dir.name}: xopp file exists."
                 )
                 continue
             xopp_file = open(xopp_path, "w", encoding="utf-8")
@@ -307,9 +329,9 @@ def print_missing_submissions(
             print(f"* {missing_team}")
 
 
-def set_relevance_for_submission_teams(_the_config: config.Config,
-                                       submission_teams: dict[str, Team]
-                                       ) -> dict[str, bool]:
+def set_relevance_for_submission_teams(
+    _the_config: config.Config, submission_teams: dict[str, Team]
+) -> dict[str, bool]:
     """
     Determines the value of 'relevant' of the submission.json files for the
     submission teams. Returns a dictionary with the team IDs as keys and a
@@ -324,22 +346,22 @@ def set_relevance_for_submission_teams(_the_config: config.Config,
         if len(tutors) != 1:
             if _the_config.tutor_name in tutors:
                 team_relevance_dict[team_id] = True
-                if (_the_config.marking_mode == "static"
-                        and len(_the_config.classes.keys()) > 1):
-                    logging.warning("Team "
-                                    f"{submission_teams[team_id]} "
-                                    f"is now assigned to tutors {tutors}.\n"
-                                    "Please contact the other tutors to decide "
-                                    "who will mark this team. Update the "
-                                    "shared config file and share it with "
-                                    "your fellow tutors and "
-                                    "the teaching assistant.\n"
-                                    "If you will not mark this team, then:\n"
-                                    "* Set the value of relevant to false in "
-                                    "the submission.json file of the team "
-                                    "directory.\n"
-                                    "* Remove the team from the "
-                                    "points_*.json file.")
+                if (
+                    _the_config.marking_mode == "static"
+                    and len(_the_config.classes.keys()) > 1
+                ):
+                    logging.warning(
+                        f"Team {submission_teams[team_id]} is now assigned to "
+                        f"tutors {tutors}.\n"
+                        "Please contact the other tutors to decide who will "
+                        "mark this team. Update the shared config file and "
+                        "share it with your fellow tutors as well as with the "
+                        "teaching assistant.\n"
+                        "If you will not mark this team, then:\n"
+                        "* Set the value of relevant to false in the "
+                        "submission.json file of the team directory.\n"
+                        "* Remove the team from the points_*.json file."
+                    )
             else:
                 team_relevance_dict[team_id] = False
         else:
@@ -351,9 +373,9 @@ def set_relevance_for_submission_teams(_the_config: config.Config,
 
 
 def create_submission_team_to_tutors_dict(
-        submission_teams: list[Team],
-        student_email_to_tutor: dict[str, set[str]],
-        _the_config: config.Config
+    submission_teams: list[Team],
+    student_email_to_tutor: dict[str, set[str]],
+    _the_config: config.Config,
 ) -> dict[str, set[str]]:
     """
     Create a dictionary that maps submission team IDs to a set of assigned
@@ -362,9 +384,11 @@ def create_submission_team_to_tutors_dict(
     team_to_tutors = defaultdict(set)
     for team in submission_teams:
         if is_new_team(_the_config, team):
-            team_to_tutors[team.adam_id] = set(_the_config.classes.keys()) if (
-                _the_config.marking_mode == "static") else (
-                set(_the_config.tutor_list))
+            team_to_tutors[team.adam_id] = (
+                set(_the_config.classes.keys())
+                if (_the_config.marking_mode == "static")
+                else (set(_the_config.tutor_list))
+            )
         else:
             for member in team.members:
                 if member.email in student_email_to_tutor:
@@ -373,8 +397,9 @@ def create_submission_team_to_tutors_dict(
     return team_to_tutors
 
 
-def create_student_email_to_tutor_dict(_the_config: config.Config,
-                                       ) -> dict[str, set[str]]:
+def create_student_email_to_tutor_dict(
+    _the_config: config.Config,
+) -> dict[str, set[str]]:
     """
     Creates a dictionary that maps email addresses of students in the config
     to a set of assigned tutors.
@@ -400,27 +425,33 @@ def is_new_team(_the_config: config.Config, submission_team: Team) -> bool:
     Checks if a given submission team is a new team consisting only of new
     students.
     """
-    students_in_config_teams = [member for team in _the_config.teams
-                                for member in team.members]
-    return all(member not in students_in_config_teams for member in
-               submission_team.members)
+    students_in_config_teams = [
+        member for team in _the_config.teams for member in team.members
+    ]
+    return all(
+        member not in students_in_config_teams
+        for member in submission_team.members
+    )
 
 
-def is_restructured_submission_team(_the_config: config.Config,
-                                    submission_team: Team) -> bool:
+def is_restructured_submission_team(
+    _the_config: config.Config, submission_team: Team
+) -> bool:
     """
     Checks if the given submission team is structured differently in the config.
     This ignores new submission teams consisting only of new students.
     """
-    students_in_config_teams = [member for team in _the_config.teams
-                                for member in team.members]
-    return (submission_team not in _the_config.teams
-            and any(member in students_in_config_teams
-                    for member in submission_team.members))
+    students_in_config_teams = [
+        member for team in _the_config.teams for member in team.members
+    ]
+    return submission_team not in _the_config.teams and any(
+        member in students_in_config_teams for member in submission_team.members
+    )
 
 
-def get_original_config_teams(_the_config: config.Config,
-                              submission_team: Team) -> list[Team]:
+def get_original_config_teams(
+    _the_config: config.Config, submission_team: Team
+) -> list[Team]:
     """
     Finds all the config teams that contain a member of the given
     submission team.
@@ -428,8 +459,10 @@ def get_original_config_teams(_the_config: config.Config,
     original_config_teams = []
     for member in submission_team.members:
         for config_team in _the_config.teams:
-            if (member in config_team.members
-                    and config_team not in original_config_teams):
+            if (
+                member in config_team.members
+                and config_team not in original_config_teams
+            ):
                 original_config_teams.append(config_team)
     return original_config_teams
 
@@ -438,38 +471,46 @@ def is_in_config_teams(_the_config: config.Config, student: Student) -> bool:
     """
     Checks if a student appears in the config teams.
     """
-    return student in [member for team in _the_config.teams
-                       for member in team.members]
+    return student in [
+        member for team in _the_config.teams for member in team.members
+    ]
 
 
-def validate_team_size(max_team_size: int,
-                       submission_teams: list[Team]) -> None:
+def validate_team_size(
+    max_team_size: int, submission_teams: list[Team]
+) -> None:
     """
     Checks if the team size of the submission teams does not exceed the
     maximum allowed team size.
     """
-    teams = [team for team in submission_teams
-             if len(team.members) > max_team_size]
+    teams = [
+        team for team in submission_teams if len(team.members) > max_team_size
+    ]
     if teams:
-        logging.warning("There are submission teams that have "
-                        "more members than allowed:")
+        logging.warning(
+            "There are submission teams that have " "more members than allowed:"
+        )
     for team in teams:
-         print(f"* {team}")
+        print(f"* {team}")
 
 
-def validate_teams(_the_config: config.Config,
-                   submission_teams: list[Team]) -> None:
+def validate_teams(
+    _the_config: config.Config, submission_teams: list[Team]
+) -> None:
     """
     Checks if submission teams are organized differently in the config
     and if there are new teams consisting only of new students.
     """
     new_submission_teams = [
-        submission_team for submission_team in submission_teams
+        submission_team
+        for submission_team in submission_teams
         if is_restructured_submission_team(_the_config, submission_team)
     ]
     if new_submission_teams:
-        logging.warning("There are submission teams that are structured "
-                        "differently in the config.")
+        logging.warning(
+            "There are submission teams that are structured differently in the "
+            "config."
+        )
         print(strings.SEPARATOR_LINE)
         for new_submission_team in new_submission_teams:
             print("New submission team:")
@@ -482,30 +523,38 @@ def validate_teams(_the_config: config.Config,
                 for original_team in original_teams:
                     print(f"* {original_team}")
             new_students = [
-                member for member in new_submission_team.members
+                member
+                for member in new_submission_team.members
                 if not is_in_config_teams(_the_config, member)
             ]
             if new_students:
-                print("Members of the new submission team that do not appear "
-                      "in the config:")
+                print(
+                    "Members of the new submission team that do not appear in "
+                    "the config:"
+                )
                 for student in new_students:
                     print(f"* {student}")
             print(strings.SEPARATOR_LINE)
     new_teams = [
-        submission_team for submission_team in submission_teams
+        submission_team
+        for submission_team in submission_teams
         if is_new_team(_the_config, submission_team)
     ]
     if new_teams:
-        logging.warning("There are completely new teams where all members "
-                        "are not listed in the config:")
+        logging.warning(
+            "There are completely new teams where all members "
+            "are not listed in the config:"
+        )
         for new_team in new_teams:
             print(f"* {new_team}")
 
 
-def create_all_submission_info_files(_the_config: config.Config,
-                                     submission_teams: dict[str, Team],
-                                     team_relevance_dict: dict[str, bool],
-                                     sheet_root_dir: pathlib.Path) -> None:
+def create_all_submission_info_files(
+    _the_config: config.Config,
+    submission_teams: dict[str, Team],
+    team_relevance_dict: dict[str, bool],
+    sheet_root_dir: pathlib.Path,
+) -> None:
     """
     Creates the submission info JSON files in all team directories.
     """
@@ -518,8 +567,9 @@ def create_all_submission_info_files(_the_config: config.Config,
             )
 
 
-def use_names_from_config(config_teams: list[Team],
-                          submission_teams: dict[str, Team]) -> None:
+def use_names_from_config(
+    config_teams: list[Team], submission_teams: dict[str, Team]
+) -> None:
     """
     Changes the names of the students in the submission teams to the names
     defined in the config, if available.
@@ -533,8 +583,9 @@ def use_names_from_config(config_teams: list[Team],
                 ]
 
 
-def read_teams_from_adam_spreadsheet(sheet_root_dir: pathlib.Path
-                          ) -> dict[str, Team]:
+def read_teams_from_adam_spreadsheet(
+    sheet_root_dir: pathlib.Path,
+) -> dict[str, Team]:
     """
     Reads the teams from the ADAM Excel spreadsheet and returns a dictionary
     with the team IDs as keys and the teams as values.
@@ -620,9 +671,7 @@ def init(_the_config: config.Config, args) -> None:
         _the_config.max_team_size, list(submission_teams.values())
     )
     if _the_config.marking_mode == "static":
-        validate_teams(
-            _the_config, list(submission_teams.values())
-        )
+        validate_teams(_the_config, list(submission_teams.values()))
     team_relevance_dict = set_relevance_for_submission_teams(
         _the_config, submission_teams
     )

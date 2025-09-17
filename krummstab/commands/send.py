@@ -94,7 +94,9 @@ def print_emails(emails: list[EmailMessage]) -> None:
     )
 
 
-def send_messages(emails: list[EmailMessage], _the_config: config.Config) -> None:
+def send_messages(
+    emails: list[EmailMessage], _the_config: config.Config
+) -> None:
     with smtplib.SMTP(_the_config.smtp_url, _the_config.smtp_port) as smtp:
         smtp.starttls()
         if _the_config.smtp_user:
@@ -144,14 +146,18 @@ def send_messages(emails: list[EmailMessage], _the_config: config.Config) -> Non
         logging.info("Done sending emails.")
 
 
-def get_team_email_subject(_the_config: config.Config, sheet: sheets.Sheet) -> str:
+def get_team_email_subject(
+    _the_config: config.Config, sheet: sheets.Sheet
+) -> str:
     """
     Builds the email subject.
     """
     return f"Feedback {sheet.name} | {_the_config.lecture_title}"
 
 
-def get_assistant_email_subject(_the_config: config.Config, sheet: sheets.Sheet) -> str:
+def get_assistant_email_subject(
+    _the_config: config.Config, sheet: sheets.Sheet
+) -> str:
     """
     Builds the email subject.
     """
@@ -175,7 +181,9 @@ def get_email_greeting(name_list: list[str]) -> str:
     return "Dear " + names + ","
 
 
-def get_team_email_content(name_list: list[str], _the_config: config.Config, sheet: sheets.Sheet) -> str:
+def get_team_email_content(
+    name_list: list[str], _the_config: config.Config, sheet: sheets.Sheet
+) -> str:
     """
     Builds the body of the email that sends feedback to students.
     """
@@ -193,7 +201,9 @@ def get_team_email_content(name_list: list[str], _the_config: config.Config, she
     ]  # Removes the leading newline.
 
 
-def get_assistant_email_content(_the_config: config.Config, sheet: sheets.Sheet) -> str:
+def get_assistant_email_content(
+    _the_config: config.Config, sheet: sheets.Sheet
+) -> str:
     """
     Builds the body of the email that sends the points to the assistant.
     """
@@ -222,7 +232,9 @@ def get_assistant_email_attachment_path(
     return sheet.get_individual_marks_file_path(_the_config)
 
 
-def create_email_to_team(submission, _the_config: config.Config, sheet: sheets.Sheet):
+def create_email_to_team(
+    submission, _the_config: config.Config, sheet: sheets.Sheet
+):
     team_first_names = submission.team.get_first_names()
     team_emails = submission.team.get_emails()
     if _the_config.marking_mode == "exercise":

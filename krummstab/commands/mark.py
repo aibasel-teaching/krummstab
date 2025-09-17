@@ -67,9 +67,7 @@ def mark_submission(
         if file.suffix == suffix_to_mark
     ]
     if not files_to_mark:
-        logging.warning(
-            f"No files to mark for team {submission.team}."
-        )
+        logging.warning(f"No files to mark for team {submission.team}.")
         return
     for file_to_mark in files_to_mark:
         command_with_file = get_command_with_file(command, file_to_mark)

@@ -98,9 +98,11 @@ def add_init_command_parser(subparsers):
         "-p",
         "--plain",
         action="store_true",
-        help="only copy PDF files into feedback directories, useful if "
-             "tutors mark per exercise and you do not have to mark the "
-             "programming exercises"
+        help=(
+            "only copy PDF files into feedback directories, useful if tutors "
+            "mark per exercise and you do not have to mark the programming "
+            "exercises"
+        ),
     )
     parser_init.set_defaults(func=init)
 
@@ -134,6 +136,7 @@ def add_mark_command_parser(subparsers):
         help="path to the sheet's directory",
     )
     parser_mark.set_defaults(func=mark)
+
 
 def add_collect_command_parser(subparsers):
     parser_collect = subparsers.add_parser(

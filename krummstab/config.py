@@ -20,7 +20,8 @@ class Config:
         config_schema = utils.read_json(
             resources.read_text(
                 schemas, "config-schema.json", encoding="utf-8"
-            ), "config-schema.json"
+            ),
+            "config-schema.json",
         )
         utils.validate_json(data, config_schema, "The config")
 
@@ -34,11 +35,17 @@ class Config:
         # exercise: Every tutor corrects some exercise(s) on all sheets.
         if self.marking_mode == "static":
             if self.tutor_name not in self.classes:
-                logging.critical(f"Did not find a class for '{self.tutor_name}' in the config.")
-            self.teams = [team for classs in self.classes.values() for team in classs]
+                logging.critical(
+                    f"Did not find a class for '{self.tutor_name}' in the config."
+                )
+            self.teams = [
+                team for classs in self.classes.values() for team in classs
+            ]
         else:
             if self.tutor_name not in self.tutor_list:
-                logging.critical(f"Did not find '{self.tutor_name}' in tutor_list in the config.")
+                logging.critical(
+                    f"Did not find '{self.tutor_name}' in tutor_list in the config."
+                )
 
         # Sort teams and their students to make iterating over them
         # predictable, independent of their order in config.json.
@@ -50,12 +57,16 @@ class Config:
         # the adam_id is not available here
         if self.marking_mode == "static":
             self.classes = {
-                tutor: [Team([Student(*student) for student in team], None)
-                        for team in teams]
+                tutor: [
+                    Team([Student(*student) for student in team], None)
+                    for team in teams
+                ]
                 for tutor, teams in self.classes.items()
             }
-        self.teams = [Team([Student(*student) for student in team], None)
-                      for team in self.teams]
+        self.teams = [
+            Team([Student(*student) for student in team], None)
+            for team in self.teams
+        ]
         _validate_teams(self.teams, self.max_team_size)
         logging.info("Processed config successfully.")
 
@@ -68,12 +79,16 @@ def _validate_teams(teams: list[Team], max_team_size) -> None:
     all_emails: list[str] = []
     for team in teams:
         if len(team.members) > max_team_size:
-            logging.critical(f"Team with size {len(team.members)} violates maximal "
-                             f"team size.")
+            logging.critical(
+                f"Team with size {len(team.members)} violates maximal team "
+                "size."
+            )
         for member in team.members:
             all_students.append((member.first_name, member.last_name))
             all_emails.append(member.email)
     if len(all_students) != len(set(all_students)):
         logging.critical("There are duplicate students in the config file!")
     if len(all_emails) != len(set(all_emails)):
-        logging.critical("There are duplicate student emails in the config file!")
+        logging.critical(
+            "There are duplicate student emails in the config file!"
+        )

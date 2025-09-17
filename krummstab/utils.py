@@ -11,6 +11,7 @@ from . import strings
 
 # Logging ----------------------------------------------------------------------
 
+
 def configure_logging(level=logging.INFO):
     class ColoredFormatter(logging.Formatter):
         FORMATS = {
@@ -59,6 +60,7 @@ def configure_logging(level=logging.INFO):
 
 # Printing ---------------------------------------------------------------------
 
+
 def query_yes_no(text: str, default: bool = True) -> bool:
     """
     Ask the user a yes/no question and return answer.
@@ -80,16 +82,23 @@ def query_yes_no(text: str, default: bool = True) -> bool:
 
 # JSON parsing -------------------------------------------------------
 
-def validate_json(data: dict, schema: dict, source: str = "file",
-                  schema_version=jsonschema.Draft7Validator) -> None:
+
+def validate_json(
+    data: dict,
+    schema: dict,
+    source: str = "file",
+    schema_version=jsonschema.Draft7Validator,
+) -> None:
     """
     Validates a JSON object against a given schema.
     """
     try:
         jsonschema.validate(data, schema, schema_version)
     except jsonschema.exceptions.ValidationError as error:
-        logging.critical(f"Validation error: {source} does not have "
-                         f"the right format: {error.message}")
+        logging.critical(
+            f"Validation error: {source} does not have the right format: "
+            f"{error.message}"
+        )
 
 
 def read_json(source: str | pathlib.Path, source_name: str = "file") -> dict:
@@ -110,6 +119,7 @@ def read_json(source: str | pathlib.Path, source_name: str = "file") -> dict:
 
 
 # Miscellaneous ----------------------------------------------------------------
+
 
 def is_hidden_file(name: str) -> bool:
     """

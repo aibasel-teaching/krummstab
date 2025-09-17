@@ -65,7 +65,10 @@ def combine(_the_config: config.Config, args) -> None:
     #     ├── 12345_Muster-Meier-Mueller
     #     .
 
-    teams_all = [submission.root_dir.name for submission in sheet.get_relevant_submissions()]
+    teams_all = [
+        submission.root_dir.name
+        for submission in sheet.get_relevant_submissions()
+    ]
     # Extract feedback files from share archives into their respective team
     # directories in the combined directory.
     for share_archive_file in sheet.get_share_archive_files():

@@ -15,7 +15,9 @@ SAMPLE_SHEET = pathlib.Path("Sample Sheet.zip")
 SAMPLE_SHEET_DIR = pathlib.Path("Sample Sheet")
 SAMPLE_SHEET_SUB_DIR = SAMPLE_SHEET_DIR / "SUB_DIR"
 SAMPLE_INDIVIDUAL_POINTS_FILES_DIR_STATIC = pathlib.Path("points-files-static")
-SAMPLE_INDIVIDUAL_POINTS_FILES_DIR_EXERCISE = pathlib.Path("points-files-exercise")
+SAMPLE_INDIVIDUAL_POINTS_FILES_DIR_EXERCISE = pathlib.Path(
+    "points-files-exercise"
+)
 
 
 @pytest.fixture(autouse=True)
@@ -55,7 +57,10 @@ def mode_dict(request, monkeypatch, setup_test_directory: pathlib.Path):
     This fixture copies all relevant files into a testing directory.
     """
     shutil.copy(request.param["config_shared"], setup_test_directory)
-    shutil.copytree(request.param["individual_point_file_dir"], setup_test_directory / request.param["individual_point_file_dir"].name)
+    shutil.copytree(
+        request.param["individual_point_file_dir"],
+        setup_test_directory / request.param["individual_point_file_dir"].name,
+    )
     monkeypatch.chdir(setup_test_directory)
     return request.param
 
@@ -97,8 +102,20 @@ def give_feedback():
 @pytest.mark.parametrize(
     "mode_dict, args",
     [
-        ({"config_shared": CONFIG_STATIC, "individual_point_file_dir": SAMPLE_INDIVIDUAL_POINTS_FILES_DIR_STATIC}, []),
-        ({"config_shared": CONFIG_EXERCISE, "individual_point_file_dir": SAMPLE_INDIVIDUAL_POINTS_FILES_DIR_EXERCISE}, ["-e", "1", "3"]),
+        (
+            {
+                "config_shared": CONFIG_STATIC,
+                "individual_point_file_dir": SAMPLE_INDIVIDUAL_POINTS_FILES_DIR_STATIC,
+            },
+            [],
+        ),
+        (
+            {
+                "config_shared": CONFIG_EXERCISE,
+                "individual_point_file_dir": SAMPLE_INDIVIDUAL_POINTS_FILES_DIR_EXERCISE,
+            },
+            ["-e", "1", "3"],
+        ),
     ],
     indirect=["mode_dict"],
 )

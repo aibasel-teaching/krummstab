@@ -103,9 +103,9 @@ class Submission:
         return self.root_dir < other.root_dir
 
 
-def create_submission_info_file(_the_config: config.Config,
-                                team: Team, is_relevant: bool,
-                                team_dir: Path) -> None:
+def create_submission_info_file(
+    _the_config: config.Config, team: Team, is_relevant: bool, team_dir: Path
+) -> None:
     """
     Write in each team directory a JSON file which contains the team,
     the ADAM ID of the team which ADAM sets anew with each exercise sheet,
@@ -117,7 +117,7 @@ def create_submission_info_file(_the_config: config.Config,
     submission_info.update({"adam_id": team.adam_id})
     submission_info.update({"relevant": is_relevant})
     with open(
-            team_dir / strings.SUBMISSION_INFO_FILE_NAME, "w", encoding="utf-8"
+        team_dir / strings.SUBMISSION_INFO_FILE_NAME, "w", encoding="utf-8"
     ) as submission_info_file:
         json.dump(
             submission_info,

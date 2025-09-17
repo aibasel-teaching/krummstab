@@ -40,17 +40,20 @@ setup(
     packages=find_packages(),
     python_requires=">=3.10",
     install_requires=[
-        'jsonschema==4.23.0',
-        'openpyxl==3.1.5',
-        'pypdf==3.1.0',
+        "jsonschema==4.23.0",
+        "openpyxl==3.1.5",
+        "pypdf==3.1.0",
     ],
     entry_points={
-        'console_scripts': [
-            'krummstab = krummstab:main',
+        "console_scripts": [
+            "krummstab = krummstab:main",
         ]
     },
     include_package_data=True,
     package_data={
-        "krummstab": ["schemas/config-schema.json", "schemas/submission-info-schema.json"],
+        "krummstab": [
+            "schemas/config-schema.json",
+            "schemas/submission-info-schema.json",
+        ],
     },
 )

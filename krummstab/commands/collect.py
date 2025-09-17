@@ -9,6 +9,7 @@ from zipfile import ZipFile
 
 from .. import config, sheets, submissions, strings, utils
 
+
 def validate_marks_json(
     _the_config: config.Config, sheet: sheets.Sheet
 ) -> None:
@@ -62,8 +63,11 @@ def validate_marks_json(
         )
 
 
-def collect_feedback_files(submission: submissions.Submission,
-                           _the_config: config.Config, sheet: sheets.Sheet) -> None:
+def collect_feedback_files(
+    submission: submissions.Submission,
+    _the_config: config.Config,
+    sheet: sheets.Sheet,
+) -> None:
     """
     Take the contents of a {team_dir}/feedback directory and collect the files
     that actually contain feedback (e.g., no .xopp files). If there are
@@ -73,7 +77,9 @@ def collect_feedback_files(submission: submissions.Submission,
     """
     feedback_dir = submission.get_feedback_dir()
     collected_feedback_dir = submission.get_collected_feedback_dir()
-    collected_feedback_zip_name = sheet.get_feedback_file_name(_the_config) + ".zip"
+    collected_feedback_zip_name = (
+        sheet.get_feedback_file_name(_the_config) + ".zip"
+    )
     # Error handling.
     if not feedback_dir.exists():
         logging.critical(
@@ -90,7 +96,8 @@ def collect_feedback_files(submission: submissions.Submission,
     feedback_files = [
         file
         for file in feedback_dir.rglob("*")
-        if file.is_file() and file.suffix not in _the_config.ignore_feedback_suffix
+        if file.is_file()
+        and file.suffix not in _the_config.ignore_feedback_suffix
     ]
     # Ask for confirmation if the feedback directory contains hidden files that
     # are maybe not supposed to be part of the collected feedback.
@@ -164,7 +171,7 @@ def is_gzipped(filename: pathlib.Path) -> bool:
     Checks if a file is gzipped.
     """
     try:
-        with gzip.open(filename, 'rb') as f:
+        with gzip.open(filename, "rb") as f:
             f.read(1)
         return True
     except OSError:
@@ -183,9 +190,10 @@ def export_xopp_files(sheet: sheets.Sheet) -> None:
         ]
         for xopp_file in xopp_files:
             if not is_gzipped(xopp_file):
-                logging.critical(f"File {xopp_file} has not been altered and "
-                                 f"saved by Xournal++. It does not contain "
-                                 f"any feedback.")
+                logging.critical(
+                    f"File {xopp_file} has not been altered and saved by "
+                    "Xournal++. It does not contain any feedback."
+                )
             dest = xopp_file.with_suffix(".pdf")
             subprocess.run(["xournalpp", "-p", dest, xopp_file])
     logging.info("Done exporting .xopp files.")
@@ -222,7 +230,9 @@ def create_individual_marks_file(
         json.dump(file_content, file, indent=4, ensure_ascii=False)
 
 
-def create_share_archive(overwrite: Optional[bool], sheet: sheets.Sheet) -> None:
+def create_share_archive(
+    overwrite: Optional[bool], sheet: sheets.Sheet
+) -> None:
     """
     In case the marking mode is exercise, the final feedback the teams get is
     made up of multiple sets of PDFs (and potentially other files) made by
@@ -254,7 +264,9 @@ def create_share_archive(overwrite: Optional[bool], sheet: sheets.Sheet) -> None
         if overwrite:
             share_archive_file.unlink(missing_ok=True)
         else:
-            logging.critical("Aborting 'combine' without overwriting existing share archive.")
+            logging.critical(
+                "Aborting 'combine' without overwriting existing share archive."
+            )
     # Take all feedback.zip files and add them to the share archive. The file
     # structure should be similar to the following. In particular, collected
     # feedback that consists of only a single pdf should be zipped to achieve
@@ -328,7 +340,9 @@ def collect(_the_config: config.Config, args) -> None:
         if overwrite:
             delete_collected_feedback_directories(sheet)
         else:
-            logging.critical("Aborting 'collect' without overwriting existing collected feedback.")
+            logging.critical(
+                "Aborting 'collect' without overwriting existing collected feedback."
+            )
     if _the_config.xopp:
         export_xopp_files(sheet)
     create_collected_feedback_directories(sheet)

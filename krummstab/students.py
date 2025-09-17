@@ -22,4 +22,3 @@ class Student:
         Get a tuple of strings representation of a student.
         """
         return self.first_name, self.last_name, self.email
-
