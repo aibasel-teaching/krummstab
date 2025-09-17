@@ -1,0 +1,9 @@
+{
+    "tutor_name": "tamara",
+    "adam_sheet_name": "Sample Sheet",
+    "marks": {
+        "salome.schmid@stud.unibas.ch": "8",
+        "samira.studer@stud.unibas.ch": "8",
+        "silvan.stucki@stud.unibas.ch": "8"
+    }
+}

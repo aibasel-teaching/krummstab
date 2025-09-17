@@ -14,6 +14,8 @@ CONFIG_EXERCISE = pathlib.Path("config-shared-exercise.json")
 SAMPLE_SHEET = pathlib.Path("Sample Sheet.zip")
 SAMPLE_SHEET_DIR = pathlib.Path("Sample Sheet")
 SAMPLE_SHEET_SUB_DIR = SAMPLE_SHEET_DIR / "SUB_DIR"
+SAMPLE_INDIVIDUAL_POINTS_FILES_DIR_STATIC = pathlib.Path("points-files-static")
+SAMPLE_INDIVIDUAL_POINTS_FILES_DIR_EXERCISE = pathlib.Path("points-files-exercise")
 
 
 @pytest.fixture(autouse=True)
@@ -48,11 +50,12 @@ def setup_test_directory(request, tmp_path: pathlib.Path):
 
 
 @pytest.fixture
-def config_shared(request, monkeypatch, setup_test_directory: pathlib.Path):
+def mode_dict(request, monkeypatch, setup_test_directory: pathlib.Path):
     """
     This fixture copies all relevant files into a testing directory.
     """
-    shutil.copy(request.param, setup_test_directory)
+    shutil.copy(request.param["config_shared"], setup_test_directory)
+    shutil.copytree(request.param["individual_point_file_dir"], setup_test_directory / request.param["individual_point_file_dir"].name)
     monkeypatch.chdir(setup_test_directory)
     return request.param
 
@@ -92,16 +95,16 @@ def give_feedback():
 
 
 @pytest.mark.parametrize(
-    "config_shared, args",
+    "mode_dict, args",
     [
-        (CONFIG_STATIC, []),
-        (CONFIG_EXERCISE, ["-e", "1", "3"]),
+        ({"config_shared": CONFIG_STATIC, "individual_point_file_dir": SAMPLE_INDIVIDUAL_POINTS_FILES_DIR_STATIC}, []),
+        ({"config_shared": CONFIG_EXERCISE, "individual_point_file_dir": SAMPLE_INDIVIDUAL_POINTS_FILES_DIR_EXERCISE}, ["-e", "1", "3"]),
     ],
-    indirect=["config_shared"],
+    indirect=["mode_dict"],
 )
 def test(
     capfd,
-    config_shared: pathlib.Path,
+    mode_dict: dict,
     insert_tutor_name,
     insert_xopp_setting,
     skip_mark_test,
@@ -114,7 +117,7 @@ def test(
             "-i",
             str(CONFIG_INDIVIDUAL),
             "-s",
-            str(config_shared),
+            str(mode_dict["config_shared"]),
             "init",
             str(SAMPLE_SHEET),
         ]
@@ -135,7 +138,7 @@ def test(
                 "-i",
                 str(CONFIG_INDIVIDUAL),
                 "-s",
-                str(config_shared),
+                str(mode_dict["config_shared"]),
                 "mark",
                 "--dry-run",
                 str(SAMPLE_SHEET_DIR),
@@ -152,31 +155,27 @@ def test(
             "-i",
             str(CONFIG_INDIVIDUAL),
             "-s",
-            str(config_shared),
+            str(mode_dict["config_shared"]),
             "collect",
             str(SAMPLE_SHEET_DIR),
         ]
     )
-
-    # Verify 'collect' ran successfully.
     out, err = capfd.readouterr()
     assert "Command 'collect' terminated successfully." in out
 
     # Call 'combine' for the configurations using the mode 'exercise'.
-    if config_shared == CONFIG_EXERCISE:
+    if mode_dict["config_shared"] == CONFIG_EXERCISE:
         subprocess.check_call(
             [
                 "krummstab",
                 "-i",
                 str(CONFIG_INDIVIDUAL),
                 "-s",
-                str(config_shared),
+                str(mode_dict["config_shared"]),
                 "combine",
                 str(SAMPLE_SHEET_DIR),
             ]
         )
-
-        # Verify 'combine' ran successfully.
         out, err = capfd.readouterr()
         assert "Command 'combine' terminated successfully." in out
 
@@ -187,12 +186,29 @@ def test(
             "-i",
             str(CONFIG_INDIVIDUAL),
             "-s",
-            str(config_shared),
+            str(mode_dict["config_shared"]),
             "send",
             "--dry-run",
             str(SAMPLE_SHEET_DIR),
         ]
     )
-    # Verify 'send' ran successfully.
     out, err = capfd.readouterr()
     assert "Command 'send' terminated successfully." in out
+
+    # Call 'summarize'.
+    subprocess.check_call(
+        [
+            "krummstab",
+            "-i",
+            str(CONFIG_INDIVIDUAL),
+            "-s",
+            str(mode_dict["config_shared"]),
+            "summarize",
+            str(mode_dict["individual_point_file_dir"]),
+        ]
+    )
+    out, err = capfd.readouterr()
+    assert (
+        "Command 'summarize' terminated successfully." in out
+        and len(list(pathlib.Path.cwd().glob("*.xlsx"))) == 1
+    )
