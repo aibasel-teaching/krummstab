@@ -32,7 +32,7 @@ jobs:
         pip install -e .
     - name: Check code style with Black
       run: |
-        black --line-length 80 --check .
+        python -m black --line-length 80 --check .
     - name: Test with pytest
       run: |
         pytest --skip-mark-test
