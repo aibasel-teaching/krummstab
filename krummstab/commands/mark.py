@@ -53,12 +53,12 @@ def get_command_with_file(command: list[str], file: pathlib.Path) -> list[str]:
 
 
 def mark_submission(
-    submission: submissions.Submission,
-    command: list[str],
-    suffix_to_mark: str,
-    submission_num: int,
-    submissions_total: int,
-    dry_run: bool,
+        submission: submissions.Submission,
+        command: list[str],
+        suffix_to_mark: str,
+        submission_num: int,
+        submissions_total: int,
+        dry_run: bool,
 ) -> None:
     feedback_dir = submission.get_feedback_dir()
     files_to_mark = [
@@ -78,6 +78,35 @@ def mark_submission(
         run_command_and_wait(command_with_file, dry_run)
 
 
+def mark_submissions(
+        submissions_to_mark: list[submissions.Submission],
+        command: list[str],
+        suffix_to_mark: str,
+        submissions_total: int,
+        dry_run: bool,
+) -> None:
+    command_all_files = []
+    for submission_num, submission in enumerate(submissions_to_mark, start=1):
+        feedback_dir = submission.get_feedback_dir()
+        files_to_mark = [
+            file
+            for file in feedback_dir.rglob("*")
+            if file.suffix == suffix_to_mark
+        ]
+        if not files_to_mark:
+            logging.warning(f"No files to mark for team {submission.team}.")
+            return
+        for file_to_mark in files_to_mark:
+            command_with_file = get_command_with_file(command, file_to_mark)
+            logging.info(
+                f"({submission_num:{len(str(submissions_total))}d}/{submissions_total}) "
+
+            )
+            command_all_files.extend(c for c in command_with_file if c not in command_all_files)
+    logging.info(f"Running {command_all_files}")
+    run_command_and_wait(command_all_files, dry_run)
+
+
 def mark(_the_config: config.Config, args) -> None:
     """
     Mark all submissions at once with a specific program such as Xournal++.
@@ -90,6 +119,7 @@ def mark(_the_config: config.Config, args) -> None:
         command = ["xournalpp", "{xopp_file}"]
     has_xopp = "{xopp_file}" in command
     has_pdf = "{pdf_file}" in command
+    open_all = "all" in command
     if has_xopp == has_pdf:
         logging.critical(
             "The config option 'marking_command' must contain either "
@@ -105,10 +135,10 @@ def mark(_the_config: config.Config, args) -> None:
     # TODO: Generalize this to marking_mode == "exercise" and points_per ==
     #       "exercise".
     if (
-        _the_config.use_marks_file
-        and _the_config.marking_mode == "static"
-        and _the_config.points_per == "sheet"
-        and not args.force
+            _the_config.use_marks_file
+            and _the_config.marking_mode == "static"
+            and _the_config.points_per == "sheet"
+            and not args.force
     ):
         marks_data = utils.read_json(sheet.get_marks_file_path(_the_config))
         submissions_to_mark = [
@@ -121,15 +151,24 @@ def mark(_the_config: config.Config, args) -> None:
     logging.info(
         f"{submissions_total} out of "
         f"{len(list(sheet.get_relevant_submissions()))} "
-        f"submission{'s'[:submissions_total^1]} to mark."
+        f"submission{'s'[:submissions_total ^ 1]} to mark."
     )
 
-    for submission_num, submission in enumerate(submissions_to_mark, start=1):
-        mark_submission(
-            submission,
-            command,
+    if open_all:
+        mark_submissions(
+            submissions_to_mark,
+            [c for c in command if not c == 'all'],
             suffix_to_mark,
-            submission_num,
             submissions_total,
             args.dry_run,
         )
+    else:
+        for submission_num, submission in enumerate(submissions_to_mark, start=1):
+            mark_submission(
+                submission,
+                command,
+                suffix_to_mark,
+                submission_num,
+                submissions_total,
+                args.dry_run,
+            )
