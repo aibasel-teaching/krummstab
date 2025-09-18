@@ -3,7 +3,7 @@ import pathlib
 import subprocess
 import sys
 
-from .. import config, sheets, submissions, utils
+from .. import config, sheets, strings, submissions, utils
 
 
 def run_command_and_wait(command: list[str], dry_run: bool) -> None:
@@ -31,9 +31,9 @@ def run_command_and_wait(command: list[str], dry_run: bool) -> None:
                 "error output."
             )
             print(
-                f"{utils.SEPARATOR_LINE}\n"
+                f"{strings.SEPARATOR_LINE}\n"
                 f"{error.stderr.decode()}"
-                f"{utils.SEPARATOR_LINE}"
+                f"{strings.SEPARATOR_LINE}"
             )
         else:
             logging.error(
