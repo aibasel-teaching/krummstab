@@ -28,7 +28,7 @@ jobs:
       run: |
         sudo apt install xournalpp
         python -m pip install --upgrade pip
-        python -m pip black install pytest pypdf
+        python -m pip install black pytest pypdf
         pip install -e .
     - name: Check code style with Black
       run: |
