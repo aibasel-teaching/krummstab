@@ -26,21 +26,25 @@ def run_command_and_wait(command: list[str], dry_run: bool) -> None:
             # but the subprocess should not really time out without 'dry_run'.
             raise
     except subprocess.SubprocessError as error:
+        logging.error(f"The command {error.cmd} failed.")
         if error.stderr:
-            logging.error(
-                f"The marking command {command} failed with the following "
-                "error output."
-            )
+            logging.warning(f"Output to stderr:")
             print(
                 f"{strings.SEPARATOR_LINE}\n"
                 f"{error.stderr.decode()}"
                 f"{strings.SEPARATOR_LINE}"
             )
         else:
-            logging.error(
-                "The marking command {command} failed without any error output."
+            logging.info(f"No output to stderr.")
+        if error.stdout:
+            logging.warning(f"Output to stdout:")
+            print(
+                f"{strings.SEPARATOR_LINE}\n"
+                f"{error.stdout.decode()}"
+                f"{strings.SEPARATOR_LINE}"
             )
-        logging.critical("Aborting 'mark'.")
+        else:
+            logging.info(f"No output to stderr.")
 
 
 def get_unmarked_submissions(
