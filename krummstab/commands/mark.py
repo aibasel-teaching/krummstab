@@ -44,7 +44,7 @@ def run_command_and_wait(command: list[str], dry_run: bool) -> None:
                 f"{strings.SEPARATOR_LINE}"
             )
         else:
-            logging.info(f"No output to stderr.")
+            logging.info(f"No output to stdout.")
 
 
 def get_unmarked_submissions(
