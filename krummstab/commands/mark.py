@@ -43,16 +43,6 @@ def run_command_and_wait(command: list[str], dry_run: bool) -> None:
         logging.critical("Aborting 'mark'.")
 
 
-def get_command_with_file(command: list[str], file: pathlib.Path) -> list[str]:
-    """
-    Creates the complete command with the given program and file.
-    """
-    xopp_file = file
-    pdf_file = file
-    command = [arg.format(**locals()) for arg in command]
-    return command
-
-
 def get_unmarked_submissions(
     _the_config: config.Config,
     sheet: sheets.Sheet,
