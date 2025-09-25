@@ -53,9 +53,9 @@ as an example.
 > macOS, we hope that the following instructions work without major differences.
 > In case you are using Windows, we recommend using Krummstab on a native Python
 > installation, but we don't provide instructions below. Installing inside a
-> Windows Subsystem for Linux (WSL) allows you to follow the instructions
-> directly, but sending emails through Krummstab will not work, so you need a
-> native installation to use all features of Krummstab.
+> Windows Subsystem for Linux (WSL) is possible but not compatible with some
+> features such as automatically opening all files that need to be marked and
+> sending feedback per email.
 
 To get started, create an empty directory where you want to do your marking, in
 this example the directory will be called `ki-fs23-marking`:
@@ -98,8 +98,8 @@ This may in particular be necessary if teams change throughout the semester.
 In order to work with the script, you will have to call the `krummstab` command
 from a command line whose working directory is the one which contains the two
 config files. If you'd like to keep the config files somewhere else, you'll have
-to provide the paths to the files with the `-s path/to/shared` and `-i
-path/to/individual` flags whenever you call `krummstab`.
+to provide the paths to the files with the `-s <path to shared>` and `-i
+<path to individual>` flags whenever you call `krummstab`.
 
 
 ## Marking a Sheet
@@ -128,16 +128,25 @@ the file downloaded from ADAM, should look like this:
 ├── config-shared.json
 └── Sheet 1.zip
 ```
-We can now finally make the script do something useful by running:
+Before running the command we have to look at the shared config to figure out if
+we have to add information about exercises to the `init` command. In case we
+only record points per sheet (`points_per: sheet`) this is not needed,
+but if we record points per individual exercise (`points_per: exercise`), then
+we have to provide information about the exercises on the sheet by either
+providing the total number of exercises via `-n <num exercises>` (in case of
+`marking_mode: sheet`) or via `-e <list of exercise numbers>` (in case of
+`marking_mode: exercise`).
+
+Assuming our configuration sets `points_per: exercise` and `marking_mode:
+sheet`, we can now finally make the script do something useful by running:
 ```
-krummstab init -n 4 -t sheet01 "Sheet 1.zip"
+krummstab init -n 5 -t sheet01 "Sheet 1.zip"
 ```
-This will unzip the submissions and prepare them for marking. The flag `-n`
-expects the number of exercises in the sheet, `-t` is optional and takes the
-name of the directory the submissions should be extracted to. By default it's
-the name of the ZIP file, but I'm choosing to rename it in order to get rid of
-the whitespace in the directory name. The directory should now look something
-like this:
+This will unzip the submissions and prepare them for marking. The flag `-t` is
+optional and takes the name of the directory the submissions should be extracted
+to. By default it's the name of the ZIP file, but I'm choosing to rename it in
+order to get rid of the whitespace in the directory name. The directory should
+now look something like this:
 ```
 .
 ├── .venv
@@ -196,6 +205,11 @@ To run `mark` you need to provide the path to the directory created by the
 ```
 krummstab mark sheet01
 ```
+> 📝 On a native Windows installation you may have to add the parent directory
+> of the executable you would like to use for marking to the `PATH` environment
+> variable. If you do so for Xournal++ and set `xopp: true` in your individual
+> config, then `mark` should work without changes to the `marking_command`
+> option.
 
 ### collect
 Once you have marked all the teams assigned to you and added their points to
@@ -229,7 +243,7 @@ expected.
 This command generates an Excel file that summarizes the students' marks. It
 needs a path to a directory containing the individual marks JSON files:
 ```
-krummstab summarize path/to/a/directory/with/individual/marks/files
+krummstab summarize <path to a directory containing individual marks files>
 ```
 If you use LibreOffice, it is possible that the formulas are not calculated
 immediately. To calculate them, use the Recalculate Hard command in LibreOffice.
@@ -365,7 +379,9 @@ following steps are necessary:
 4. Modifying the `points_*.json` file: Add the team key with the points that the
    team gets to the `points_*.json` file. The team key consists of the ADAM ID
    you chose in step 1 and the alphabetically sorted last names of all team
-   members in the following format: `ID_Last-Name1_Last-Name2`
+   members in the following format: `<ADAM ID>_<Last-Name-1>_<Last-Name-2>`,
+   that is, last names are capitalized and spaces within the last names are
+   replaced by hyphens (`-`).
 
 After completing these steps, the new submission will be processed as usual by
 future calls to Krummstab, in particular by the `collect` and `send` commands.
@@ -400,8 +416,23 @@ the changes above and marking the teams you already sent feedback to earlier as
 
 # Development
 
+To set up for development, you have to
+- clone this repository
+- create a virtual environment at its root directory (`python3 -m venv .venv`)
+- enter the virtual environment (`source .venv/bin/activate`)
+- install the local version of Krummstab using `pip` (`pip install -e .`)
+After this initial setup you simply have to make sure that you are in this same
+virtual environment when making changes to Krummstab. If that is the case, all
+changes to the source files will be directly reflected in any call to
+`krummstab`.
+
 There are some tests written in the `pytest` framework. This requires `pytest`,
-which can be installed via `pip3 install pytest` for example, and
+which can be installed via `pip install pytest` for example, and
 [Xournal++](https://github.com/xournalpp/xournalpp), which can be installed via
 `sudo apt install xournalpp` on Ubuntu. Tests can then be executed by running
-`pytest` in the root directory of the project.
+`pytest` in the root directory of the project (while in the virtual
+environment).
+
+All code should be formatted according to [Black](https://github.com/psf/black).
+The only change from the default configuration is that we limit lines to 80
+instead of 88 characters.
