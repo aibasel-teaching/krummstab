@@ -26,7 +26,10 @@ def run_command_and_wait(command: list[str], dry_run: bool) -> None:
             # but the subprocess should not really time out without 'dry_run'.
             raise
     except subprocess.SubprocessError as error:
-        logging.error(f"The command {error.cmd} failed.")
+        logging.error(
+            f"The command {error.cmd} failed. If you are able to mark the "
+            "submission as expected anyway, you can safely ignore this."
+        )
         if error.stderr:
             logging.warning(f"Output to stderr:")
             print(
