@@ -73,10 +73,19 @@ def insert_tutor_name(request):
         f.write(filled_in)
 
 
-@pytest.fixture(params=["true", "false"])
+@pytest.fixture(
+    params=[
+        ("true", '["xournalpp", "{xopp_file}"]'),
+        ("false", '["ls", "{all_pdf_files}"]'),
+    ]
+)
 def insert_xopp_setting(request):
     with open("config-individual.json", "r") as f:
-        filled_in = f.read().replace("PLACEHOLDER_XOPP_SETTING", request.param)
+        filled_in = (
+            f.read()
+            .replace("PLACEHOLDER_XOPP_SETTING", request.param[0])
+            .replace("PLACEHOLDER_MARKING_COMMAND", request.param[1])
+        )
     with open("config-individual.json", "w") as f:
         f.write(filled_in)
 
