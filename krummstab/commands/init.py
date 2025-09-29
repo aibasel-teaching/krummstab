@@ -36,15 +36,30 @@ def extract_adam_zip(args) -> tuple[pathlib.Path, str]:
                 pathlib.Path(temp_dir) / unzipped_path.name
             )
             shutil.copytree(unzipped_path, unzipped_destination_path)
-        # Store ADAM exercise sheet name.
+
+        # Check if the zip has the expected structure.
         children = list(pathlib.Path(temp_dir).iterdir())
         if len(children) != 1 or not children[0].is_dir():
-            logging.critical(
-                f"Expected exactly one subdir in {args.adam_zip_path}."
+            # We expect the zip to contain a single subdirectory with the
+            # exercise sheet name given on ADAM.
+            errors.unexpected_zip_structure(args.adam_zip_path)
+        temp_sheet_root_dir = children[0]
+        adam_sheet_name = temp_sheet_root_dir.name
+        grand_children = list(pathlib.Path(temp_sheet_root_dir).iterdir())
+        if (
+            len(grand_children) != 2
+            or not any(
+                grand_child.is_file() and grand_child.suffix == ".xlsx"
+                for grand_child in grand_children
             )
-
-        sheet_root_dir = children[0]
-        adam_sheet_name = sheet_root_dir.name
+            or not any(grand_child.is_dir() for grand_child in grand_children)
+        ):
+            # Within its single subdirectory, we expect the zip to contain a
+            # single subsubdirectory named either "Abgaben" or "Submissions" and
+            # a single spreadsheet with information about the submissions.
+            errors.unexpected_zip_structure(args.adam_zip_path)
+        # Move extracted directory from the temporary directory to its final
+        # location.
         destination = pathlib.Path(
             args.target if args.target else adam_sheet_name
         )
@@ -53,23 +68,15 @@ def extract_adam_zip(args) -> tuple[pathlib.Path, str]:
                 f"Extraction failed because the path '{destination}' exists"
                 " already!"
             )
-        sheet_root_dir = shutil.move(sheet_root_dir, destination)
+        sheet_root_dir = shutil.move(temp_sheet_root_dir, destination)
     # Flatten intermediate directory.
-    sub_dirs = list(sheet_root_dir.glob("*"))
-    sub_dirs = [item for item in sub_dirs if item.suffix != ".xlsx"]
-    if len(sub_dirs) != 1:
-        logging.critical(
-            "The ADAM zip file contains an unexpected number of"
-            f" directories/files ({len(sub_dirs)}), expected exactly 1"
-            " subdirectory named either 'Abgaben' or 'Submissions'."
-        )
-    if sub_dirs[0].name not in ["Abgaben", "Submissions"]:
-        logging.warning(
-            "It looks like the format of the zip file created by ADAM has"
-            " changed. This may require adaptions to this script, but I will"
-            " try anyway."
-        )
-    utils.move_content_and_delete(sub_dirs[0], sheet_root_dir)
+    sub_directories = [
+        sub_directory
+        for sub_directory in sheet_root_dir.iterdir()
+        if sub_directory.is_dir()
+    ]
+    assert len(sub_directories) == 1
+    utils.move_content_and_delete(sub_directories[0], sheet_root_dir)
     return sheet_root_dir, adam_sheet_name
 
 
