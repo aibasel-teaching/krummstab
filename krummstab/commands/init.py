@@ -28,8 +28,10 @@ def extract_adam_zip(args) -> tuple[pathlib.Path, str]:
             # Should be the name of the exercise sheet,
             # for example "Exercise Sheet 2".
             with ZipFile(args.adam_zip_path, mode="r") as zip_file:
-                zip_content = zip_file.namelist()
-                sheet_root_dir = pathlib.Path(temp_dir) / zip_content[0]
+                zip_content = [pathlib.Path(n) for n in zip_file.namelist() if n.strip()]
+                top_levels = {p.parts[0] for p in zip_content}
+                assert len(top_levels) == 1, f"Expected exactly one top-level folder, found: {top_levels}"
+                sheet_root_dir = pathlib.Path(temp_dir) / top_levels.pop()
                 utils.filtered_extract(zip_file, pathlib.Path(temp_dir))
         else:
             # Assume the directory is an extracted ADAM zip.
