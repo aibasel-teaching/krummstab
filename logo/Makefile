@@ -14,3 +14,6 @@ logo-jpg: logo-pdf
 
 banner-pdf:
 	pdflatex banner.tex
+
+social-pdf:
+	pdflatex social-media-preview.tex

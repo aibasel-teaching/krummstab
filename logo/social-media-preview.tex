@@ -1,0 +1,21 @@
+\documentclass[tikz]{standalone}
+\usetikzlibrary{calc, math}
+\input{stab}
+\begin{document}
+\newdimen\stabheight
+\newdimen\ytop
+\newdimen\xleft
+\newdimen\xright
+\tikzset{%
+    evaluate={
+        \stabheight = 545mm;
+        \ytop = 1.618*\stabheight;
+        \xleft = -2*.618*\ytop;
+        \xright = 2*.382*\ytop;
+    }
+}%
+\begin{tikzpicture}
+    \fill[white] (\xleft, 0) rectangle (\xright, \ytop);
+    \pic[overlay, black] at (0, 0) {stab};
+\end{tikzpicture}
+\end{document}
