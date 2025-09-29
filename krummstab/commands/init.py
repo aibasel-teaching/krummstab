@@ -16,9 +16,8 @@ from ..teams import *
 
 def extract_adam_zip(args) -> tuple[pathlib.Path, str]:
     """
-    Unzips the given ADAM zip file and renames the directory to *target* if one
-    is given. This is done stupidly right now, it would be better to extract to
-    a temporary folder and then move once to the right location.
+    Unzips the given ADAM zip file to a directory named after the exercise sheet
+    name provided by ADAM, or has the name given in the `target` argument.
     """
     with tempfile.TemporaryDirectory() as temp_dir:
         # Extract ADAM zip contents to a temporary directory (or move in case it
@@ -652,8 +651,8 @@ def init(_the_config: config.Config, args) -> None:
         args.exercises.sort()
 
     # The adam zip file is expected to have the following structure:
-    # ADAM Exercise Sheet Name.zip
-    # └── ADAM Exercise Sheet Name
+    # <ADAM Exercise Sheet Name>.zip
+    # └── <ADAM Exercise Sheet Name>
     #     └── Abgaben
     #         ├── Team 12345
     #         .   └── Muster_Hans_hans.muster@unibas.ch_000000

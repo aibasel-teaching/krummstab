@@ -184,13 +184,28 @@ This command allows you to mark all submissions at once with a specific
 program such as Xournal++. It opens all relevant PDF feedback files or `.xopp`
 files one after the other with the program that you can specify with the config
 parameter `marking_command`. This parameter is a list of strings, starting with
-the program command, with the following elements being arguments. One argument
-has to be either `{xopp_file}` or `{pdf_file}`, which will be automatically
-replaced with file paths later. The default Xournal++ command would for example
+the program command, with the following elements being arguments. Arguments that
+would be separated by a space on the command line should be separate strings in
+the list. One of these arguments has to be either `{xopp_file}`, `{pdf_file}`,
+or `{all_pdf_files}`. In the case of `{xopp_file}` and `{pdf_file}`, `mark`
+executes the command for each file to be marked while replacing the placeholder
+argument with the path to that file. In the case of `{all_pdf_files}`, `mark`
+executes the command one time while replacing the placeholder argument with the
+list of all files to be marked. The default Xournal++ command would for example
 look as follows in the config:
 ```json
 "marking_command": ["xournalpp", "{xopp_file}"],
 ```
+and is equivalent to running:
+```shell
+xournalpp <path to a file to be marked>
+```
+on the command line, one by one for each file to be marked. `mark` waits for the
+process of the current marking command to finish before starting the next one.
+By default, `mark` only opens the files of those teams for which points are
+missing in the `points_*.json` file, use the `-f` flag to force `mark` to open
+all files.
+
 To run `mark` you need to provide the path to the directory created by the
 `init` command which is `sheet01` in our running example:
 ```
