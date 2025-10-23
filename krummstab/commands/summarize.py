@@ -188,14 +188,30 @@ BORDER_BOTTOM = OpenpyxlStyle(border=Border(bottom=THIN))
 BORDER_ALL = BORDER_LEFT | BORDER_RIGHT | BORDER_TOP | BORDER_BOTTOM
 
 # Fills
-GRAY = OpenpyxlStyle(fill=PatternFill(start_color="E2E2E2", fill_type="solid"))
-GREEN = OpenpyxlStyle(fill=PatternFill(start_color="9BE189", fill_type="solid"))
-YELLOW = OpenpyxlStyle(
-    fill=PatternFill(start_color="FFE699", fill_type="solid")
+GRAY = OpenpyxlStyle(
+    fill=PatternFill(
+        start_color="E2E2E2", end_color="E2E2E2", fill_type="solid"
+    )
 )
-RED = OpenpyxlStyle(fill=PatternFill(start_color="EE7868", fill_type="solid"))
+GREEN = OpenpyxlStyle(
+    fill=PatternFill(
+        start_color="9BE189", end_color="9BE189", fill_type="solid"
+    )
+)
+YELLOW = OpenpyxlStyle(
+    fill=PatternFill(
+        start_color="FFE699", end_color="FFE699", fill_type="solid"
+    )
+)
+RED = OpenpyxlStyle(
+    fill=PatternFill(
+        start_color="EE7868", end_color="EE7868", fill_type="solid"
+    )
+)
 PLAGIARISM_RED = OpenpyxlStyle(
-    fill=PatternFill(start_color="FF0000", fill_type="solid")
+    fill=PatternFill(
+        start_color="FF0000", end_color="FF0000", fill_type="solid"
+    )
 )
 
 # Number formats
@@ -707,7 +723,7 @@ class PointsSummarySheetBuilder:
                 )
                 formula = (
                     f'=IF(COUNTIF({ref_marks},"{strings.PLAGIARISM}") > 0,"{strings.PLAGIARISM}",'
-                    + f'IF(COUNT({ref_marks})=0,"",SUM({ref_marks}))'
+                    + f'IF(COUNT({ref_marks})=0,"",SUM({ref_marks})))'
                 )
                 self.write_formula(r, col_sheet, formula, BORDER_RIGHT)
         ref = OpenpyxlRangeRef(1, 1, r, last_column)
