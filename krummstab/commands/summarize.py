@@ -806,6 +806,13 @@ def load_marks_files(marks_dir: Path, _the_config: config.Config):
                     )
                 students_marks[email][sheet_name] = mark
     for sheet_name, tutor_list in tutors.items():
+        if not sheet_name in _the_config.max_points_per_sheet.keys():
+            logging.warning(
+                f"There are marks for '{sheet_name}' but there is no matching "
+                "entry in the shared config. Add it in under the "
+                "max_points_per_sheet key or make sure that the spelling is "
+                "identical if it's already there."
+            )
         for tutor in (
             _the_config.classes
             if _the_config.marking_mode == "static"
