@@ -96,7 +96,7 @@ def add_init_command_parser(subparsers):
     )
     parser_init.add_argument(
         "-p",
-        "--plain",
+        "--pdf-only",
         action="store_true",
         help=(
             "only copy PDF files into feedback directories, useful if tutors "

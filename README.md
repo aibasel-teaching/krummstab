@@ -171,9 +171,10 @@ contains copies of the submitted files.
 
 The idea is that you can give feedback by adding your comments to these copies
 directly, and delete the ones you don't need to comment on. It is possible to
-add a `--plain` or `-p` flag to the `init` command that prevents non-PDF files
-from being copied into the feedback directories. When marking by exercise, this
-is useful for the tutors that do not have to mark the programming exercises.
+add a `--pdf-only` or `-p` flag to the `init` command that prevents non-PDF
+files from being copied into the feedback directories. When marking by exercise,
+this is useful for the tutors that do not have to mark the programming
+exercises.
 
 For the PDF feedback you can use whichever tool you like. If this tool adds
 files to the feedback directory that you do not want to send to the students,

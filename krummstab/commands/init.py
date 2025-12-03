@@ -204,7 +204,7 @@ def create_marks_file(
 
 
 def create_feedback_directories(
-    _the_config: config.Config, sheet: sheets.Sheet, plain: bool
+    _the_config: config.Config, sheet: sheets.Sheet, pdf_only: bool
 ) -> None:
     """
     Create a directory for every team that should be corrected by the tutor
@@ -233,7 +233,7 @@ def create_feedback_directories(
 
         # Copy non-pdf submission files into feedback directory with added
         # prefix.
-        if not plain:
+        if not pdf_only:
             for submission_file in submission.root_dir.glob("*"):
                 if (
                     submission_file.is_dir()
@@ -724,7 +724,7 @@ def init(_the_config: config.Config, args) -> None:
     if _the_config.use_marks_file:
         create_marks_file(_the_config, sheet, args)
 
-    create_feedback_directories(_the_config, sheet, args.plain)
+    create_feedback_directories(_the_config, sheet, args.pdf_only)
 
     # Structure at this point:
     # <sheet_root_dir>
