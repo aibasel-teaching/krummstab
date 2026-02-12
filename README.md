@@ -19,6 +19,7 @@ semester as students drop the course or teams are reassigned.
 > whenever a tutor makes changes to the file, she or he should share the new
 > version with the others, for example via the Discord server or uploading it to
 > ADAM.
+
 > [!TIP]
 > Assistants can find tips for creating this file
 > [here](#setting-up-shared-config-file).
