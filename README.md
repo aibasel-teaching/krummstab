@@ -9,16 +9,19 @@ The system is made up of three components: the central
 [krummstab](https://pypi.org/project/krummstab) PyPI project, and two JSON
 configuration files, `config-shared.json` and `config-individual.json`.
 
-The shared config file contains [general settings](#general-settings) that need
+The shared config file contains [general settings](#shared-settings) that need
 to be adapted to the course that is being taught, but should remain static
 thereafter. Additionally, it lists all students and their
 [team assignment](#teams). This part of the file is subject to change during the
-semester as students drop the course or teams are reassigned. It is important
-that all tutors have an identical copy of the shared config file, meaning that
-whenever a tutor makes changes to the file, she or he should share the new
-version with the others, for example via the Discord server or uploading it to
-ADAM. (Assistants can find tips for creating this file
-[here](#setting-up-shared-config-file).)
+semester as students drop the course or teams are reassigned.
+> [!IMPORTANT]
+> All tutors must have an identical copy of the shared config file, meaning that
+> whenever a tutor makes changes to the file, she or he should share the new
+> version with the others, for example via the Discord server or uploading it to
+> ADAM.
+> [!TIP]
+> Assistants can find tips for creating this file
+> [here](#setting-up-shared-config-file).
 
 The individual config file contains [personal settings](#individual-settings)
 that are only relevant to each tutor. These only need to be set once at the
@@ -29,7 +32,7 @@ line options may be mandatory. The `help` option provides information about the
 script, its subcommands (currently `init`, `collect`, `combine`, `mark`, `send`
 and `summarize`), and their parameters. Once you have completed the one-time
 setup below, you'll be able to access the help via:
-```
+```shell
 krummstab -h
 krummstab <subcommand> -h
 ```
@@ -49,7 +52,8 @@ as an example.
 
 ## One-Time Setup
 
-> 📝 We're assuming a Linux environment in the following. In case you are using
+> [!NOTE]
+> We're assuming a Linux environment in the following. In case you are using
 > macOS, we hope that the following instructions work without major differences.
 > In case you are using Windows, we recommend using Krummstab on a native Python
 > installation, but we don't provide instructions below. Installing inside a
@@ -59,22 +63,22 @@ as an example.
 
 To get started, create an empty directory where you want to do your marking, in
 this example the directory will be called `ki-fs23-marking`:
-```
+```shell
 mkdir ki-fs23-marking
 ```
 Navigate to this directory, set up a virtual Python environment, and activate
 it:
-```
+```shell
 cd ki-fs23-marking
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 Then you can install Krummstab in this environment:
-```
+```shell
 pip install krummstab
 ```
 To test the installation, you can print the help string:
-```
+```shell
 krummstab -h
 ```
 
@@ -139,7 +143,7 @@ providing the total number of exercises via `-n <num exercises>` (in case of
 
 Assuming our configuration sets `points_per: exercise` and `marking_mode:
 sheet`, we can now finally make the script do something useful by running:
-```
+```shell
 krummstab init -n 5 -t sheet01 "Sheet 1.zip"
 ```
 This will unzip the submissions and prepare them for marking. The flag `-t` is
@@ -189,7 +193,6 @@ the file `points_*.json`. In the case of plagiarism, write `Plagiarism` in the
 place for the points.
 
 ### mark
-
 This command allows you to mark all submissions at once with a specific
 program such as Xournal++. It opens all relevant PDF feedback files or `.xopp`
 files one after the other with the program that you can specify with the config
@@ -218,11 +221,12 @@ all files.
 
 To run `mark` you need to provide the path to the directory created by the
 `init` command which is `sheet01` in our running example:
-```
+```shell
 krummstab mark sheet01
 ```
-> 📝 On a native Windows installation you may have to add the parent directory
-> of the executable you would like to use for marking to the `PATH` environment
+> [!NOTE]
+> On a native Windows installation you may have to add the parent directory of
+> the executable you would like to use for marking to the `PATH` environment
 > variable. If you do so for Xournal++ and set `xopp: true` in your individual
 > config, then `mark` should work without changes to the `marking_command`
 > option.
@@ -231,7 +235,7 @@ krummstab mark sheet01
 Once you have marked all the teams assigned to you and added their points to
 the `points_*.json` file, you can run the next command, where `sheet01` is the
 path to the directory created by the `init` command:
-```
+```shell
 krummstab collect sheet01
 ```
 This will create a ZIP archive in every feedback directory containing the
@@ -258,7 +262,7 @@ expected.
 ### summarize
 This command generates an Excel file that summarizes the students' marks. It
 needs a path to a directory containing the individual marks JSON files:
-```
+```shell
 krummstab summarize <path to a directory containing individual marks files>
 ```
 If you use LibreOffice, it is possible that the formulas are not calculated
@@ -274,6 +278,18 @@ File Load to "Always recalculate" (or "Prompt user").
 
 
 ## Config File Details
+
+By default, Krummstab looks for the files `config-shared.json` and
+`config-individual.json` in the directory from which `krummstab` is run. You can
+use different file names and locations by providing the paths explicitly:
+```shell
+krummstab -s <path to shared> -i <path to individual> ...
+```
+The sections below indicate which settings are meant to be part of the shared
+configuration (and should thus be the same for all tutors) and which are meant
+to be set individually. However, any setting can be set in any file, the only
+difference is that settings in `config-individual.json` take precedence over
+`config-shared.json`.
 
 ### Setting Up Shared Config File
 - References for the structure of the file can be found in the `tests`
@@ -311,7 +327,7 @@ File Load to "Always recalculate" (or "Prompt user").
   automatically replaced with file paths later; contains `xournalpp` with
   `{xopp_file}` by default
 
-### General Settings
+### Shared Settings
 - `lecture_title`: lecture name to be printed in feedback emails
 - `marking_mode`
     - `static`: student teams are assigned to a tutor who will mark all their
@@ -339,9 +355,13 @@ File Load to "Always recalculate" (or "Prompt user").
       to a tutor; this is done via a dictionary where some ID for the tutors
       (e.g. first names) are the keys, and the values are the list of teams
       assigned to each tutor
+> [!IMPORTANT]
+> Teams often change from week to week, especially at the start of the semester.
+> This means that the team definitions here have to be checked prior to marking
+> a new submission and possible changes have to be propagated to all tutors.
 
 
-## Handling Special Cases
+## Frequently Asked Questions
 
 There may be situations that require manual changes. This section provides
 instructions for handling these special cases.
@@ -352,7 +372,7 @@ file with the name `submission.json` in each team folder that contains
 information about the submission, including the team. The information in these
 files is used for the other commands.
 
-### Manually Adding Late Submissions
+### How do I add late submissions?
 If you have already executed the `init` command and have already started to mark
 the sheet, but there is a late submission that needs to be added, the
 following steps are necessary:
@@ -402,7 +422,7 @@ following steps are necessary:
 After completing these steps, the new submission will be processed as usual by
 future calls to Krummstab, in particular by the `collect` and `send` commands.
 
-### Multiple Submissions from the Same Team
+### How do I handle multiple submissions from a single team?
 There can be multiple submissions for the same team in ADAM. This can happen in
 two ways, either
 
@@ -411,14 +431,15 @@ two ways, either
 
 In the first case, Krummstab will create a separate submission directory for
 each team member. To resolve this, you can create a new submission directory
-according to the instructions [here](#manually-adding-late-submissions). In the
-second case you will have to figure out which submission to mark, but for
+according to the instructions [here](#how-do-i-add-late-submissions).
+
+In the second case you will have to figure out which submission to mark, but for
 Krummstab it only matters that the files you want to send as feedback are in the
 `feedback` folder of the team's submission directory. To avoid this situation,
 students should use the same file name when uploading an updated submission and
 of course refrain from uploading two separate submissions.
 
-### Only Sending Feedback to Some Teams
+### How do I send feedback to individual teams?
 The `send` command only sends feedback to teams that are marked as being
 `relevant` in the their respective `submission.json` file. To avoid sending
 feedback to team Hans and Hanna Muster, manually edit the file
@@ -447,7 +468,9 @@ which can be installed via `pip install pytest` for example, and
 [Xournal++](https://github.com/xournalpp/xournalpp), which can be installed via
 `sudo apt install xournalpp` on Ubuntu. Tests can then be executed by running
 `pytest` in the root directory of the project (while in the virtual
-environment).
+environment). By default, `pytest` opens and closes Xournal++ instances during
+the test. You can skip this step by passing the `--skip-mark-test` option to
+`pytest`.
 
 All code should be formatted according to [Black](https://github.com/psf/black).
 The only change from the default configuration is that we limit lines to 80
