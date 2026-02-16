@@ -26,7 +26,7 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install xournalpp
-        uv sync
+        uv sync --all-groups
     - name: Check code with Ruff
       run: |
         uv run ruff check

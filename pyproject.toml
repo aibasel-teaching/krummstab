@@ -36,6 +36,7 @@ requires = ["uv_build >= 0.10.2, <0.11.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
+release = []
 dev = [
     "pytest==7.4.4",
     "ruff==0.15.1",
@@ -43,7 +44,7 @@ dev = [
 
 [tool.uv]
 package = true
-default-groups = ["dev"]
+default-groups = ["release"]
 
 [tool.uv.build-backend]
 module-root = ""
