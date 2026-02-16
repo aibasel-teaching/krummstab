@@ -6,7 +6,6 @@ import pathlib
 import pytest
 import shutil
 import subprocess
-import typing
 
 CONFIG_INDIVIDUAL = pathlib.Path("config-individual.json")
 CONFIG_STATIC = pathlib.Path("config-shared-static.json")
