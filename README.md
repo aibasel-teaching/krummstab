@@ -126,6 +126,7 @@ directory.
 > [!CAUTION]
 > It's important that you only download the submissions after the ADAM deadline
 > has passed, so that all tutors have the same, complete pool of submissions.
+
 Our example directory `ki-fs23-marking`, with `Sheet 1.zip` being
 the file downloaded from ADAM, should look like this (including hidden files and
 `uv` files):
@@ -264,6 +265,7 @@ exported automatically before collecting the feedback.
 > [!NOTE]
 > `combine` is only needed for the `exercise` marking mode, i.e., if tutors are
 > responsible for a set of exercises per team instead of for a set of teams.
+
 Even when tutors mark by exercise, we would still like to only send a single
 e-mail per student per exercise sheet. However, the feedback for a single sheet
 is distributed among tutors in the `exercise` marking mode, thus we have to
@@ -300,6 +302,7 @@ You have to connect to the university VPN for this to work.
 > `summarize` is not a mandatory step in the workflow for tutors and is mainly
 > relevant for the teaching assistants, but you can try it out if you want to
 > get an overview of how students are doing.
+
 This command generates an Excel file that summarizes the students' marks. It
 needs a path to a directory containing the individual marks JSON files:
 ```sh
