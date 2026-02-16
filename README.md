@@ -64,7 +64,7 @@ as an example.
 We recommend installing and using Krummstab through
 [uv](https://docs.astral.sh/uv/). If necessary, you can find instructions on how
 to install through `virtualenv` and `pip` directly
-[here](#how-can-i-install-and-use-krummstab-without-uv?).
+[here](#how-can-i-install-and-use-krummstab-without-uv).
 
 First, install uv using the instructions on their
 [website](https://docs.astral.sh/uv/getting-started/installation/). Then run the
