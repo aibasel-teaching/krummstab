@@ -44,9 +44,8 @@ as an example.
 
 ## Requirements
 
-- Python 3.10+: Our `pytest` setup tests Python versions 3.10, 3.11, and 3.12
-  on an Ubuntu machine. Older Python versions will likely cause problems.
-- [Xournal++](https://github.com/xournalpp/xournalpp) (optional): The script
+- Python 3.10+
+- [Xournal++](https://github.com/xournalpp/xournalpp) (optional): Krummstab
   includes some convenient functionality when using Xournal++ to add feedback to
   PDF submissions, but you can also do so by any other means.
 
@@ -62,25 +61,24 @@ as an example.
 > features such as automatically opening all files that need to be marked and
 > sending feedback per email.
 
-To get started, create an empty directory where you want to do your marking, in
-this example the directory will be called `ki-fs23-marking`:
+We recommend installing and using Krummstab through
+[uv](https://docs.astral.sh/uv/). If necessary, you can find instructions on how
+to install through `virtualenv` and `pip` directly
+[here](#how-can-i-install-and-use-krummstab-without-uv?).
+
+First, install uv using the instructions on their
+[website](https://docs.astral.sh/uv/getting-started/installation/). Then run the
+following commands:
 ```shell
+# Create an empty directory, e.g. called ki-fs23-marking, and navigate into it.
 mkdir ki-fs23-marking
-```
-Navigate to this directory, set up a virtual Python environment, and activate
-it:
-```shell
 cd ki-fs23-marking
-python3 -m venv .venv
-source .venv/bin/activate
-```
-Then you can install Krummstab in this environment:
-```shell
-pip install krummstab
-```
-To test the installation, you can print the help string:
-```shell
-krummstab -h
+# Create a minimal uv project.
+uv init --bare --no-workspace --pin-python
+# Install Krummstab.
+uv add krummstab
+# Test the installation by printing a help text.
+uv run krummstab -h
 ```
 
 With the script installed, we continue with the config files. You should have
@@ -110,25 +108,32 @@ to provide the paths to the files with the `-s <path to shared>` and `-i
 ## Marking a Sheet
 
 While the steps above are only necessary for the initial setup, the following
-procedure applies to every exercise sheet. The first step is always to activate
-the virtual environment in which we have installed Krummstab. You do this by
-navigating to the marking directory and using the source command.
-```
+workflow applies to every exercise sheet. The commands with the `uv run` prefix
+will only work if you installed Krummstab with `uv` (the recommended way). In
+case you installed with `pip` directly, you'll have to run
+```shell
 cd ki-fs23-marking
 source .venv/bin/activate
 ```
-If you forget this step you'll get an error saying that the `krummstab` command
-could not be found.
+and then run `krummstab` commands directly, without the `uv run` prefix.
+> [!TIP]
+> You can do the same thing with a `uv` installation if you want to avoid the
+> repeated `uv run` prefixes in the current session.
 
 ### init
-First, download the submissions from ADAM and save the ZIP file in the marking
-directory. (It's important that you only download the submissions after the ADAM
-deadline has passed, so that all tutors have the same, complete pool of
-submissions.) Our example directory `ki-fs23-marking`, with `Sheet 1.zip` being
-the file downloaded from ADAM, should look like this:
+Download the submissions from ADAM and save the ZIP file in the marking
+directory.
+> [!WARNIING]
+> It's important that you only download the submissions after the ADAM deadline
+> has passed, so that all tutors have the same, complete pool of submissions.
+Our example directory `ki-fs23-marking`, with `Sheet 1.zip` being
+the file downloaded from ADAM, should look like this (including hidden files and
+`uv` files):
 ```
 .
 ├── .venv
+├── .python-version
+├── uv.lock
 ├── config-individual.json
 ├── config-shared.json
 └── Sheet 1.zip
@@ -145,7 +150,7 @@ providing the total number of exercises via `-n <num exercises>` (in case of
 Assuming our configuration sets `points_per: exercise` and `marking_mode:
 sheet`, we can now finally make the script do something useful by running:
 ```shell
-krummstab init -n 5 -t sheet01 "Sheet 1.zip"
+uv run krummstab init -n 5 -t sheet01 "Sheet 1.zip"
 ```
 This will unzip the submissions and prepare them for marking. The flag `-t` is
 optional and takes the name of the directory the submissions should be extracted
@@ -154,7 +159,6 @@ order to get rid of the whitespace in the directory name. The directory should
 now look something like this:
 ```
 .
-├── .venv
 ├── config-individual.json
 ├── config-shared.json
 ├── sheet01
@@ -192,8 +196,8 @@ writing, which is explained next.
 While writing the feedback, you can keep track of the points the teams get in
 the file `points_*.json`. In the case of plagiarism, write `Plagiarism` in place
 of the number of points, i.e., in the field for the offending sheet in case of
-`"points_per": "sheet"` and in the field for the offending exercise in case of
-`points_per": "exercise"`.
+`points_per: sheet` and in the field for the offending exercise in case of
+`points_per: exercise`.
 
 ### mark
 > [!NOTE]
@@ -231,7 +235,7 @@ process of the current marking command to finish before starting the next one.
 To run `mark` you need to provide the path to the directory created by the
 `init` command which is `sheet01` in our running example:
 ```shell
-krummstab mark sheet01
+uv run krummstab mark sheet01
 ```
 > [!NOTE]
 > On a native Windows installation you may have to add the parent directory of
@@ -245,7 +249,7 @@ Once you have marked all the teams assigned to you and added their points to
 the `points_*.json` file, you can run the next command, where `sheet01` is the
 path to the directory created by the `init` command:
 ```shell
-krummstab collect sheet01
+uv run krummstab collect sheet01
 ```
 This will create a ZIP archive in every feedback directory containing the
 feedback for that team. A JSON file containing the individual points per student
@@ -257,14 +261,34 @@ the `-r` flag to overwrite existing feedback archives. When using Xournal++
 exported automatically before collecting the feedback.
 
 ### combine
-This command is only relevant for the `exercise` marking mode.
-`TODO: Document this.`
+> [!NOTE]
+> `combine` is only needed for the `exercise` marking mode, i.e., if tutors are
+> responsible for a set of exercises per team instead of for a set of teams.
+Even when tutors mark by exercise, we would still like to only send a single
+e-mail per student per exercise sheet. However, the feedback for a single sheet
+is distributed among tutors in the `exercise` marking mode, thus we have to
+combine the feedback on a single machine before feedback can be sent. For this
+purpose, `collect` creates a file named `share_archive_<sheet name>_<exercise
+numbers>.zip` in the root directory of the sheet, `sheet01` in our example.
+
+Tutors have to coordinate and appoint one of them, say Tamara, to send feedback.
+The other tutors then send their share archives to Tamara who stores them in
+`sheet01` next to her own archive. Tamara can then run:
+```shell
+uv run krummstab combine sheet01
+```
+This combines the feedback of all tutors such that each student gets feedback on
+all exercises in the next step when Tamara executes `send`. This means that for
+the other tutors, the current sheet is done and only Tamara has to continue on
+to the next `send` step.
 
 ### send
 This command sends feedback to students directly via e-mail and shares a summary
-of awarded points with the assistant. You have to connect to the university VPN
-for this to work.
-
+of awarded points with the assistant:
+```shell
+uv run krummstab send sheet01
+```
+You have to connect to the university VPN for this to work.
 > [!TIP]
 > You can use the `--dry-run` flag to see what e-mails the command would send
 > out so you can double-check that everything looks as expected before actually
@@ -272,10 +296,14 @@ for this to work.
 > before sending anything.
 
 ### summarize
+> [!NOTE]
+> `summarize` is not a mandatory step in the workflow for tutors and is mainly
+> relevant for the teaching assistants, but you can try it out if you want to
+> get an overview of how students are doing.
 This command generates an Excel file that summarizes the students' marks. It
 needs a path to a directory containing the individual marks JSON files:
 ```shell
-krummstab summarize <path to a directory containing individual marks files>
+uv run krummstab summarize <path to a directory containing individual marks files>
 ```
 If you use LibreOffice, it is possible that the formulas are not calculated
 immediately. To calculate them, use the Recalculate Hard command in LibreOffice.
@@ -465,28 +493,39 @@ explicitly. You can still later send the feedback through Krummstab by reverting
 the changes above and marking the teams you already sent feedback to earlier as
 "not relevant".
 
+### How can I install and use Krummstab without uv?
+```shell
+# Create an empty directory, e.g. called ki-fs23-marking, and navigate into it.
+mkdir ki-fs23-marking
+cd ki-fs23-marking
+# Create virtual environment and activate it.
+python3 -m venv .venv
+source .venv/bin/activate
+# Install Krummstab in this environment.
+pip install krummstab
+# Test the installation by printing a help text.
+krummstab -h
+```
+Whenever you want to run `krummstab`, you'll have to activate this environment,
+i.e. run `source .venv/bin/activate`, and then run `krummstab` directly without
+the `uv run` prefix present in examples in this document.
 
 # Development
 
 To set up for development, you have to
+- install [uv](https://docs.astral.sh/uv/getting-started/installation/)
 - clone this repository
-- create a virtual environment at its root directory (`python3 -m venv .venv`)
-- enter the virtual environment (`source .venv/bin/activate`)
-- install the local version of Krummstab using `pip` (`pip install -e .`)
-After this initial setup you simply have to make sure that you are in this same
-virtual environment when making changes to Krummstab. If that is the case, all
-changes to the source files will be directly reflected in any call to
-`krummstab`.
+- run `uv sync --all-groups` in the root of the repository
+You should be able to run this local copy of Krummstab by activating the virtual
+environment created by `uv` (`source .venv/bin/activate`) or alternatively by
+running `uv run krummstab ...` in the root of the repository.
 
-There are some tests written in the `pytest` framework. This requires `pytest`,
-which can be installed via `pip install pytest` for example, and
-[Xournal++](https://github.com/xournalpp/xournalpp), which can be installed via
-`sudo apt install xournalpp` on Ubuntu. Tests can then be executed by running
-`pytest` in the root directory of the project (while in the virtual
-environment). By default, `pytest` opens and closes Xournal++ instances during
-the test. You can skip this step by passing the `--skip-mark-test` option to
-`pytest`.
+There are some tests written in the `pytest` framework, which you can run from
+the repository root via `uv run pytest`. The tests depend on Xournal++, which
+you can install via `sudo apt install xournalpp`. By default, `pytest` opens and
+closes Xournal++ instances during the test. You can skip this step by passing
+the `--skip-mark-test` option to `pytest`.
 
-All code should be formatted according to [Black](https://github.com/psf/black).
-The only change from the default configuration is that we limit lines to 80
-instead of 88 characters.
+All code should be formatted according to [Ruff](https://docs.astral.sh/ruff/).
+Some minor settings are in `pyproject.toml`, but they will be applied
+automatically if you run `uv run ruff format` from the root of the repository.
