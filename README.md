@@ -33,7 +33,7 @@ line options may be mandatory. The `help` option provides information about the
 script, its subcommands (currently `init`, `collect`, `combine`, `mark`, `send`
 and `summarize`), and their parameters. Once you have completed the one-time
 setup below, you'll be able to access the help via:
-```shell
+```sh
 krummstab -h
 krummstab <subcommand> -h
 ```
@@ -69,7 +69,7 @@ to install through `virtualenv` and `pip` directly
 First, install uv using the instructions on their
 [website](https://docs.astral.sh/uv/getting-started/installation/). Then run the
 following commands:
-```shell
+```sh
 # Create an empty directory, e.g. called ki-fs23-marking, and navigate into it.
 mkdir ki-fs23-marking
 cd ki-fs23-marking
@@ -111,7 +111,7 @@ While the steps above are only necessary for the initial setup, the following
 workflow applies to every exercise sheet. The commands with the `uv run` prefix
 will only work if you installed Krummstab with `uv` (the recommended way). In
 case you installed with `pip` directly, you'll have to run
-```shell
+```sh
 cd ki-fs23-marking
 source .venv/bin/activate
 ```
@@ -123,7 +123,7 @@ and then run `krummstab` commands directly, without the `uv run` prefix.
 ### init
 Download the submissions from ADAM and save the ZIP file in the marking
 directory.
-> [!WARNIING]
+> [!CAUTION]
 > It's important that you only download the submissions after the ADAM deadline
 > has passed, so that all tutors have the same, complete pool of submissions.
 Our example directory `ki-fs23-marking`, with `Sheet 1.zip` being
@@ -149,7 +149,7 @@ providing the total number of exercises via `-n <num exercises>` (in case of
 
 Assuming our configuration sets `points_per: exercise` and `marking_mode:
 sheet`, we can now finally make the script do something useful by running:
-```shell
+```sh
 uv run krummstab init -n 5 -t sheet01 "Sheet 1.zip"
 ```
 This will unzip the submissions and prepare them for marking. The flag `-t` is
@@ -222,7 +222,7 @@ look as follows in the config:
 "marking_command": ["xournalpp", "{xopp_file}"],
 ```
 and is equivalent to running:
-```shell
+```sh
 xournalpp <path to a file to be marked>
 ```
 on the command line, one by one for each file to be marked. `mark` waits for the
@@ -234,7 +234,7 @@ process of the current marking command to finish before starting the next one.
 
 To run `mark` you need to provide the path to the directory created by the
 `init` command which is `sheet01` in our running example:
-```shell
+```sh
 uv run krummstab mark sheet01
 ```
 > [!NOTE]
@@ -248,7 +248,7 @@ uv run krummstab mark sheet01
 Once you have marked all the teams assigned to you and added their points to
 the `points_*.json` file, you can run the next command, where `sheet01` is the
 path to the directory created by the `init` command:
-```shell
+```sh
 uv run krummstab collect sheet01
 ```
 This will create a ZIP archive in every feedback directory containing the
@@ -274,7 +274,7 @@ numbers>.zip` in the root directory of the sheet, `sheet01` in our example.
 Tutors have to coordinate and appoint one of them, say Tamara, to send feedback.
 The other tutors then send their share archives to Tamara who stores them in
 `sheet01` next to her own archive. Tamara can then run:
-```shell
+```sh
 uv run krummstab combine sheet01
 ```
 This combines the feedback of all tutors such that each student gets feedback on
@@ -285,7 +285,7 @@ to the next `send` step.
 ### send
 This command sends feedback to students directly via e-mail and shares a summary
 of awarded points with the assistant:
-```shell
+```sh
 uv run krummstab send sheet01
 ```
 You have to connect to the university VPN for this to work.
@@ -302,7 +302,7 @@ You have to connect to the university VPN for this to work.
 > get an overview of how students are doing.
 This command generates an Excel file that summarizes the students' marks. It
 needs a path to a directory containing the individual marks JSON files:
-```shell
+```sh
 uv run krummstab summarize <path to a directory containing individual marks files>
 ```
 If you use LibreOffice, it is possible that the formulas are not calculated
@@ -324,7 +324,7 @@ To access this command
 By default, Krummstab looks for the files `config-shared.json` and
 `config-individual.json` in the directory from which `krummstab` is run. You can
 use different file names and locations by providing the paths explicitly:
-```shell
+```sh
 krummstab -s <path to shared> -i <path to individual> ...
 ```
 The sections below indicate which settings are meant to be part of the shared
@@ -494,7 +494,7 @@ the changes above and marking the teams you already sent feedback to earlier as
 "not relevant".
 
 ### How can I install and use Krummstab without uv?
-```shell
+```sh
 # Create an empty directory, e.g. called ki-fs23-marking, and navigate into it.
 mkdir ki-fs23-marking
 cd ki-fs23-marking
