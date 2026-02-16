@@ -47,8 +47,8 @@ as an example.
 - Python 3.10+: Our `pytest` setup tests Python versions 3.10, 3.11, and 3.12
   on an Ubuntu machine. Older Python versions will likely cause problems.
 - [Xournal++](https://github.com/xournalpp/xournalpp) (optional): The script
-  includes some convenient functionality when using Xournal++ to write feedback,
-  but you can also do so by any other means.
+  includes some convenient functionality when using Xournal++ to add feedback to
+  PDF submissions, but you can also do so by any other means.
 
 
 ## One-Time Setup
@@ -190,10 +190,17 @@ key. Marking with Xournal++ is supported by default: Simply set the value of the
 writing, which is explained next.
 
 While writing the feedback, you can keep track of the points the teams get in
-the file `points_*.json`. In the case of plagiarism, write `Plagiarism` in the
-place for the points.
+the file `points_*.json`. In the case of plagiarism, write `Plagiarism` in place
+of the number of points, i.e., in the field for the offending sheet in case of
+`"points_per": "sheet"` and in the field for the offending exercise in case of
+`points_per": "exercise"`.
 
 ### mark
+> [!NOTE]
+> `mark` is not a mandatory step in the workflow and exists only to avoid having
+> to manually open submitted PDFs. You can directly move on to `collect` if this
+> is not useful to you.
+
 This command allows you to mark all submissions at once with a specific
 program such as Xournal++. It opens all relevant PDF feedback files or `.xopp`
 files one after the other with the program that you can specify with the config
@@ -216,9 +223,10 @@ xournalpp <path to a file to be marked>
 ```
 on the command line, one by one for each file to be marked. `mark` waits for the
 process of the current marking command to finish before starting the next one.
-By default, `mark` only opens the files of those teams for which points are
-missing in the `points_*.json` file, use the `-f` flag to force `mark` to open
-all files.
+> [!TIP]
+> By default, `mark` only opens the submitted PDFs of those teams for which
+> points are missing in the `points_*.json` file, use the `-f` flag to force
+> `mark` to open the files of all teams.
 
 To run `mark` you need to provide the path to the directory created by the
 `init` command which is `sheet01` in our running example:
@@ -253,12 +261,15 @@ This command is only relevant for the `exercise` marking mode.
 `TODO: Document this.`
 
 ### send
-For the `static` marking mode, it is possible to directly send the feedback to
-the students via e-mail. For this to work you have to be in the university
-network, which likely means you'll have to connect to the university VPN. You
-may find the `--dry-run` option useful, instead of sending the e-mails directly,
-it only prints them so that you can double-check that everything looks as
-expected.
+This command sends feedback to students directly via e-mail and shares a summary
+of awarded points with the assistant. You have to connect to the university VPN
+for this to work.
+
+> [!TIP]
+> You can use the `--dry-run` flag to see what e-mails the command would send
+> out so you can double-check that everything looks as expected before actually
+> sending them. But even without `--dry-run`, `send` will ask for confirmation
+> before sending anything.
 
 ### summarize
 This command generates an Excel file that summarizes the students' marks. It
@@ -272,10 +283,12 @@ To access this command
 - From the menu bar: Data > Calculate > Recalculate Hard
 - From the keyboard: Ctrl + Shift + F9
 
-To avoid having to do so manually, you can configure LibreOffice to always
-recalculate upon opening a file. You can do so by setting the field "Excel 2007
-and newer" under Tools > Options > LibreOffice Calc > Formula > Recalculation on
-File Load to "Always recalculate" (or "Prompt user").
+> [!TIP]
+> To avoid having to recalculate manually, you can configure LibreOffice to
+> always recalculate upon opening a file. You can do so by setting the field
+> "Excel 2007 and newer" under
+> `Tools > Options > LibreOffice Calc > Formula > Recalculation on File Load`
+> to "Always recalculate" (or "Prompt user").
 
 
 ## Config File Details
@@ -451,6 +464,7 @@ corresponding entry in `points_*.json` or give 0 marks
 explicitly. You can still later send the feedback through Krummstab by reverting
 the changes above and marking the teams you already sent feedback to earlier as
 "not relevant".
+
 
 # Development
 
