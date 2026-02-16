@@ -12,8 +12,8 @@ from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.worksheet.formula import ArrayFormula
 
 
-from .. import config, sheets, strings, utils
-from ..teams import *
+from .. import config, strings, utils
+from ..teams import create_email_to_name_dict
 
 
 def convert_to_float_if_possible(value):
@@ -611,7 +611,7 @@ class PointsSummarySheetBuilder:
         )
 
     def add_conditional_formatting_for_zebra_stripes(self, range):
-        self.add_conditional_format(range, f"=ISEVEN(ROW())", GRAY)
+        self.add_conditional_format(range, "=ISEVEN(ROW())", GRAY)
 
     def write_summary_sheet(self):
         self.write_sheet_name_row(1, 8)
@@ -806,7 +806,7 @@ def load_marks_files(marks_dir: Path, _the_config: config.Config):
                     )
                 students_marks[email][sheet_name] = mark
     for sheet_name, tutor_list in tutors.items():
-        if not sheet_name in _the_config.max_points_per_sheet.keys():
+        if sheet_name not in _the_config.max_points_per_sheet.keys():
             logging.warning(
                 f"There are marks for '{sheet_name}' but there is no matching "
                 "entry in the shared config. Add it in under the "

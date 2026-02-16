@@ -1,8 +1,11 @@
+import logging
+
 from importlib import resources
 from pathlib import Path
 
 from . import schemas, utils
-from .teams import *
+from .teams import Team
+from .students import Student
 
 
 # Within this class, Team objects are created with their adam_id set to None

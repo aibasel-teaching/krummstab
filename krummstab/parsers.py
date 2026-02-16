@@ -2,7 +2,7 @@ import argparse
 import pathlib
 
 from . import strings
-from .commands import *
+from .commands import init, mark, collect, combine, send, summarize
 
 
 def add_parsers():
@@ -52,7 +52,7 @@ def add_subcommand_parser(parser):
 
 
 def add_help_command_parser(subparsers):
-    parser_init = subparsers.add_parser(
+    subparsers.add_parser(
         "help",
         help=(
             "print this help message; "

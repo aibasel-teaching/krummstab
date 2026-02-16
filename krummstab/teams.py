@@ -1,7 +1,7 @@
 import logging
 from typing import Optional
 
-from .students import *
+from .students import Student
 
 
 class Team:

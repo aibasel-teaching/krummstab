@@ -7,7 +7,6 @@ import tempfile
 from zipfile import ZipFile
 import jsonschema
 
-from . import strings
 
 # Logging ----------------------------------------------------------------------
 

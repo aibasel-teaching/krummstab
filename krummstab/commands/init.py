@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import pathlib
 import shutil
@@ -11,7 +12,8 @@ from zipfile import ZipFile
 import openpyxl
 
 from .. import config, errors, sheets, strings, submissions, utils
-from ..teams import *
+from ..students import Student
+from ..teams import Team, create_email_to_name_dict
 
 
 def extract_adam_zip(args) -> tuple[pathlib.Path, str]:
@@ -103,10 +105,8 @@ def rename_team_dirs(sheet: sheets.Sheet) -> None:
     """
     for submission in sheet.get_all_team_submission_info():
         team_key = submission.team.get_team_key()
-        team_dir = pathlib.Path(
-            shutil.move(
-                submission.root_dir, submission.root_dir.with_name(team_key)
-            )
+        shutil.move(
+            submission.root_dir, submission.root_dir.with_name(team_key)
         )
 
 

@@ -1,5 +1,4 @@
 import logging
-import pathlib
 import subprocess
 import sys
 from collections.abc import Iterator
@@ -31,23 +30,23 @@ def run_command_and_wait(command: list[str], dry_run: bool) -> None:
             "submission as expected anyway, you can safely ignore this."
         )
         if error.stderr:
-            logging.warning(f"Output to stderr:")
+            logging.warning("Output to stderr:")
             print(
                 f"{strings.SEPARATOR_LINE}\n"
                 f"{error.stderr.decode()}"
                 f"{strings.SEPARATOR_LINE}"
             )
         else:
-            logging.info(f"No output to stderr.")
+            logging.info("No output to stderr.")
         if error.stdout:
-            logging.warning(f"Output to stdout:")
+            logging.warning("Output to stdout:")
             print(
                 f"{strings.SEPARATOR_LINE}\n"
                 f"{error.stdout.decode()}"
                 f"{strings.SEPARATOR_LINE}"
             )
         else:
-            logging.info(f"No output to stdout.")
+            logging.info("No output to stdout.")
 
 
 def get_unmarked_submissions(
@@ -149,7 +148,7 @@ def mark(_the_config: config.Config, args) -> None:
         command_template[i:i] = all_files_to_mark
         if not all_files_to_mark:
             logging.critical(
-                f"None of the submissions to be marked contain any PDF files."
+                "None of the submissions to be marked contain any PDF files."
             )
             return
         logging.info(f"Running {command_template}")
