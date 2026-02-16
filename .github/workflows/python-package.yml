@@ -29,11 +29,12 @@ jobs:
         sudo apt update
         sudo apt install xournalpp
         python -m pip install --upgrade pip
-        python -m pip install black pytest pypdf
+        python -m pip install ruff pytest pypdf
         pip install -e .
-    - name: Check code style with Black
+    - name: Check code style with Ruff
       run: |
-        python -m black --line-length 80 --check .
+        python -m ruff format --line-length 80 --check .
+        python -m ruff check .
     - name: Test with pytest
       run: |
         pytest --skip-mark-test
