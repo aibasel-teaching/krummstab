@@ -196,9 +196,7 @@ def get_team_email_content(
 
     Best,
     {_the_config.email_signature}"""  # noqa
-    )[
-        1:
-    ]  # Removes the leading newline.
+    )[1:]  # Removes the leading newline.
 
 
 def get_assistant_email_content(
@@ -215,9 +213,7 @@ def get_assistant_email_content(
 
     Best,
     {_the_config.email_signature}"""
-    )[
-        1:
-    ]  # Removes the leading newline.
+    )[1:]  # Removes the leading newline.
 
 
 def get_assistant_email_attachment_path(

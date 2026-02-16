@@ -134,7 +134,7 @@ def mark(_the_config: config.Config, args) -> None:
     logging.info(
         f"{submissions_total} out of "
         f"{len(list(sheet.get_relevant_submissions()))} "
-        f"submission{'s'[:submissions_total ^ 1]} to mark."
+        f"submission{'s'[: submissions_total ^ 1]} to mark."
     )
 
     if has_all_pdfs:
@@ -169,7 +169,7 @@ def mark(_the_config: config.Config, args) -> None:
         for i, command in enumerate(commands, start=1):
             logging.info(
                 f"({i:{len(str(num_commands))}d}"
-                f"/{num_commands} file{'s'[:num_commands ^ 1]}) "
+                f"/{num_commands} file{'s'[: num_commands ^ 1]}) "
                 f"Running {command}"
             )
             run_command_and_wait(command, args.dry_run)

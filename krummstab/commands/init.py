@@ -497,7 +497,7 @@ def validate_team_size(
     ]
     if teams:
         logging.warning(
-            "There are submission teams that have " "more members than allowed:"
+            "There are submission teams that have more members than allowed:"
         )
     for team in teams:
         print(f"* {team}")

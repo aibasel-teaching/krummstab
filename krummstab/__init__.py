@@ -9,6 +9,7 @@ relevant - a team whose submission has to be marked by the tutor running the
 to mark  - grading/correcting a sheet; giving feedback
 marks    - points awarded for a sheet or exercise
 """
+
 import logging
 import os
 import sys

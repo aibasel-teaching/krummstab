@@ -749,9 +749,9 @@ class PointsSummarySheetBuilder:
             max_length = max(len(cell_as_str(cell)) for cell in col)
             adjusted_width = max(min_width, min(max_width, max_length + 2))
             column_letter = get_column_letter(col[0].column)
-            self.worksheet.column_dimensions[column_letter].width = (
-                adjusted_width
-            )
+            self.worksheet.column_dimensions[
+                column_letter
+            ].width = adjusted_width
 
     def add_summary_sheet(self):
         self.worksheet = self.workbook.create_sheet(self.SHEET_NAME_SUMMARY, 0)
