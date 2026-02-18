@@ -18,14 +18,12 @@ from .teams import Team
 # ADAM Input -------------------------------------------------------------------
 
 
-def read_teams_from_adam_spreadsheet(
-    file: pathlib.Path
-) -> dict[str, Team]:
+def read_teams_from_adam_spreadsheet(file: pathlib.Path) -> dict[str, Team]:
     """
     Reads the teams from the ADAM Excel spreadsheet and returns a dictionary
     with the team IDs as keys and the teams as values.
     """
-    assert(file.is_file())
+    assert file.is_file()
     wb = openpyxl.load_workbook(file)
     sheet = wb.active
     col_last_name = 0
@@ -52,10 +50,10 @@ def read_teams_from_adam_spreadsheet(
 
 def warn_about_restructured_teams(
     config_teams: list[Team], restructured_teams: list[Team]
-):
+) -> None:
     logging.warning(
-        "The following team(s) have submitted but are structured differently in "
-        "the config."
+        "The following team(s) have submitted but are structured differently "
+        "in the config."
     )
     print(strings.SEPARATOR_LINE)
     for restructured_team in restructured_teams:
@@ -280,7 +278,9 @@ def move_content_and_delete(src: pathlib.Path, dst: pathlib.Path) -> None:
         shutil.copytree(temp_dir, dst, dirs_exist_ok=True)
 
 
-def unzip_or_move_adam_zip(adam_zip_path: pathlib.Path, destination: pathlib.Path) -> None:
+def unzip_or_move_adam_zip(
+    adam_zip_path: pathlib.Path, destination: pathlib.Path
+) -> None:
     """
     Unzip ADAM zip contents to the destination. On Apple systems the zip is
     extracted automatically, so we instead just move the content.

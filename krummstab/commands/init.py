@@ -528,7 +528,7 @@ def init(_the_config: config.Config, args) -> None:
     # .   └── Muster_Hans_hans.muster@unibas.ch_000000
     # .       └── submission.pdf or submission.zip
     excel_files = list(sheet_root_dir.glob("*.xlsx"))
-    if (len(excel_files) != 1):
+    if len(excel_files) != 1:
         errors.unexpected_zip_structure(args.adam_zip_path)
     submission_teams = utils.read_teams_from_adam_spreadsheet(excel_files[0])
     use_names_from_config(_the_config.teams, submission_teams)
@@ -536,8 +536,7 @@ def init(_the_config: config.Config, args) -> None:
         _the_config.max_team_size, list(submission_teams.values())
     )
     utils.check_team_consistency(
-        _the_config.teams,
-        list(submission_teams.values())
+        _the_config.teams, list(submission_teams.values())
     )
     team_relevance_dict = set_relevance_for_submission_teams(
         _the_config, submission_teams
