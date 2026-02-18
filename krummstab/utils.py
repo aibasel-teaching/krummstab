@@ -1,11 +1,133 @@
 import json
 import logging
+import openpyxl
 import pathlib
 import shutil
 import sys
 import tempfile
-from zipfile import ZipFile
 import jsonschema
+
+from collections import defaultdict
+from zipfile import ZipFile
+
+from . import strings
+from .students import Student
+from .teams import Team
+
+
+# ADAM Input -------------------------------------------------------------------
+
+
+def read_teams_from_adam_spreadsheet(
+    file: pathlib.Path
+) -> dict[str, Team]:
+    """
+    Reads the teams from the ADAM Excel spreadsheet and returns a dictionary
+    with the team IDs as keys and the teams as values.
+    """
+    assert(file.is_file())
+    wb = openpyxl.load_workbook(file)
+    sheet = wb.active
+    col_last_name = 0
+    col_first_name = 1
+    col_email = 2
+    col_team_id = 4
+    teams_data = defaultdict(list)
+    for row in sheet.iter_rows(min_row=2, values_only=True):
+        team_id = str(row[col_team_id])
+        first_name = row[col_first_name]
+        last_name = row[col_last_name]
+        email = row[col_email]
+        teams_data[team_id].append((first_name, last_name, email))
+    for team in teams_data.values():
+        team.sort()
+    teams = {}
+    for team_id, team in teams_data.items():
+        teams[team_id] = Team([Student(*student) for student in team], team_id)
+    return teams
+
+
+# Validation -------------------------------------------------------------------
+
+
+def warn_about_restructured_teams(
+    config_teams: list[Team], restructured_teams: list[Team]
+):
+    logging.warning(
+        "The following team(s) have submitted but are structured differently in "
+        "the config."
+    )
+    print(strings.SEPARATOR_LINE)
+    for restructured_team in restructured_teams:
+        print(f"{restructured_team}\n")
+        # Get config teams that share a member with the submission team.
+        matching_config_teams = [
+            config_team
+            for config_team in config_teams
+            if any(member in config_team for member in restructured_team)
+        ]
+        if matching_config_teams:
+            print("Matching config team(s):")
+            for matching_team in matching_config_teams:
+                print(f"* {matching_team}")
+        new_students = [
+            member
+            for member in restructured_team
+            if not any(member in config_team for config_team in config_teams)
+        ]
+        if new_students:
+            print(
+                "Member(s) of the restructured team that do not appear in the "
+                "config:"
+            )
+            for student in new_students:
+                print(f"* {student}")
+        print(strings.SEPARATOR_LINE)
+
+
+def check_team_consistency(
+    config_teams: list[Team],
+    submission_teams: list[Team],
+) -> None:
+    """
+    Checks if the teams defined in the config `config_teams` are consistent with
+    the teams that submitted `submission_teams` and prints warnings in case of
+    inconsistencies.
+    """
+    # Get teams that submitted but are not in the config and contain at least
+    # one member that is mentioned in the config.
+    restructured_teams = [
+        submission_team
+        for submission_team in submission_teams
+        if submission_team not in config_teams
+        and any(
+            member in config_team
+            for member in submission_team
+            for config_team in config_teams
+        )
+    ]
+    if restructured_teams:
+        warn_about_restructured_teams(config_teams, restructured_teams)
+    # Get teams that submitted but none of its members are mentioned in the
+    # config.
+    new_teams = [
+        submission_team
+        for submission_team in submission_teams
+        if all(
+            member not in config_team
+            for member in submission_team
+            for config_team in config_teams
+        )
+    ]
+    if new_teams:
+        logging.warning(
+            "The following team(s) have submitted and their members do not "
+            "appear in the config."
+        )
+        print(strings.SEPARATOR_LINE)
+        for new_team in new_teams:
+            print(f"{new_team}")
+            print(strings.SEPARATOR_LINE)
 
 
 # Logging ----------------------------------------------------------------------
@@ -117,7 +239,7 @@ def read_json(source: str | pathlib.Path, source_name: str = "file") -> dict:
     return data
 
 
-# Miscellaneous ----------------------------------------------------------------
+# File Handling ----------------------------------------------------------------
 
 
 def is_hidden_file(name: str) -> bool:
@@ -156,3 +278,23 @@ def move_content_and_delete(src: pathlib.Path, dst: pathlib.Path) -> None:
         shutil.copytree(src, temp_dir, dirs_exist_ok=True)
         shutil.rmtree(src)
         shutil.copytree(temp_dir, dst, dirs_exist_ok=True)
+
+
+def unzip_or_move_adam_zip(adam_zip_path: pathlib.Path, destination: pathlib.Path) -> None:
+    """
+    Unzip ADAM zip contents to the destination. On Apple systems the zip is
+    extracted automatically, so we instead just move the content.
+    """
+    if adam_zip_path.is_file():
+        # Unzip to the directory within the zip file.
+        # Should be the name of the exercise sheet,
+        # for example "Exercise Sheet 2".
+        with ZipFile(adam_zip_path, mode="r") as zip_file:
+            filtered_extract(zip_file, destination)
+    else:
+        # Assume the directory is an extracted ADAM zip.
+        unzipped_path = pathlib.Path(adam_zip_path)
+        unzipped_destination_path = (
+            pathlib.Path(destination) / unzipped_path.name
+        )
+        shutil.copytree(unzipped_path, unzipped_destination_path)

@@ -12,6 +12,10 @@ class Team:
     def __eq__(self, other) -> bool:
         return sorted(self.members) == sorted(other.members)
 
+    def __iter__(self):
+        for member in self.members:
+            yield member
+
     def __format__(self, spec) -> str:
         """
         Get a pretty printed string representation of a team.
@@ -66,6 +70,6 @@ def create_email_to_name_dict(teams: list[Team]) -> dict[str, tuple[str, str]]:
     """
     email_to_name = {}
     for team in teams:
-        for member in team.members:
+        for member in team:
             email_to_name[member.email] = (member.first_name, member.last_name)
     return email_to_name
