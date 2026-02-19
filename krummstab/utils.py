@@ -10,9 +10,36 @@ import jsonschema
 from collections import defaultdict
 from zipfile import ZipFile
 
-from . import strings
+from . import config, errors
 from .students import Student
 from .teams import Team
+
+
+# Assignment -------------------------------------------------------------------
+
+
+def create_submission_team_to_tutors_dict(
+    submission_teams: list[Team],
+    student_email_to_tutor_dict: dict[str, set[str]],
+    tutor_list: list[str],
+) -> dict[str, set[str]]:
+    """
+    Create a dictionary that maps submission team IDs to a set of tutors, used
+    to determine which tutor has to mark which submissions.
+    """
+    team_to_tutors = defaultdict(set)
+    for team in submission_teams:
+        candidate_tutors = {
+            tutor
+            for member in team
+            for tutor in student_email_to_tutor_dict[member.email]
+        }
+        # In case of a team where none of its member appear in the config,
+        # candidate_tutors will be empty here. We add all tutors as candidates.
+        if not candidate_tutors:
+            candidate_tutors = set(tutor_list)
+        team_to_tutors[team.adam_id] = candidate_tutors
+    return team_to_tutors
 
 
 # ADAM Input -------------------------------------------------------------------
@@ -43,89 +70,6 @@ def read_teams_from_adam_spreadsheet(file: pathlib.Path) -> dict[str, Team]:
     for team_id, team in teams_data.items():
         teams[team_id] = Team([Student(*student) for student in team], team_id)
     return teams
-
-
-# Validation -------------------------------------------------------------------
-
-
-def warn_about_restructured_teams(
-    config_teams: list[Team], restructured_teams: list[Team]
-) -> None:
-    logging.warning(
-        "The following team(s) have submitted but are structured differently "
-        "in the config."
-    )
-    print(strings.SEPARATOR_LINE)
-    for restructured_team in restructured_teams:
-        print(f"{restructured_team}\n")
-        # Get config teams that share a member with the submission team.
-        matching_config_teams = [
-            config_team
-            for config_team in config_teams
-            if any(member in config_team for member in restructured_team)
-        ]
-        if matching_config_teams:
-            print("Matching config team(s):")
-            for matching_team in matching_config_teams:
-                print(f"* {matching_team}")
-        new_students = [
-            member
-            for member in restructured_team
-            if not any(member in config_team for config_team in config_teams)
-        ]
-        if new_students:
-            print(
-                "Member(s) of the restructured team that do not appear in the "
-                "config:"
-            )
-            for student in new_students:
-                print(f"* {student}")
-        print(strings.SEPARATOR_LINE)
-
-
-def check_team_consistency(
-    config_teams: list[Team],
-    submission_teams: list[Team],
-) -> None:
-    """
-    Checks if the teams defined in the config `config_teams` are consistent with
-    the teams that submitted `submission_teams` and prints warnings in case of
-    inconsistencies.
-    """
-    # Get teams that submitted but are not in the config and contain at least
-    # one member that is mentioned in the config.
-    restructured_teams = [
-        submission_team
-        for submission_team in submission_teams
-        if submission_team not in config_teams
-        and any(
-            member in config_team
-            for member in submission_team
-            for config_team in config_teams
-        )
-    ]
-    if restructured_teams:
-        warn_about_restructured_teams(config_teams, restructured_teams)
-    # Get teams that submitted but none of its members are mentioned in the
-    # config.
-    new_teams = [
-        submission_team
-        for submission_team in submission_teams
-        if all(
-            member not in config_team
-            for member in submission_team
-            for config_team in config_teams
-        )
-    ]
-    if new_teams:
-        logging.warning(
-            "The following team(s) have submitted and their members do not "
-            "appear in the config."
-        )
-        print(strings.SEPARATOR_LINE)
-        for new_team in new_teams:
-            print(f"{new_team}")
-            print(strings.SEPARATOR_LINE)
 
 
 # Logging ----------------------------------------------------------------------

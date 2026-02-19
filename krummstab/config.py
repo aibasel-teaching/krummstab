@@ -2,8 +2,9 @@ import logging
 
 from importlib import resources
 from pathlib import Path
+from collections import defaultdict
 
-from . import schemas, utils
+from . import errors, schemas, utils
 from .teams import Team
 from .students import Student
 
@@ -72,6 +73,26 @@ class Config:
         ]
         _validate_teams(self.teams, self.max_team_size)
         logging.info("Processed config successfully.")
+
+    def create_student_email_to_tutor_dict(self) -> dict[str, set[str]]:
+        """
+        Creates a dictionary that maps email addresses of students in the config
+        to a set of assigned tutors.
+        """
+        student_email_to_tutor_dict = defaultdict(set)
+        if self.marking_mode == "static":
+            for tutor, teams in self.classes.items():
+                for team in teams:
+                    for member in team.members:
+                        student_email_to_tutor_dict[member.email].add(tutor)
+        elif self.marking_mode == "exercise":
+            for team in self.teams:
+                for member in team.members:
+                    for tutor in self.tutor_list:
+                        student_email_to_tutor_dict[member.email].add(tutor)
+        else:
+            errors.unsupported_marking_mode_error(self.marking_mode)
+        return student_email_to_tutor_dict
 
 
 def _validate_teams(teams: list[Team], max_team_size) -> None:

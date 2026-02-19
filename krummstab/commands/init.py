@@ -6,9 +6,10 @@ import shutil
 import tempfile
 import textwrap
 
-from collections import defaultdict
 from typing import Union
 from zipfile import ZipFile
+
+from .check import check
 
 from .. import config, errors, sheets, strings, submissions, utils
 from ..teams import Team, create_email_to_name_dict
@@ -17,31 +18,14 @@ from ..teams import Team, create_email_to_name_dict
 def extract_adam_zip(args) -> tuple[pathlib.Path, str]:
     """
     Unzips the given ADAM zip file to a directory named after the exercise sheet
-    name provided by ADAM, or has the name given in the `target` argument.
+    name provided by ADAM, or has the name given in the `target` argument. We
+    assume that the structure of the zip file is as expected because `check`
+    should have verified that already at this point.
     """
     with tempfile.TemporaryDirectory() as temp_dir:
         utils.unzip_or_move_adam_zip(args.adam_zip_path, temp_dir)
-        # Check if the zip has the expected structure.
-        children = list(pathlib.Path(temp_dir).iterdir())
-        if len(children) != 1 or not children[0].is_dir():
-            # We expect the zip to contain a single subdirectory with the
-            # exercise sheet name given on ADAM.
-            errors.unexpected_zip_structure(args.adam_zip_path)
-        temp_sheet_root_dir = children[0]
+        temp_sheet_root_dir = list(pathlib.Path(temp_dir).iterdir())[0]
         adam_sheet_name = temp_sheet_root_dir.name
-        grand_children = list(pathlib.Path(temp_sheet_root_dir).iterdir())
-        if (
-            len(grand_children) != 2
-            or not any(
-                grand_child.is_file() and grand_child.suffix == ".xlsx"
-                for grand_child in grand_children
-            )
-            or not any(grand_child.is_dir() for grand_child in grand_children)
-        ):
-            # Within its single subdirectory, we expect the zip to contain a
-            # single subsubdirectory named either "Abgaben" or "Submissions" and
-            # a single spreadsheet with information about the submissions.
-            errors.unexpected_zip_structure(args.adam_zip_path)
         # Move extracted directory from the temporary directory to its final
         # location.
         destination = pathlib.Path(
@@ -332,10 +316,20 @@ def set_relevance_for_submission_teams(
     boolean as value indicating if the team is relevant or not.
     """
     team_relevance_dict = {}
-    student_email_to_tutor = create_student_email_to_tutor_dict(_the_config)
-    team_to_tutors = create_submission_team_to_tutors_dict(
-        list(submission_teams.values()), student_email_to_tutor, _the_config
+    student_email_to_tutor_dict = (
+        _the_config.create_student_email_to_tutor_dict()
     )
+    if _the_config.marking_mode == "static":
+        tutor_list = _the_config.classes.keys()
+    elif _the_config.marking_mode == "exercise":
+        tutor_list = _the_config.tutor_list
+    else:
+        errors.unsupported_marking_mode_error(_the_config.marking_mode)
+    team_to_tutors = utils.create_submission_team_to_tutors_dict(
+        list(submission_teams.values()), student_email_to_tutor_dict, tutor_list
+    )
+    unassigned_team_ids = []
+    unclear_team_ids = []
     for team_id, tutors in team_to_tutors.items():
         if len(tutors) == 1:
             # Assignment is clear.
@@ -350,95 +344,42 @@ def set_relevance_for_submission_teams(
             # Assignment unclear and we are maybe responsible.
             team_relevance_dict[team_id] = True
             if (
-                _the_config.marking_mode == "static"
-                and len(_the_config.classes.keys()) > 1
+                _the_config.marking_mode != "static"
+                or len(_the_config.classes.keys()) == 1
             ):
-                logging.warning(
-                    f"Team {submission_teams[team_id]} is now assigned to "
-                    f"tutors {tutors}.\n"
-                    "Please contact the other tutors to decide who will "
-                    "mark this team. Update the shared config file and "
-                    "share it with your fellow tutors as well as with the "
-                    "teaching assistant.\n"
-                    "If you will not mark this team, then:\n"
-                    "* Set the value of relevant to false in the "
-                    "submission.json file of the team directory.\n"
-                    "* Remove the team from the points_*.json file."
-                )
+                # We are responsible because the marking mode is exercise or
+                # because we are the only tutor.
+                continue
+            if len(tutors) == len(_the_config.classes.keys()):
+                unassigned_team_ids.append(team_id)
             else:
-                # We are definitely responsible because either the marking mode
-                # is "exercise", or we are the only tutor.
-                pass
-    return team_relevance_dict
+                unclear_team_ids.append(team_id)
 
-
-def create_submission_team_to_tutors_dict(
-    submission_teams: list[Team],
-    student_email_to_tutor: dict[str, set[str]],
-    _the_config: config.Config,
-) -> dict[str, set[str]]:
-    """
-    Create a dictionary that maps submission team IDs to a set of assigned
-    tutors.
-    """
-    team_to_tutors = defaultdict(set)
-    for team in submission_teams:
-        candidate_tutors = {
-            tutor
-            for member in team
-            for tutor in student_email_to_tutor[member.email]
-        }
-        # In case of a team where none of its member appear in the config,
-        # candidate_tutors will be empty here. We add all tutors as candidates.
-        if not candidate_tutors:
-            candidate_tutors = (
-                set(_the_config.classes.keys())
-                if (_the_config.marking_mode == "static")
-                else (set(_the_config.tutor_list))
-            )
-        team_to_tutors[team.adam_id] = candidate_tutors
-    return team_to_tutors
-
-
-def create_student_email_to_tutor_dict(
-    _the_config: config.Config,
-) -> dict[str, set[str]]:
-    """
-    Creates a dictionary that maps email addresses of students in the config
-    to a set of assigned tutors.
-    """
-    email_to_tutor_dict = defaultdict(set)
-    if _the_config.marking_mode == "static":
-        for tutor, teams in _the_config.classes.items():
-            for team in teams:
-                for member in team.members:
-                    email_to_tutor_dict[member.email].add(tutor)
-    elif _the_config.marking_mode == "exercise":
-        for team in _the_config.teams:
-            for member in team.members:
-                for tutor in _the_config.tutor_list:
-                    email_to_tutor_dict[member.email].add(tutor)
-    else:
-        errors.unsupported_marking_mode_error(_the_config.marking_mode)
-    return email_to_tutor_dict
-
-
-def validate_team_size(
-    max_team_size: int, submission_teams: list[Team]
-) -> None:
-    """
-    Checks if the team size of the submission teams does not exceed the
-    maximum allowed team size.
-    """
-    teams = [
-        team for team in submission_teams if len(team.members) > max_team_size
-    ]
-    if teams:
+    if unassigned_team_ids:
+        logging.warning("The following team(s) are not assigned to any tutor.")
+        for unassigned_team_id in unassigned_team_ids:
+            print(f"* {submission_teams[unassigned_team_id]}")
+    if unclear_team_ids:
         logging.warning(
-            "There are submission teams that have more members than allowed:"
+            "The following team(s) are potentially assigned to you."
         )
-    for team in teams:
-        print(f"* {team}")
+        for unclear_team_id in unclear_team_ids:
+            print(f"* {submission_teams[unclear_team_id]}")
+            print(
+                "  Candidate tutors: "
+                "{', '.join(team_to_tutors[unclear_team_id])}"
+            )
+    if unassigned_team_ids or unclear_team_ids:
+        logging.warning(
+            "Coordinate with the other tutors and distribute the submission(s) "
+            "above such that each submission is marked by exactly one tutor. "
+            "Update the shared config accordingly, share it with all tutors "
+            "and the assistant, and re-run `init` with the updated config.\n"
+            "(If you know what you're doing you can also directly edit the "
+            "points_*.json and the respective submission.json files instead of "
+            "re-running `init`.)"
+        )
+    return team_relevance_dict
 
 
 def create_all_submission_info_files(
@@ -532,12 +473,6 @@ def init(_the_config: config.Config, args) -> None:
         errors.unexpected_zip_structure(args.adam_zip_path)
     submission_teams = utils.read_teams_from_adam_spreadsheet(excel_files[0])
     use_names_from_config(_the_config.teams, submission_teams)
-    validate_team_size(
-        _the_config.max_team_size, list(submission_teams.values())
-    )
-    utils.check_team_consistency(
-        _the_config.teams, list(submission_teams.values())
-    )
     team_relevance_dict = set_relevance_for_submission_teams(
         _the_config, submission_teams
     )
