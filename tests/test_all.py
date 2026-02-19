@@ -135,6 +135,23 @@ def test(
     skip_mark_test,
     args: list[str],
 ):
+    # Call 'check'.
+    subprocess.check_call(
+        [
+            "krummstab",
+            "-i",
+            str(CONFIG_INDIVIDUAL),
+            "-s",
+            str(mode_dict["config_shared"]),
+            "check",
+            str(SAMPLE_SHEET),
+        ]
+    )
+
+    # Verify 'check' ran successfully.
+    out, err = capfd.readouterr()
+    assert "Command 'check' terminated successfully." in out
+
     # Call 'init'.
     subprocess.check_call(
         [
