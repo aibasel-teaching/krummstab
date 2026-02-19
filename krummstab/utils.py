@@ -10,7 +10,6 @@ import jsonschema
 from collections import defaultdict
 from zipfile import ZipFile
 
-from . import config, errors
 from .students import Student
 from .teams import Team
 

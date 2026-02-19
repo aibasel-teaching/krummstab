@@ -9,8 +9,6 @@ import textwrap
 from typing import Union
 from zipfile import ZipFile
 
-from .check import check
-
 from .. import config, errors, sheets, strings, submissions, utils
 from ..teams import Team, create_email_to_name_dict
 
