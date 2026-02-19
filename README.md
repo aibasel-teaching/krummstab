@@ -1,10 +1,10 @@
 <img src="./logo/banner.svg" alt="krummstab-logo">
 
-[One-Time Setup](#one-time-setup)
-[Marking a Sheet](#marking-a-sheet)
-[Config File Details](#config-file-details)
-[Frequently Asked Questions](#frequently-asked-questions)
-[Development](#development)
+[One-Time Setup](#one-time-setup)  
+[Marking a Sheet](#marking-a-sheet)  
+[Config File Details](#config-file-details)  
+[Frequently Asked Questions](#frequently-asked-questions)  
+[Development](#development)  
 
 # Krummstab Feedback Script
 
