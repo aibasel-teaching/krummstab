@@ -358,6 +358,9 @@ difference is that settings in `config-individual.json` take precedence over
 - `tutor_email`: tutor's email address, feedback will be sent via this address
 - `feedback_email_cc`: list of email addresses that will be CC'd with every
   feedback email, for example the addresses of all tutors
+> [!TIP]
+> You probably want to send a copy at least to your own email address, because
+> emails sent by Krummstab will not show up in your "Sent" folder.
 - `smtp_url`: the URL of the SMTP server, `smtp.unibas.ch` by default (you may
   use `smtp-ext.unibas.ch` if your email address is white-listed; this is
   usually not the case and you would likely know if it is)
@@ -380,6 +383,8 @@ difference is that settings in `config-individual.json` take precedence over
 
 ### Shared Settings
 - `lecture_title`: lecture name to be printed in feedback emails
+- `assistant_email`: in the static marking mode, an email containing all the
+  awarded points for the sheet is sent to this address during `send`
 - `marking_mode`
     - `static`: student teams are assigned to a tutor who will mark all their
       submissions
