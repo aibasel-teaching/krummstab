@@ -356,6 +356,8 @@ difference is that settings in `config-individual.json` take precedence over
 - `tutor_name`: ID of the tutor, this must match with either an element of
   `tutor_list` (for `exercise`) or a key in `teams` (for `static`)
 - `tutor_email`: tutor's email address, feedback will be sent via this address
+- `email_signature`: string to end emails on after "Best,"; usually your first
+  name with proper capitalization
 - `feedback_email_cc`: list of email addresses that will be CC'd with every
   feedback email, for example the addresses of all tutors
 > [!TIP]
