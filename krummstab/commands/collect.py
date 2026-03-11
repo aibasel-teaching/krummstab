@@ -54,7 +54,7 @@ def validate_marks_json(
     if not all(
         (float(mark) / _the_config.min_point_unit).is_integer()
         for mark in marks_list
-        if mark != strings.PLAGIARISM
+        if mark.capitalize() != strings.PLAGIARISM
     ):
         logging.critical(
             f"'{marks_json_file.name}' contains marks that are more"
