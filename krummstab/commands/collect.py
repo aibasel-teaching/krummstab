@@ -92,30 +92,14 @@ def collect_feedback_files(
         collected_feedback_dir.iterdir()
     )
     # Create list of feedback files. Those are all files in the feedback
-    # directory which do not have an ignored suffix.
+    # directory which are not hidden and do not have an ignored suffix.
     feedback_files = [
         file
         for file in feedback_dir.rglob("*")
         if file.is_file()
+        and not utils.is_hidden_path(file)
         and file.suffix not in _the_config.ignore_feedback_suffix
     ]
-    # Ask for confirmation if the feedback directory contains hidden files that
-    # are maybe not supposed to be part of the collected feedback.
-    hidden_files = [f for f in feedback_files if utils.is_hidden_file(f.name)]
-    for hidden_file in hidden_files:
-        include_anyway = utils.query_yes_no(
-            (
-                "There seem to be hidden files in your feedback directory, "
-                f"e.g. '{str(hidden_file)}'. Do you want to include them in "
-                "your feedback anyway? (Consider adding ignored suffixes in "
-                "your individual configuration file to avoid this prompt in "
-                "the future.)"
-            ),
-            default=False,
-        )
-        if not include_anyway:
-            feedback_files.remove(hidden_file)
-
     if not feedback_files:
         logging.critical(
             f"Feedback archive for team {submission.root_dir.name} is empty!"

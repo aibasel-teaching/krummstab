@@ -105,6 +105,14 @@ def give_feedback():
             content = file_in.read()
         with gzip.open(xopp_file, "wb") as file_out:
             file_out.write(content)
+    # Create files that should be ignored by `collect`.
+    for feedback_dir in pathlib.Path.cwd().rglob("feedback/"):
+        with open(feedback_dir / ".DS_STORE", "w") as _:
+            pass
+        dotfile_folder = feedback_dir / ".some_dotfile_folder"
+        dotfile_folder.mkdir()
+        with open(dotfile_folder / "config", "w") as _:
+            pass
 
 
 @pytest.mark.parametrize(

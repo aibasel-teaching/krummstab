@@ -32,7 +32,11 @@ class Submission:
                 f" '{str(collected_feedback_dir)}' does not exist. You probably"
                 " have to run the 'collect' command first."
             )
-        collected_feedback_files = list(collected_feedback_dir.iterdir())
+        collected_feedback_files = [
+            file
+            for file in collected_feedback_dir.iterdir()
+            if not utils.is_hidden_path(file)
+        ]
         assert (
             len(collected_feedback_files) == 1
             and collected_feedback_files[0].is_file()

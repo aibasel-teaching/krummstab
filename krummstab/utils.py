@@ -183,19 +183,30 @@ def read_json(source: str | pathlib.Path, source_name: str = "file") -> dict:
 # File Handling ----------------------------------------------------------------
 
 
-def is_hidden_file(name: str) -> bool:
+def is_hidden_path(path: pathlib.Path) -> bool:
     """
-    Check if a given file name could be a hidden file. In particular a file that
-    should not be sent to students as feedback.
+    Check if a given file is a hidden file.
     """
-    return name.startswith(".") or is_macos_path(name)
+    # Using path.resolve().parts would give us all parts of the absolute path
+    # instead of only the parts of the relative path, but that would make the
+    # check too strict. We ideally don't want to care whether some parent
+    # directory outside the scope of Krummstab is hidden or not.
+    return is_superfluous_macos_path(path) or any(
+        part.startswith(".") for part in path.parts
+    )
 
 
-def is_macos_path(path: str) -> bool:
+def is_superfluous_macos_path(path: pathlib.Path) -> bool:
     """
-    Check if the given path is non-essential file created by MacOS.
+    Check if the given path is a non-essential file created by MacOS, such as
+    .DS_Store created by Finder or __MACOSX folders created when creating zip
+    archives.
     """
-    return "__MACOSX" in path or ".DS_Store" in path
+    return any(
+        part == magic_string
+        for part in path.parts
+        for magic_string in ["__MACOSX", ".DS_Store"]
+    )
 
 
 def filtered_extract(zip_file: ZipFile, dest: pathlib.Path) -> None:
@@ -203,10 +214,10 @@ def filtered_extract(zip_file: ZipFile, dest: pathlib.Path) -> None:
     Extract all files except for MACOS helper files.
     """
     zip_content = zip_file.namelist()
-    for file_path in zip_content:
-        if is_macos_path(file_path):
+    for file_str in zip_content:
+        if is_superfluous_macos_path(pathlib.Path(file_str)):
             continue
-        zip_file.extract(file_path, dest)
+        zip_file.extract(file_str, dest)
 
 
 def move_content_and_delete(src: pathlib.Path, dst: pathlib.Path) -> None:
