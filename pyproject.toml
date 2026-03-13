@@ -1,6 +1,6 @@
 [project]
 name = "krummstab"
-version = "1.2.0"
+version = "1.2.1"
 description = "Efficiently give feedback on ADAM submissions at University of Basel"
 readme = {file = "README.md", content-type = "text/markdown"}
 license = "GPL-3.0-or-later"
