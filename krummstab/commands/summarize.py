@@ -16,20 +16,6 @@ from .. import config, strings, utils
 from ..teams import create_email_to_name_dict
 
 
-def convert_to_float_if_possible(value):
-    try:
-        return float(value)
-    except ValueError:
-        return value
-
-
-def make_lower_case_if_possible(value):
-    try:
-        return value.lower()
-    except AttributeError:
-        return value
-
-
 def total_score(values):
     total = 0
     for v in values:
@@ -420,7 +406,7 @@ class PointsSummarySheetBuilder:
                 self.write_formula(row, c, formula)
             else:
                 marks = student_marks.get(sheet, "")
-                self.write(row, c, convert_to_float_if_possible(marks))
+                self.write(row, c, utils.convert_to_float_if_possible(marks))
         return OpenpyxlRangeRef(row, col, row, col + len(self.sheets) - 1)
 
     def write_student_total_marks(self, row, col, ref_individual_marks):
@@ -719,7 +705,7 @@ class PointsSummarySheetBuilder:
                     self.write(
                         r,
                         task_column[sheet, task],
-                        convert_to_float_if_possible(task_marks),
+                        utils.convert_to_float_if_possible(task_marks),
                     )
 
                 col_sheet = sheet_column[sheet]
@@ -801,7 +787,7 @@ def load_marks_files(marks_dir: Path, _the_config: config.Config):
                             f"multiple times for {email}!"
                         )
                     students_marks[email][sheet_name][exercise] = (
-                        make_lower_case_if_possible(mark)
+                        utils.make_lower_case_if_possible(mark)
                     )
                     if exercise not in graded_sheet_names[sheet_name]:
                         graded_sheet_names[sheet_name].append(exercise)
@@ -813,8 +799,8 @@ def load_marks_files(marks_dir: Path, _the_config: config.Config):
                         f"Sheet {sheet_name} is marked multiple times for "
                         f"{email}!"
                     )
-                students_marks[email][sheet_name] = make_lower_case_if_possible(
-                    mark
+                students_marks[email][sheet_name] = (
+                    utils.make_lower_case_if_possible(mark)
                 )
     for sheet_name, tutor_list in tutors.items():
         if sheet_name not in _the_config.max_points_per_sheet.keys():
