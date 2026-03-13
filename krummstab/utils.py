@@ -252,3 +252,14 @@ def unzip_or_move_adam_zip(
             pathlib.Path(destination) / unzipped_path.name
         )
         shutil.copytree(unzipped_path, unzipped_destination_path)
+
+
+# Misc -------------------------------------------------------------------------
+
+
+def is_float(s: str) -> bool:
+    try:
+        float(s)
+    except ValueError:
+        return False
+    return True
