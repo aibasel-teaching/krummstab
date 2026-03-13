@@ -509,6 +509,9 @@ explicitly. You can still later send the feedback through Krummstab by reverting
 the changes above and marking the teams you already sent feedback to earlier as
 "not relevant".
 
+### How do I upgrade an existing Krummstab installation to the newest version?
+In the directory of your installation/uv project, run `uv sync --upgrade`.
+
 ### How can I install and use Krummstab without uv?
 ```sh
 # Create an empty directory, e.g. called ki-fs23-marking, and navigate into it.
@@ -528,6 +531,8 @@ the `uv run` prefix present in examples in this document.
 
 # Development
 
+## Setup
+
 To set up for development, you have to
 - install [uv](https://docs.astral.sh/uv/getting-started/installation/)
 - clone this repository
@@ -545,3 +550,22 @@ the `--skip-mark-test` option to `pytest`.
 All code should be formatted according to [Ruff](https://docs.astral.sh/ruff/).
 Some minor settings are in `pyproject.toml`, but they will be applied
 automatically if you run `uv run ruff format` from the root of the repository.
+
+## Publish New Version
+
+To publish a new version, run the following commands in the root of the
+repository containing the Krummstab version to be released:
+
+- run `git switch main`
+- increment the Krummstab version in `pyproject.toml`
+- run `git add pyproject.toml && git commit -m "Bump version."`
+- run `git tag v<version number>`
+- run `git push --tags`
+- remove `dist` directory in case it exists
+- run `uv build`
+- run `uv publish`
+- enter `__token__` as the username
+- provide the Krummstab PyPI API token
+- create a release on GitHub for the newly created tag with the version number
+  as a title
+
