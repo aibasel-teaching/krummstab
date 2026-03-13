@@ -8,6 +8,7 @@ import tempfile
 import jsonschema
 
 from collections import defaultdict
+from typing import Any
 from zipfile import ZipFile
 
 from .students import Student
@@ -180,7 +181,7 @@ def read_json(source: str | pathlib.Path, source_name: str = "file") -> dict:
     return data
 
 
-# File Handling ----------------------------------------------------------------
+# File handling ----------------------------------------------------------------
 
 
 def is_hidden_file(name: str) -> bool:
@@ -243,12 +244,25 @@ def unzip_or_move_adam_zip(
         shutil.copytree(unzipped_path, unzipped_destination_path)
 
 
-# Misc -------------------------------------------------------------------------
+# Type juggling ----------------------------------------------------------------
 
 
-def is_float(s: str) -> bool:
+def represents_float(value: Any) -> bool:
     try:
-        float(s)
+        float(value)
     except ValueError:
         return False
     return True
+
+
+def convert_to_float_if_possible(value: Any) -> Any:
+    if represents_float(value):
+        return float(value)
+    return value
+
+
+def make_lower_case_if_possible(value: Any) -> Any:
+    try:
+        return value.lower()
+    except AttributeError:
+        return value

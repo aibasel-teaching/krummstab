@@ -55,7 +55,8 @@ def validate_marks_json(
     invalid_marks = [
         mark
         for mark in marks_list
-        if not utils.is_float(mark) and mark.lower() != strings.PLAGIARISM
+        if not utils.represents_float(mark)
+        and mark.lower() != strings.PLAGIARISM
     ]
     if invalid_marks:
         logging.critical(
@@ -67,7 +68,7 @@ def validate_marks_json(
     if not all(
         (float(mark) / _the_config.min_point_unit).is_integer()
         for mark in marks_list
-        if utils.is_float(mark)
+        if utils.represents_float(mark)
     ):
         logging.critical(
             f"'{marks_json_file.name}' contains marks that are more "
@@ -224,7 +225,8 @@ def create_individual_marks_file(
         team_key = submission.team.get_team_key()
         for student in submission.team.members:
             student_key = student.email.lower()
-            student_marks.update({student_key: team_marks.get(team_key)})
+            mark = utils.make_lower_case_if_possible(team_marks.get(team_key))
+            student_marks.update({student_key: mark})
     file_content = {
         "tutor_name": _the_config.tutor_name,
         "adam_sheet_name": sheet.name,
