@@ -51,15 +51,28 @@ def validate_marks_json(
         logging.critical(
             f"There are missing points in the '{marks_json_file.name}' file!"
         )
+
+    invalid_marks = [
+        mark
+        for mark in marks_list
+        if not utils.is_float(mark) and mark.lower() != strings.PLAGIARISM
+    ]
+    if invalid_marks:
+        logging.critical(
+            f"'{marks_json_file.name}' contains the following marks that are "
+            f"neither a number nor the magic string '{strings.PLAGIARISM}':\n"
+            f"    {invalid_marks}."
+        )
+
     if not all(
         (float(mark) / _the_config.min_point_unit).is_integer()
         for mark in marks_list
-        if mark.capitalize() != strings.PLAGIARISM
+        if utils.is_float(mark)
     ):
         logging.critical(
-            f"'{marks_json_file.name}' contains marks that are more"
-            " fine-grained than allowed! You may only award points in"
-            f" '{_the_config.min_point_unit}' increments."
+            f"'{marks_json_file.name}' contains marks that are more "
+            "fine-grained than allowed! You may only award points in "
+            f"{_the_config.min_point_unit} increments."
         )
 
 

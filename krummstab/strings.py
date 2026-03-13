@@ -1,4 +1,4 @@
-PLAGIARISM = "Plagiarism"
+PLAGIARISM = "plagiarism"
 
 # File name components
 FEEDBACK_FILE_PREFIX = "feedback_"

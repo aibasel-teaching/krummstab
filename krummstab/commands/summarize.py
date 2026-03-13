@@ -23,6 +23,13 @@ def convert_to_float_if_possible(value):
         return value
 
 
+def make_lower_case_if_possible(value):
+    try:
+        return value.lower()
+    except AttributeError:
+        return value
+
+
 def total_score(values):
     total = 0
     for v in values:
@@ -793,7 +800,9 @@ def load_marks_files(marks_dir: Path, _the_config: config.Config):
                             f"{exercise} of sheet {sheet_name} is marked "
                             f"multiple times for {email}!"
                         )
-                    students_marks[email][sheet_name][exercise] = mark
+                    students_marks[email][sheet_name][exercise] = (
+                        make_lower_case_if_possible(mark)
+                    )
                     if exercise not in graded_sheet_names[sheet_name]:
                         graded_sheet_names[sheet_name].append(exercise)
         else:
@@ -804,7 +813,9 @@ def load_marks_files(marks_dir: Path, _the_config: config.Config):
                         f"Sheet {sheet_name} is marked multiple times for "
                         f"{email}!"
                     )
-                students_marks[email][sheet_name] = mark
+                students_marks[email][sheet_name] = make_lower_case_if_possible(
+                    mark
+                )
     for sheet_name, tutor_list in tutors.items():
         if sheet_name not in _the_config.max_points_per_sheet.keys():
             logging.warning(
