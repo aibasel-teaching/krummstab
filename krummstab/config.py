@@ -111,8 +111,14 @@ def _validate_teams(teams: list[Team], max_team_size) -> None:
             all_students.append((member.first_name, member.last_name))
             all_emails.append(member.email)
     if len(all_students) != len(set(all_students)):
-        logging.critical("There are duplicate students in the config file!")
-    if len(all_emails) != len(set(all_emails)):
+        duplicates = [student for student in set(all_students) if
+                      all_students.count(student) > 1]
         logging.critical(
-            "There are duplicate student emails in the config file!"
+            f"There are duplicate students in the config file: {duplicates}"
+        )
+    if len(all_emails) != len(set(all_emails)):
+        duplicates = [email for email in set(all_emails) if
+                      all_emails.count(email) > 1]
+        logging.critical(
+            f"There are duplicate student emails in the config file: {duplicates}"
         )
